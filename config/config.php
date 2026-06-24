@@ -5,7 +5,7 @@ declare(strict_types=1);
 define('APP_NAME', 'EXE');
 define('APP_URL', 'http://localhost:8000');
 define('BASE_PATH', dirname(__DIR__));
-define('UPLOAD_PATH', BASE_PATH . '/public/uploads');
+define('UPLOAD_PATH', is_dir(BASE_PATH . '/public') ? BASE_PATH . '/public/uploads' : BASE_PATH . '/uploads');
 define('UPLOAD_URL', '/uploads');
 
 define('DB_HOST', '127.0.0.1');

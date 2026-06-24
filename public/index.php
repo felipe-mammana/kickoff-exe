@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-require_once dirname(__DIR__) . '/includes/bootstrap.php';
+$basePath = is_file(__DIR__ . '/includes/bootstrap.php') ? __DIR__ : dirname(__DIR__);
+
+require_once $basePath . '/includes/bootstrap.php';
 
 $route = $_GET['route'] ?? 'dashboard';
 
