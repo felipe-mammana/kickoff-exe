@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AssetCore - Acesso ao Sistema</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@450&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed-dim": "#a8c8ff",
+                    "on-secondary-container": "#5c6370",
+                    "on-secondary": "#ffffff",
+                    "secondary-container": "#d9e0ef",
+                    "on-error": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "surface": "#f7f9fc",
+                    "secondary-fixed": "#dce3f2",
+                    "on-primary-fixed-variant": "#00468b",
+                    "tertiary-container": "#ab5300",
+                    "background": "#f7f9fc",
+                    "secondary": "#585f6b",
+                    "tertiary-fixed-dim": "#ffb688",
+                    "error-container": "#ffdad6",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-fixed": "#d6e3ff",
+                    "outline": "#727783",
+                    "on-background": "#191c1e",
+                    "surface-container": "#eceef1",
+                    "on-primary-fixed": "#001b3d",
+                    "tertiary-fixed": "#ffdbc7",
+                    "surface-container-high": "#e6e8eb",
+                    "secondary-fixed-dim": "#c0c7d5",
+                    "primary-container": "#206bc4",
+                    "surface-container-low": "#f2f4f7",
+                    "inverse-on-surface": "#eff1f4",
+                    "on-primary-container": "#e7edff",
+                    "outline-variant": "#c2c6d4",
+                    "surface-tint": "#005db5",
+                    "tertiary": "#864000",
+                    "on-primary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-container": "#ffeade",
+                    "primary": "#0052a1",
+                    "on-secondary-fixed": "#151c27",
+                    "surface-bright": "#f7f9fc",
+                    "on-surface-variant": "#424752",
+                    "error": "#ba1a1a",
+                    "inverse-surface": "#2d3133",
+                    "on-secondary-fixed-variant": "#404753",
+                    "on-tertiary-fixed": "#311300",
+                    "on-surface": "#191c1e",
+                    "surface-variant": "#e0e3e6",
+                    "inverse-primary": "#a8c8ff",
+                    "on-tertiary-fixed-variant": "#733600",
+                    "surface-container-highest": "#e0e3e6",
+                    "surface-dim": "#d8dadd"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "container-max": "1280px",
+                    "gutter": "24px",
+                    "sm": "8px",
+                    "xl": "32px",
+                    "xs": "4px",
+                    "lg": "24px",
+                    "2xl": "48px",
+                    "base": "4px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "display-lg-mobile": ["Inter"],
+                    "mono-label": ["jetbrainsMono"],
+                    "label-caps": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "body-md": ["Inter"],
+                    "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-md": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "headline-sm": ["16px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                    "mono-label": ["12px", {"lineHeight": "1.4", "fontWeight": "450"}],
+                    "label-caps": ["11px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "display-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "body-sm": ["13px", {"lineHeight": "1.5", "fontWeight": "400"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom focused state for inputs from style guidance */
+        .asset-input:focus-within {
+            box-shadow: 0 0 0 3px rgba(0, 82, 161, 0.15);
+        }
+        .glass-effect {
+            backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.8);
+        }
+        .dark .glass-effect {
+            background: rgba(45, 49, 51, 0.9);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex items-center justify-center p-md overflow-hidden relative">
+<!-- Subtle Tech Background Animation -->
+
+<!-- Content Wrapper (Canvas) -->
+<main class="relative z-10 w-full max-w-md">
+<!-- Login Card -->
+<div class="bg-surface-container-lowest dark:bg-inverse-surface border border-outline-variant dark:border-outline rounded-xl p-xl shadow-lg transition-all duration-300">
+<!-- Branding Header -->
+<div class="flex flex-col items-center mb-xl">
+<div class="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mb-md shadow-md">
+<span class="material-symbols-outlined text-white text-3xl" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+</div>
+<h1 class="font-headline-md text-headline-md text-on-surface dark:text-inverse-on-surface tracking-tight">Acesso ao Sistema</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant dark:text-surface-variant mt-xs text-center">Entre para gerenciar os dispositivos da empresa</p>
+</div>
+<!-- Login Form -->
+<form class="space-y-lg" onsubmit="event.preventDefault();">
+<!-- Email Field -->
+<div class="space-y-xs">
+<label class="font-body-sm text-body-sm font-semibold text-on-surface dark:text-inverse-on-surface" for="email">E-mail</label>
+<div class="asset-input relative flex items-center border border-outline-variant dark:border-outline rounded-lg bg-white dark:bg-surface-dim transition-all focus-within:border-primary">
+<span class="material-symbols-outlined absolute left-md text-outline dark:text-surface-variant">mail</span>
+<input class="w-full pl-xl pr-md py-md bg-transparent border-none focus:ring-0 text-on-surface dark:text-inverse-on-surface font-body-md" id="email" placeholder="nome@empresa.com.br" type="email"/>
+</div>
+</div>
+<!-- Password Field -->
+<div class="space-y-xs">
+<label class="font-body-sm text-body-sm font-semibold text-on-surface dark:text-inverse-on-surface" for="password">Senha</label>
+<div class="asset-input relative flex items-center border border-outline-variant dark:border-outline rounded-lg bg-white dark:bg-surface-dim transition-all focus-within:border-primary">
+<span class="material-symbols-outlined absolute left-md text-outline dark:text-surface-variant">lock</span>
+<input class="w-full pl-xl pr-xl py-md bg-transparent border-none focus:ring-0 text-on-surface dark:text-inverse-on-surface font-body-md" id="password" placeholder="Digite sua senha" type="password"/>
+<button class="absolute right-md text-outline dark:text-surface-variant hover:text-primary transition-colors flex items-center" onclick="togglePassword()" type="button">
+<span class="material-symbols-outlined" id="password-toggle-icon">visibility</span>
+</button>
+</div>
+</div>
+<!-- Forgot Password -->
+<div class="flex justify-end">
+<a class="font-body-sm text-body-sm text-primary dark:text-primary-fixed-dim hover:underline transition-all" href="#">Esqueceu a senha?</a>
+</div>
+<!-- Action Button -->
+<button class="w-full bg-primary hover:bg-primary-container text-white py-md rounded-lg font-headline-sm transition-all transform active:scale-95 shadow-md" type="submit">
+                    Entrar
+                </button>
+</form>
+<!-- Footer / System Note -->
+<div class="mt-xl pt-lg border-t border-outline-variant dark:border-outline flex flex-col items-center gap-sm">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-outline dark:text-surface-variant text-sm">security</span>
+<span class="font-label-caps text-label-caps text-on-secondary-container">Acesso Criptografado SSL</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant dark:text-surface-variant opacity-70">AssetCore v4.2.0 • Corporate Edition</p>
+</div>
+</div>
+<!-- Dark Mode Toggle (Fixed Position Logic) -->
+<div class="mt-lg flex justify-center">
+<button class="flex items-center gap-sm px-md py-sm bg-surface-container-high dark:bg-surface-variant rounded-full text-on-surface-variant dark:text-surface-variant font-label-caps text-label-caps hover:bg-outline-variant transition-colors" onclick="document.documentElement.classList.toggle('dark')">
+<span class="material-symbols-outlined text-md">contrast</span>
+                Alternar Tema
+            </button>
+</div>
+</main>
+<!-- Micro-interactions Script -->
+<script>
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('password-toggle-icon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.innerText = 'visibility_off';
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.innerText = 'visibility';
+            }
+        }
+
+        // Add visual weight to primary blue on hover via JS for smooth transition
+        const loginBtn = document.querySelector('button[type="submit"]');
+        loginBtn.addEventListener('mouseenter', () => {
+            loginBtn.style.boxShadow = '0 8px 16px -4px rgba(0, 82, 161, 0.4)';
+        });
+        loginBtn.addEventListener('mouseleave', () => {
+            loginBtn.style.boxShadow = '';
+        });
+    </script>
+</body></html>

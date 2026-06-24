@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AssetCore - Device Details AC-NB-042</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@450&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed-dim": "#a8c8ff",
+                    "on-secondary-container": "#5c6370",
+                    "on-secondary": "#ffffff",
+                    "secondary-container": "#d9e0ef",
+                    "on-error": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "surface": "#f7f9fc",
+                    "secondary-fixed": "#dce3f2",
+                    "on-primary-fixed-variant": "#00468b",
+                    "tertiary-container": "#ab5300",
+                    "background": "#f7f9fc",
+                    "secondary": "#585f6b",
+                    "tertiary-fixed-dim": "#ffb688",
+                    "error-container": "#ffdad6",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-fixed": "#d6e3ff",
+                    "outline": "#727783",
+                    "on-background": "#191c1e",
+                    "surface-container": "#eceef1",
+                    "on-primary-fixed": "#001b3d",
+                    "tertiary-fixed": "#ffdbc7",
+                    "surface-container-high": "#e6e8eb",
+                    "secondary-fixed-dim": "#c0c7d5",
+                    "primary-container": "#206bc4",
+                    "surface-container-low": "#f2f4f7",
+                    "inverse-on-surface": "#eff1f4",
+                    "on-primary-container": "#e7edff",
+                    "outline-variant": "#c2c6d4",
+                    "surface-tint": "#005db5",
+                    "tertiary": "#864000",
+                    "on-primary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-container": "#ffeade",
+                    "primary": "#0052a1",
+                    "on-secondary-fixed": "#151c27",
+                    "surface-bright": "#f7f9fc",
+                    "on-surface-variant": "#424752",
+                    "error": "#ba1a1a",
+                    "inverse-surface": "#2d3133",
+                    "on-secondary-fixed-variant": "#404753",
+                    "on-tertiary-fixed": "#311300",
+                    "on-surface": "#191c1e",
+                    "surface-variant": "#e0e3e6",
+                    "inverse-primary": "#a8c8ff",
+                    "on-tertiary-fixed-variant": "#733600",
+                    "surface-container-highest": "#e0e3e6",
+                    "surface-dim": "#d8dadd"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "container-max": "1280px",
+                    "gutter": "24px",
+                    "sm": "8px",
+                    "xl": "32px",
+                    "xs": "4px",
+                    "lg": "24px",
+                    "2xl": "48px",
+                    "base": "4px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "display-lg-mobile": ["Inter"],
+                    "mono-label": ["jetbrainsMono"],
+                    "label-caps": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "body-md": ["Inter"],
+                    "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-md": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "headline-sm": ["16px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "display-lg-mobile": ["24px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                    "mono-label": ["12px", {"lineHeight": "1.4", "fontWeight": "450"}],
+                    "label-caps": ["11px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "display-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "body-sm": ["13px", {"lineHeight": "1.5", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        body {
+            background-color: #f7f9fc;
+            color: #191c1e;
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md overflow-x-hidden">
+<!-- Layout Wrapper -->
+<div class="flex min-h-screen">
+<!-- SideNavBar (JSON Derived) -->
+<aside class="fixed left-0 top-0 h-full hidden lg:flex flex-col bg-surface-container-lowest dark:bg-inverse-surface w-64 border-r border-outline-variant dark:border-outline z-40">
+<div class="p-lg flex items-center gap-sm">
+<div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined">settings_suggest</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim leading-none">AssetCore</h1>
+<p class="text-[10px] font-label-caps uppercase tracking-wider text-on-surface-variant">IT Asset Management</p>
+</div>
+</div>
+<nav class="flex-1 px-md py-md space-y-xs">
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">business</span>
+<span class="font-body-md">Companies</span>
+</a>
+<!-- Active Navigation: Devices -->
+<a class="flex items-center gap-md px-md py-sm bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-lg font-semibold Active: opacity-90 transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">devices</span>
+<span class="font-body-md">Devices</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">add_circle</span>
+<span class="font-body-md">Add Device</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">photo_library</span>
+<span class="font-body-md">Photos</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-body-md">Logs</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-body-md">Users</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md">Settings</span>
+</a>
+</nav>
+<div class="p-md border-t border-outline-variant">
+<div class="flex items-center gap-md p-sm hover:bg-surface-container rounded-lg transition-colors cursor-pointer">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a corporate IT manager in a modern office environment, soft daylight illumination, clean and sharp focus on the face." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6EI6t0ylc1wkGUAA0BHaky3uHC8Emf3fVq3OsvXSPQLE6dM78wJZBjE4hyZUk0uhBfwl5isooQOR1KHhtQDsyMqbwqw13iZ-K6u81_C1ZP6Xyd4GPecFHvxmFt0bI5gOXQFYDFPucwYG0cbQwUNus9YSSApqYtwPDBcab9yAvhoAH80h6JiKPyqrLB57pdRPeYe9IQLCQlVUxH4x1gMTNh2kZ-3Ap1688R81JJXKThqxNvt-y0dxRx5_nYYarK3BeKE_VZkXb5_kZ"/>
+</div>
+<div class="flex-1 overflow-hidden">
+<p class="font-body-sm font-semibold truncate">Ricardo Admin</p>
+<p class="text-[10px] text-on-surface-variant truncate">Global IT Lead</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">logout</span>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 lg:ml-64 pb-20 lg:pb-0">
+<!-- TopAppBar (JSON Derived) -->
+<header class="flex justify-between items-center w-full px-lg py-md sticky top-0 z-30 bg-surface/80 backdrop-blur-md border-b border-outline-variant dark:border-outline">
+<div class="flex items-center gap-lg">
+<button class="lg:hidden p-sm text-on-surface">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="bg-surface-container-low border-none rounded-full pl-10 pr-lg py-sm text-body-sm w-64 focus:ring-2 focus:ring-primary-container outline-none" placeholder="Search assets..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="p-sm rounded-full hover:bg-surface-container-high transition-colors focus:ring-2 focus:ring-primary-container">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+</button>
+<button class="p-sm rounded-full hover:bg-surface-container-high transition-colors focus:ring-2 focus:ring-primary-container">
+<span class="material-symbols-outlined text-on-surface-variant">dark_mode</span>
+</button>
+<div class="h-6 w-[1px] bg-outline-variant mx-xs"></div>
+<button class="font-body-sm font-semibold text-primary px-md py-sm rounded-lg hover:bg-primary-container/10 transition-colors">Help</button>
+<button class="bg-primary text-on-primary px-lg py-sm rounded-lg font-semibold shadow-sm hover:opacity-90 transition-all">Profile</button>
+</div>
+</header>
+<div class="max-w-container-max mx-auto p-lg">
+<!-- Page Title & Quick Actions -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-xl gap-md">
+<div>
+<nav class="flex items-center gap-xs text-[11px] font-label-caps text-on-surface-variant mb-xs">
+<span>ASSETS</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span>DEVICES</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-primary">AC-NB-042</span>
+</nav>
+<h2 class="font-display-lg text-display-lg text-on-surface">Detalhes do Dispositivo: <span class="font-mono-label text-headline-sm bg-surface-container px-2 py-1 rounded">AC-NB-042</span></h2>
+</div>
+<div class="flex items-center gap-sm">
+<span class="flex items-center gap-xs px-md py-1.5 bg-green-100 text-green-800 rounded-full font-label-caps text-[11px] border border-green-200">
+<span class="w-2 h-2 rounded-full bg-green-600 animate-pulse"></span>
+                            Ativo
+                        </span>
+<div class="h-8 w-[1px] bg-outline-variant mx-sm"></div>
+<button class="flex items-center gap-xs px-md py-2 border border-outline-variant rounded-lg font-semibold hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-body-md">print</span>
+                            Voltar
+                        </button>
+<button class="flex items-center gap-xs px-md py-2 bg-primary text-on-primary rounded-lg font-semibold hover:opacity-90 transition-all">
+<span class="material-symbols-outlined text-body-md">edit</span>
+                            Editar
+                        </button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-lg">
+<!-- Main Specs Card -->
+<div class="lg:col-span-8 space-y-lg">
+<!-- Info Grid Header -->
+<div class="bg-surface-container-lowest p-xl rounded-xl border border-outline-variant shadow-sm flex flex-wrap gap-xl">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 bg-secondary-container rounded-lg flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[32px]">laptop_mac</span>
+</div>
+<div>
+<p class="text-label-caps text-on-surface-variant">Device Type</p>
+<p class="font-headline-sm">Notebook</p>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 bg-surface-container-high rounded-lg flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[32px]">domain</span>
+</div>
+<div>
+<p class="text-label-caps text-on-surface-variant">Empresa</p>
+<p class="font-headline-sm">AssetCore Global</p>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 bg-surface-container-high rounded-lg flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[32px]">label</span>
+</div>
+<div>
+<p class="text-label-caps text-on-surface-variant">Etiqueta</p>
+<p class="font-headline-sm">IT-2024-XP</p>
+</div>
+</div>
+</div>
+<!-- Dados Técnicos Section -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+<div class="px-xl py-md bg-surface-container-low border-b border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">description</span>
+<h3 class="font-headline-sm">Dados Técnicos</h3>
+</div>
+<span class="text-label-caps text-on-surface-variant">Última atualização: Hoje 14:20</span>
+</div>
+<div class="p-xl grid grid-cols-1 md:grid-cols-2 gap-y-lg gap-x-xl">
+<div class="space-y-1">
+<p class="text-label-caps text-on-surface-variant">Hostname Novo</p>
+<p class="font-body-md font-semibold text-on-surface">AC-LAPTOP-RIC-042</p>
+</div>
+<div class="space-y-1">
+<p class="text-label-caps text-on-surface-variant">Colaborador</p>
+<p class="font-body-md font-semibold text-on-surface">Ricardo Oliveira</p>
+</div>
+<div class="space-y-1">
+<p class="text-label-caps text-on-surface-variant">Departamento</p>
+<p class="font-body-md font-semibold text-on-surface">Engenharia de Software</p>
+</div>
+<div class="space-y-1">
+<p class="text-label-caps text-on-surface-variant">Modelo</p>
+<p class="font-body-md font-semibold text-on-surface">MacBook Pro 14" M3 Max</p>
+</div>
+<div class="space-y-1">
+<p class="text-label-caps text-on-surface-variant">Senha Padrão Bios</p>
+<div class="flex items-center gap-sm">
+<p class="font-mono-label text-on-surface tracking-tighter">********</p>
+<button class="text-primary hover:underline text-[11px] font-semibold">Revelar</button>
+</div>
+</div>
+<div class="space-y-1">
+<p class="text-label-caps text-on-surface-variant">Data de Atribuição</p>
+<p class="font-body-md font-semibold text-on-surface">12 de Jan, 2024</p>
+</div>
+</div>
+</div>
+<!-- Gallery Section -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+<div class="px-xl py-md bg-surface-container-low border-b border-outline-variant flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">photo_library</span>
+<h3 class="font-headline-sm">Galeria de Fotos</h3>
+</div>
+<div class="p-xl grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-md">
+<div class="group relative aspect-video rounded-lg overflow-hidden cursor-zoom-in border border-outline-variant hover:ring-2 hover:ring-primary-container transition-all">
+<img class="w-full h-full object-cover" data-alt="High-quality professional shot of a silver MacBook Pro on a white desk, focusing on the frontal view and keyboard. Crisp clean studio lighting, corporate aesthetic, shallow depth of field." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpaz8KnGQrJJT7RzuvP4QxH4i6_r61zBwht0pd-vF5WXRSNaKjy9iu5tLNrivEN2QBJSsY83nyP2MeqYB1PBGXPwdAmYbRZIu2rHw2FEB0Lg5GAuA04wm--r15iN4CrlOMFBXWRIgU2Or_WUxXvoL8W1eIwGoxNlTG-kQmS_aJSsaj6F3e1n-XxLnp2dQX47z_5SNruFspfJQp_pyhyy9kh7XKB3uQT7OVPdOXiYaxfaDz5Otw9BlySzvc1OMNMUFulCfqfsZnMtM2"/>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+<span class="text-white text-label-caps">Frontal View</span>
+</div>
+</div>
+<div class="group relative aspect-video rounded-lg overflow-hidden cursor-zoom-in border border-outline-variant hover:ring-2 hover:ring-primary-container transition-all">
+<img class="w-full h-full object-cover" data-alt="Macro close-up photo of an IT asset management label fixed to the underside of a laptop, clear sharp text and barcode against a metallic surface. Technical lighting, industrial style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuChDWMLAB1oakC21TypmiZiWEE8KQDLskvLDIqGb-iCurFbPwl_SohK3LAnAJtKpg_bRGQihBFE9f7sEnsAp6nlX7RIlf1nV-nzsKvCh2hR8iq00UsUsbPxEN3t8lgm8ApDw8y-D5hS78ecOnP6JyoV5S9MLQx9v0mZDUkrdYBf7rWHjb2K601uSRaa5MwHyCdC6VbUp_ZHIoqgtaWHG9EKMfPunY0nPn3l5_hSyOL_9dw4vg-XcZRJ5k6mho-_dt4yZsAfc1kTm5us"/>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+<span class="text-white text-label-caps">Label Detail</span>
+</div>
+</div>
+<div class="group relative aspect-video rounded-lg overflow-hidden cursor-zoom-in border border-outline-variant hover:ring-2 hover:ring-primary-container transition-all">
+<img class="w-full h-full object-cover" data-alt="Detail photo showing the side ports of a modern laptop, focusing on USB-C and HDMI connectors. Bright, clean high-tech photography style, focus on hardware precision." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA75hBh_oUZUgJDYqCl9sHmkG0q0NbWvvZ9b8pSL7Hqk5cMIL6VOoUfeGOaUvBTd27kmgkiJ_ajBL8cu_CU_5YXODhvC01rGTp2iENYjpVX-uHW2JwprkETdhcnCRhAbDW7ppHiJ_JJ8NIXJPXxpurMV11kgdGxAKyqufJZoNGMqGzz2JaDq9S7KKTSnw1admm3JkyG6DCX2OcBNUE2IM8HdwOGx3_6_r2Wr_CRDjgX5X7_tYEak4eKmfIHcmdgoml8cxpFEZJp3DRc"/>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+<span class="text-white text-label-caps">Ports</span>
+</div>
+</div>
+<button class="aspect-video rounded-lg border-2 border-dashed border-outline-variant flex flex-col items-center justify-center gap-xs hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-outline">add_a_photo</span>
+<span class="text-[11px] font-label-caps text-on-surface-variant">Adicionar</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Side Panels -->
+<div class="lg:col-span-4 space-y-lg">
+<!-- Checklist Section -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+<div class="px-xl py-md bg-surface-container-low border-b border-outline-variant flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">fact_check</span>
+<h3 class="font-headline-sm">Checklist de Compliance</h3>
+</div>
+<div class="p-xl space-y-md">
+<div class="flex items-center justify-between p-md bg-green-50/50 border border-green-100 rounded-lg">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-green-600" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-body-md font-semibold">TFlux Instalado</span>
+</div>
+<span class="text-[11px] font-label-caps text-green-700">Verificado</span>
+</div>
+<div class="flex items-center justify-between p-md bg-green-50/50 border border-green-100 rounded-lg">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-green-600" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-body-md font-semibold">Antivírus Ativo</span>
+</div>
+<span class="text-[11px] font-label-caps text-green-700">Verificado</span>
+</div>
+<div class="flex items-center justify-between p-md bg-surface-container-low border border-outline-variant rounded-lg opacity-60">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-outline">radio_button_unchecked</span>
+<span class="font-body-md">Criptografia Disco</span>
+</div>
+<span class="text-[11px] font-label-caps text-on-surface-variant">Pendente</span>
+</div>
+</div>
+</div>
+<!-- Danger Zone -->
+<div class="bg-error-container/10 rounded-xl border border-error-container shadow-sm p-xl">
+<h3 class="font-headline-sm text-error mb-md flex items-center gap-sm">
+<span class="material-symbols-outlined">warning</span>
+                                Zona de Risco
+                            </h3>
+<p class="text-body-sm text-on-surface-variant mb-lg">Ações irreversíveis que impactam a disponibilidade do ativo no inventário global.</p>
+<button class="w-full py-md bg-error text-on-error rounded-lg font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined text-body-md">no_sim</span>
+                                Desativar Dispositivo
+                            </button>
+</div>
+<!-- Maintenance History (Bonus Context) -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm p-xl">
+<h3 class="font-headline-sm mb-lg">Histórico Recente</h3>
+<div class="space-y-xl relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-[1px] before:bg-outline-variant">
+<div class="relative pl-8">
+<div class="absolute left-0 top-1 w-6 h-6 bg-primary rounded-full border-4 border-surface-container-lowest"></div>
+<p class="font-body-sm font-semibold">Troca de SSD realizada</p>
+<p class="text-[11px] text-on-surface-variant">Ontem às 10:15 por Admin</p>
+</div>
+<div class="relative pl-8">
+<div class="absolute left-0 top-1 w-6 h-6 bg-outline rounded-full border-4 border-surface-container-lowest"></div>
+<p class="font-body-sm font-semibold">Atribuído ao Ricardo</p>
+<p class="text-[11px] text-on-surface-variant">12 Jan, 2024 por RH Lead</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (JSON Derived - Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-2 lg:hidden bg-surface-container-highest dark:bg-inverse-surface border-t border-outline-variant shadow-lg rounded-t-xl">
+<a class="flex flex-col items-center justify-center text-on-surface-variant p-2 Active: scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-[10px]">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl p-2 Active: scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">devices</span>
+<span class="font-label-caps text-[10px]">Devices</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant p-2 Active: scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">add_box</span>
+<span class="font-label-caps text-[10px]">Add</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant p-2 Active: scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-caps text-[10px]">Logs</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant p-2 Active: scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-caps text-[10px]">Settings</span>
+</a>
+</nav>
+</div>
+<!-- Simple Modal Overlay (Mock) -->
+<div class="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center hidden opacity-0 transition-opacity duration-300" id="photo-modal">
+<div class="max-w-4xl w-full p-md">
+<button class="absolute top-8 right-8 text-white text-4xl" onclick="closeModal()">×</button>
+<img class="w-full h-auto rounded-xl" data-alt="Enlarged view of the previously selected laptop photo. The image is crisp, high-resolution, and perfectly centered within a minimalist lightbox. High-end corporate presentation style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4QaVvsESgnVOGj3JCRH_6O4ZfnJjYOW7Nu43yakMQogmWAkS2MoE0BLGbijtzRvf-kcWkQku7VBj5o2alJJS8f5ENYxOPBRBNHR-blhTkq1HTT3D0ulESNy_jvPFC7DJ3gNLg_bHDeDW8c-HobOZNmLdg-B3JCePnIQAGVv9cdNxochJI-fxALNbg47CcpwUNfugmFMYOTMkO9jBw68lem1UtshTHtJnkg7h_phvorNXHQbFlAO5pANsIU3vg-L8by-1QY8dwYceZ"/>
+<div class="mt-md text-center text-white font-body-md">Frontal View - AC-NB-042</div>
+</div>
+</div>
+<script>
+        // Micro-interactions for Gallery
+        const thumbnails = document.querySelectorAll('.cursor-zoom-in');
+        const modal = document.getElementById('photo-modal');
+        
+        thumbnails.forEach(thumb => {
+            thumb.addEventListener('click', () => {
+                modal.classList.remove('hidden');
+                setTimeout(() => modal.classList.add('opacity-100'), 10);
+            });
+        });
+
+        function closeModal() {
+            modal.classList.remove('opacity-100');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        // Toggle Password visibility
+        const revealBtn = document.querySelector('button:contains("Revelar")');
+        if(revealBtn) {
+            revealBtn.addEventListener('click', function() {
+                const p = this.previousElementSibling;
+                if(p.textContent === '********') {
+                    p.textContent = 'Admin@Asset2024';
+                    this.textContent = 'Ocultar';
+                } else {
+                    p.textContent = '********';
+                    this.textContent = 'Revelar';
+                }
+            });
+        }
+        
+        // Custom contains selector polyfill
+        window.addEventListener('DOMContentLoaded', () => {
+           const btns = document.querySelectorAll('button');
+           btns.forEach(btn => {
+               if(btn.innerText.includes('Revelar')) {
+                   btn.onclick = () => {
+                       const passText = btn.parentElement.querySelector('p');
+                       if(passText.textContent === '********') {
+                           passText.textContent = 'A-Core_99X!';
+                           btn.textContent = 'Ocultar';
+                       } else {
+                           passText.textContent = '********';
+                           btn.textContent = 'Revelar';
+                       }
+                   }
+               }
+           });
+        });
+    </script>
+</body></html>

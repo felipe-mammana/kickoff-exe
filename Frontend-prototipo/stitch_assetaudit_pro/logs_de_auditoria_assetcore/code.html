@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AssetCore - Logs e Auditoria</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@450&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed-dim": "#a8c8ff",
+                    "on-secondary-container": "#5c6370",
+                    "on-secondary": "#ffffff",
+                    "secondary-container": "#d9e0ef",
+                    "on-error": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "surface": "#f7f9fc",
+                    "secondary-fixed": "#dce3f2",
+                    "on-primary-fixed-variant": "#00468b",
+                    "tertiary-container": "#ab5300",
+                    "background": "#f7f9fc",
+                    "secondary": "#585f6b",
+                    "tertiary-fixed-dim": "#ffb688",
+                    "error-container": "#ffdad6",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-fixed": "#d6e3ff",
+                    "outline": "#727783",
+                    "on-background": "#191c1e",
+                    "surface-container": "#eceef1",
+                    "on-primary-fixed": "#001b3d",
+                    "tertiary-fixed": "#ffdbc7",
+                    "surface-container-high": "#e6e8eb",
+                    "secondary-fixed-dim": "#c0c7d5",
+                    "primary-container": "#206bc4",
+                    "surface-container-low": "#f2f4f7",
+                    "inverse-on-surface": "#eff1f4",
+                    "on-primary-container": "#e7edff",
+                    "outline-variant": "#c2c6d4",
+                    "surface-tint": "#005db5",
+                    "tertiary": "#864000",
+                    "on-primary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-container": "#ffeade",
+                    "primary": "#0052a1",
+                    "on-secondary-fixed": "#151c27",
+                    "surface-bright": "#f7f9fc",
+                    "on-surface-variant": "#424752",
+                    "error": "#ba1a1a",
+                    "inverse-surface": "#2d3133",
+                    "on-secondary-fixed-variant": "#404753",
+                    "on-tertiary-fixed": "#311300",
+                    "on-surface": "#191c1e",
+                    "surface-variant": "#e0e3e6",
+                    "inverse-primary": "#a8c8ff",
+                    "on-tertiary-fixed-variant": "#733600",
+                    "surface-container-highest": "#e0e3e6",
+                    "surface-dim": "#d8dadd"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "container-max": "1280px",
+                    "gutter": "24px",
+                    "sm": "8px",
+                    "xl": "32px",
+                    "xs": "4px",
+                    "lg": "24px",
+                    "2xl": "48px",
+                    "base": "4px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "body-md": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "mono-label": ["JetBrains Mono"]
+            },
+            "fontSize": {
+                    "headline-md": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "headline-sm": ["16px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "display-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "body-sm": ["13px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "label-caps": ["11px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "mono-label": ["12px", {"lineHeight": "1.4", "fontWeight": "450"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen flex font-body-md">
+<!-- SideNavBar Shell -->
+<aside class="fixed left-0 top-0 h-full hidden lg:flex flex-col bg-surface-container-lowest dark:bg-inverse-surface h-screen w-64 border-r border-outline-variant dark:border-outline z-50">
+<div class="p-lg">
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim">AssetCore</h1>
+<p class="text-on-surface-variant font-body-sm">IT Asset Management</p>
+</div>
+<nav class="flex-1 px-md space-y-xs overflow-y-auto custom-scrollbar">
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">business</span>
+<span class="font-body-md">Companies</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">devices</span>
+<span class="font-body-md">Devices</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">add_circle</span>
+<span class="font-body-md">Add Device</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">photo_library</span>
+<span class="font-body-md">Photos</span>
+</a>
+<!-- Active State Logic: Logs -->
+<a class="flex items-center gap-md px-md py-sm bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-lg font-semibold Active: opacity-90 transition-all" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-body-md">Logs</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-body-md">Users</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md">Settings</span>
+</a>
+</nav>
+<div class="p-md border-t border-outline-variant">
+<div class="flex items-center gap-sm">
+<img class="w-10 h-10 rounded-full border border-outline-variant object-cover" data-alt="A professional studio headshot of a senior IT administrator wearing a crisp white shirt against a neutral gray background. The lighting is bright and even, highlighting a calm, trustworthy expression suitable for a corporate environment. The image is clear and high-resolution with a modern, professional aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGhx99BtwffDZnobxssVUMppG5i-gjK9cx_-s6bPmMDaFO6mEd4ns2tIpDYmS2GPymGsPzkEakbFH95OHBXbjbYipMOKTZn0KBvJX1SvFZE-NAEYgpt8FG2vaKNEDAHe1vkWVJiVCxbVhQeIgq5pBKZP6w_iRT_6ihK1vxb9gOKGpJHW3ow5woY41jOzNaSISbqbJRiHib8HeERHHCzUXOYMPJt2iVJ6uG64yFqoy4NNOr9YYlbjfNTCi9ff90n-6R0za9FGqjtbmL"/>
+<div class="flex-1 min-w-0">
+<p class="font-headline-sm text-headline-sm truncate">Admin User</p>
+<p class="text-on-surface-variant text-body-sm truncate">Super Admin</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col lg:pl-64 min-w-0">
+<!-- TopNavBar Shell -->
+<header class="flex justify-between items-center w-full px-lg py-md sticky top-0 z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant dark:border-outline">
+<div class="flex items-center gap-md">
+<div class="lg:hidden">
+<span class="material-symbols-outlined text-primary">menu</span>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="pl-10 pr-md py-xs bg-surface-container border border-outline-variant rounded-lg font-body-sm w-64 focus:ring-2 focus:ring-primary-container outline-none transition-all" placeholder="Pesquisar em logs..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-lg">
+<div class="flex items-center gap-md">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors focus:ring-2 focus:ring-primary-container">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors focus:ring-2 focus:ring-primary-container">dark_mode</button>
+</div>
+<div class="h-6 w-px bg-outline-variant"></div>
+<div class="flex items-center gap-md">
+<a class="text-on-surface-variant font-headline-sm hover:text-primary transition-colors" href="#">Help</a>
+<a class="text-on-surface-variant font-headline-sm hover:text-primary transition-colors" href="#">Profile</a>
+</div>
+</div>
+</header>
+<!-- Content Area -->
+<div class="p-lg max-w-container-max mx-auto w-full space-y-lg">
+<!-- Page Title & Actions -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-md">
+<div>
+<h2 class="font-display-lg text-display-lg text-primary">Logs de Auditoria</h2>
+<p class="text-on-surface-variant font-body-md mt-xs">Rastreabilidade total de ações e alterações no sistema AssetCore.</p>
+</div>
+<div class="flex gap-sm">
+<button class="flex items-center gap-xs px-md py-sm bg-surface-container-lowest border border-outline-variant rounded-lg text-on-surface-variant font-headline-sm hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined">download</span>
+<span>Exportar CSV</span>
+</button>
+<button class="flex items-center gap-xs px-md py-sm bg-primary text-on-primary rounded-lg font-headline-sm hover:opacity-90 transition-all">
+<span class="material-symbols-outlined">filter_list</span>
+<span>Filtros Avançados</span>
+</button>
+</div>
+</div>
+<!-- Bento Grid - Filters & Summary -->
+<div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-lg">
+<!-- Filters Section -->
+<div class="md:col-span-4 lg:col-span-12 bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-sm">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
+<div class="space-y-xs">
+<label class="font-body-sm font-semibold text-on-surface">Usuário</label>
+<select class="w-full bg-white border border-outline-variant rounded-lg p-xs font-body-sm outline-none focus:ring-2 focus:ring-primary-container">
+<option>Todos os usuários</option>
+<option>Admin Principal</option>
+<option>Operador 01</option>
+</select>
+</div>
+<div class="space-y-xs">
+<label class="font-body-sm font-semibold text-on-surface">Empresa</label>
+<select class="w-full bg-white border border-outline-variant rounded-lg p-xs font-body-sm outline-none focus:ring-2 focus:ring-primary-container">
+<option>Todas as empresas</option>
+<option>Matriz São Paulo</option>
+<option>Filial Rio</option>
+</select>
+</div>
+<div class="space-y-xs">
+<label class="font-body-sm font-semibold text-on-surface">Ação</label>
+<select class="w-full bg-white border border-outline-variant rounded-lg p-xs font-body-sm outline-none focus:ring-2 focus:ring-primary-container">
+<option>Todas as ações</option>
+<option>Cadastro</option>
+<option>Edição</option>
+<option>Login</option>
+</select>
+</div>
+<div class="space-y-xs">
+<label class="font-body-sm font-semibold text-on-surface">Período</label>
+<div class="flex gap-xs">
+<input class="w-1/2 bg-white border border-outline-variant rounded-lg p-xs font-body-sm outline-none focus:ring-2 focus:ring-primary-container" type="date"/>
+<input class="w-1/2 bg-white border border-outline-variant rounded-lg p-xs font-body-sm outline-none focus:ring-2 focus:ring-primary-container" type="date"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Main Data Table Container -->
+<div class="md:col-span-4 lg:col-span-12 bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full text-left border-collapse min-w-[1000px]">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="px-md py-sm font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Usuário</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Data/Hora</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Ação</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Dispositivo/Empresa</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Campo Alterado</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Valor Antigo → Novo</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-md py-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed font-semibold text-xs">RM</div>
+<div class="flex flex-col">
+<span class="font-headline-sm">Ricardo Maia</span>
+<span class="text-body-sm text-on-surface-variant">ID: #0421</span>
+</div>
+</div>
+</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-md">24 Out 2023</span>
+<span class="text-body-sm text-on-surface-variant">14:22:10</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="px-sm py-xs bg-secondary-container text-on-secondary-container rounded font-label-caps text-[10px] inline-flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">edit</span>
+                                            EDIÇÃO
+                                        </span>
+</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-md">MacBook Pro 14"</span>
+<span class="text-body-sm text-on-surface-variant">Unidade Curitiba</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="font-mono-label bg-surface-container-high px-xs py-[2px] rounded">status_projeto</span>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs font-mono-label">
+<span class="text-error bg-error-container/20 px-xs rounded">Em Análise</span>
+<span class="material-symbols-outlined text-[16px] text-outline">arrow_forward</span>
+<span class="text-primary bg-primary-container/10 px-xs rounded">Aprovado</span>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-md py-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed font-semibold text-xs">AS</div>
+<div class="flex flex-col">
+<span class="font-headline-sm">Ana Silva</span>
+<span class="text-body-sm text-on-surface-variant">ID: #0588</span>
+</div>
+</div>
+</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-md">24 Out 2023</span>
+<span class="text-body-sm text-on-surface-variant">13:05:45</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="px-sm py-xs bg-primary-container/20 text-primary rounded font-label-caps text-[10px] inline-flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">add_box</span>
+                                            CADASTRO
+                                        </span>
+</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-md">Dell Precision 5570</span>
+<span class="text-body-sm text-on-surface-variant">Logística Global</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="font-mono-label bg-surface-container-high px-xs py-[2px] rounded">—</span>
+</td>
+<td class="px-md py-md">
+<span class="text-body-sm italic text-on-surface-variant">Novo ativo adicionado à base</span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-md py-md">
+<div class="flex items-center gap-sm">
+<img class="w-8 h-8 rounded-full object-cover" data-alt="A small circular user profile picture of a young professional woman with glasses and dark hair tied back. She is in a corporate setting with soft bokeh backgrounds of an office. The lighting is bright and clear, emphasizing a high-end administrative professional persona." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvmMg4MfoOutSOlNYBCY6TKDTe-JtkucLDAvQVXO_3NmQ-MKBFYv16AvdWFFPuaceoJknZzFbQUa3O0oY72gZS2W5bzdOtTBna0EHWNUsnRWGsSIDAbf9lzWVRuU5l9-a7A5P3AShRsjanJg7KqUF_f_Zs9uxADAXO0PqpCRi7CfeFmeccPd9sUQynRb7nfw9nXEl_B6oDQj0qKneJoLoF9oWimgC7qhu7UGU4ikjQzlUTCkblyjygjbksR73fqea2oeT1YeEz16cy"/>
+<div class="flex flex-col">
+<span class="font-headline-sm">Carla Souza</span>
+<span class="text-body-sm text-on-surface-variant">ID: #0112</span>
+</div>
+</div>
+</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-md">24 Out 2023</span>
+<span class="text-body-sm text-on-surface-variant">09:15:22</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="px-sm py-xs bg-surface-container-highest text-on-surface-variant rounded font-label-caps text-[10px] inline-flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">login</span>
+                                            LOGIN
+                                        </span>
+</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-md">Portal Web Admin</span>
+<span class="text-body-sm text-on-surface-variant">Acesso Remoto (VPN)</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="font-mono-label bg-surface-container-high px-xs py-[2px] rounded">last_session</span>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs font-mono-label">
+<span class="text-on-surface-variant">177.45.12.8</span>
+<span class="material-symbols-outlined text-[16px] text-outline">arrow_forward</span>
+<span class="text-primary">189.12.44.201</span>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-lowest transition-colors">
+<td class="px-md py-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed font-semibold text-xs">JH</div>
+<div class="flex flex-col">
+<span class="font-headline-sm">João Henrique</span>
+<span class="text-body-sm text-on-surface-variant">ID: #0933</span>
+</div>
+</div>
+</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-md">23 Out 2023</span>
+<span class="text-body-sm text-on-surface-variant">17:50:01</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="px-sm py-xs bg-secondary-container text-on-secondary-container rounded font-label-caps text-[10px] inline-flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">edit</span>
+                                            EDIÇÃO
+                                        </span>
+</td>
+<td class="px-md py-md">
+<div class="flex flex-col">
+<span class="font-body-md">Impressora Zebra ZT411</span>
+<span class="text-body-sm text-on-surface-variant">Manutenção Preventiva</span>
+</div>
+</td>
+<td class="px-md py-md">
+<span class="font-mono-label bg-surface-container-high px-xs py-[2px] rounded">location_tag</span>
+</td>
+<td class="px-md py-md">
+<div class="flex items-center gap-xs font-mono-label">
+<span class="text-on-surface-variant">Setor A-12</span>
+<span class="material-symbols-outlined text-[16px] text-outline">arrow_forward</span>
+<span class="text-primary">Expedição B-04</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Pagination -->
+<div class="p-md bg-surface-container-low border-t border-outline-variant flex items-center justify-between">
+<span class="text-body-sm text-on-surface-variant">Exibindo 1-15 de 2,450 logs</span>
+<div class="flex items-center gap-xs">
+<button class="p-xs hover:bg-surface-container-high rounded transition-colors disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="px-sm py-[2px] bg-primary text-on-primary rounded font-headline-sm">1</button>
+<button class="px-sm py-[2px] hover:bg-surface-container-high rounded font-headline-sm transition-colors">2</button>
+<button class="px-sm py-[2px] hover:bg-surface-container-high rounded font-headline-sm transition-colors">3</button>
+<span class="px-xs">...</span>
+<button class="px-sm py-[2px] hover:bg-surface-container-high rounded font-headline-sm transition-colors">164</button>
+<button class="p-xs hover:bg-surface-container-high rounded transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar Shell (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-2 lg:hidden bg-surface-container-highest dark:bg-inverse-surface shadow-lg border-t border-outline-variant dark:border-outline rounded-t-xl">
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant p-2 hover:bg-surface-container dark:hover:bg-surface-variant transition-transform Active: scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps uppercase">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant p-2 hover:bg-surface-container dark:hover:bg-surface-variant transition-transform Active: scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">devices</span>
+<span class="font-label-caps text-label-caps uppercase">Devices</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant p-2 hover:bg-surface-container dark:hover:bg-surface-variant transition-transform Active: scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">add_box</span>
+<span class="font-label-caps text-label-caps uppercase">Add</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl p-2 transition-transform Active: scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-caps text-label-caps uppercase">Logs</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant p-2 hover:bg-surface-container dark:hover:bg-surface-variant transition-transform Active: scale-95 duration-150" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-caps text-label-caps uppercase">Settings</span>
+</a>
+</nav>
+<script>
+        // Micro-interactions
+        document.querySelectorAll('tr').forEach(row => {
+            row.addEventListener('click', () => {
+                // Subtle feedback for row interaction
+                row.classList.add('bg-primary-container/5');
+                setTimeout(() => row.classList.remove('bg-primary-container/5'), 300);
+            });
+        });
+
+        // Search Bar Focus
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('scale-105');
+            searchInput.parentElement.style.transition = 'transform 0.2s ease';
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('scale-105');
+        });
+    </script>
+</body></html>
