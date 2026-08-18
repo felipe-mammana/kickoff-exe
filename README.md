@@ -131,6 +131,7 @@ Endpoints iniciais:
 - `GET /api/v1/companies/{id}`: detalhe da empresa.
 - `PUT /api/v1/companies/{id}`: atualiza empresa, restrito a administradores.
 - `PATCH /api/v1/companies/{id}`: atualiza parcialmente empresa, restrito a administradores.
+- `DELETE /api/v1/companies/{id}`: desativa empresa, restrito a administradores.
 - `GET /api/v1/companies/{id}/machines`: dispositivos da empresa.
 - `GET /api/v1/machines/{id}`: detalhe do dispositivo.
 - `GET /api/v1/machines/{id}/photos`: fotos do dispositivo.
@@ -189,6 +190,8 @@ Payload para atualizar empresa:
 ```
 
 No `PATCH`, envie apenas os campos que deseja alterar.
+
+`DELETE /api/v1/companies/{id}` nao apaga o registro fisicamente. Ele marca a empresa como inativa e preserva historico/auditoria.
 
 Para adicionar novas rotas, edite `config/api_routes.php` e crie o metodo correspondente no controller da versao, como `ApiV1Controller`.
 

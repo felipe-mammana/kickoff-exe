@@ -51,6 +51,7 @@ class ApiV1Controller
                 ['method' => 'GET', 'path' => '/api/v1/companies/{id}', 'auth' => true],
                 ['method' => 'PUT', 'path' => '/api/v1/companies/{id}', 'auth' => true, 'admin' => true],
                 ['method' => 'PATCH', 'path' => '/api/v1/companies/{id}', 'auth' => true, 'admin' => true],
+                ['method' => 'DELETE', 'path' => '/api/v1/companies/{id}', 'auth' => true, 'admin' => true],
                 ['method' => 'GET', 'path' => '/api/v1/companies/{id}/machines', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
@@ -116,6 +117,37 @@ class ApiV1Controller
 
         ApiResponse::ok(self::companyResource($updatedCompany ?: $data + ['id' => $companyId]), [
             'changed' => (bool) $changes,
+        ]);
+    }
+
+    public static function deactivateCompany(array $params): void
+    {
+        $companyId = (int) $params['id'];
+        $company = Company::find($companyId);
+
+        if (!$company) {
+            ApiResponse::error('company_not_found', 'Empresa nao encontrada.', 404);
+        }
+
+        $changed = !empty($company['is_active']);
+        if ($changed) {
+            $user = ApiAuth::user();
+            Company::deactivate($companyId, (int) $user['id']);
+            AuditLog::record([
+                'action_type' => 'company_deactivated',
+                'affected_table' => 'companies',
+                'affected_record_id' => $companyId,
+                'company_id' => $companyId,
+                'description' => 'Empresa desativada via API.',
+                'old_data' => ['Status' => 'Ativa'],
+                'new_data' => ['Status' => 'Inativa'],
+            ]);
+        }
+
+        $updatedCompany = Company::find($companyId);
+
+        ApiResponse::ok(self::companyResource($updatedCompany ?: $company), [
+            'changed' => $changed,
         ]);
     }
 
