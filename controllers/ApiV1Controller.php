@@ -53,6 +53,7 @@ class ApiV1Controller
                 ['method' => 'PATCH', 'path' => '/api/v1/companies/{id}', 'auth' => true, 'admin' => true],
                 ['method' => 'DELETE', 'path' => '/api/v1/companies/{id}', 'auth' => true, 'admin' => true],
                 ['method' => 'GET', 'path' => '/api/v1/companies/{id}/machines', 'auth' => true],
+                ['method' => 'POST', 'path' => '/api/v1/companies/{id}/machines', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
             ],
@@ -242,6 +243,39 @@ class ApiV1Controller
         ]);
     }
 
+    public static function createMachine(array $params): void
+    {
+        $companyId = (int) $params['id'];
+        $company = Company::find($companyId);
+
+        if (!$company) {
+            ApiResponse::error('company_not_found', 'Empresa nao encontrada.', 404);
+        }
+
+        $payload = ApiRequest::json();
+        [$data, $errors] = self::validateMachinePayload($payload, $companyId);
+        self::abortIfValidationFails($errors);
+
+        $user = ApiAuth::user();
+        $data['created_by'] = (int) $user['id'];
+        $data['updated_by'] = (int) $user['id'];
+        $machineId = Machine::create($data);
+        $machine = Machine::find($machineId);
+
+        AuditLog::record([
+            'action_type' => 'machine_created',
+            'affected_table' => 'machines',
+            'affected_record_id' => $machineId,
+            'company_id' => $companyId,
+            'machine_id' => $machineId,
+            'description' => 'Novo dispositivo cadastrado via API.',
+            'new_data' => self::sanitizeMachineAuditData($data),
+        ]);
+
+        header('Location: /api/v1/machines/' . $machineId);
+        ApiResponse::ok(self::machineResource($machine ?: ['id' => $machineId] + $data), [], 201);
+    }
+
     public static function machine(array $params): void
     {
         $machine = Machine::find((int) $params['id']);
@@ -303,6 +337,90 @@ class ApiV1Controller
         return [$data, $errors];
     }
 
+    private static function validateMachinePayload(array $payload, int $companyId, ?int $ignoreId = null): array
+    {
+        $stringRules = ['string', 'max' => 160];
+        $rules = [
+            'device_type' => ['string', 'max' => 40],
+            'equipment_name' => $stringRules,
+            'tag' => ['string', 'max' => 80],
+            'old_hostname' => ['string', 'max' => 120],
+            'new_hostname' => ['string', 'max' => 120],
+            'employee_name' => $stringRules,
+            'department' => ['string', 'max' => 120],
+            'brand' => $stringRules,
+            'computer_model' => $stringRules,
+            'operating_system' => $stringRules,
+            'machine_password' => $stringRules,
+            'admin_user' => $stringRules,
+            'admin_password' => $stringRules,
+            'install_location' => $stringRules,
+            'modem_name' => $stringRules,
+            'ip_address' => ['string', 'max' => 80],
+            'gateway' => ['string', 'max' => 80],
+            'carrier' => $stringRules,
+            'printer_brand' => $stringRules,
+            'printer_connection_type' => ['string', 'max' => 40],
+            'printer_shared' => ['bool'],
+            'notes' => ['string', 'max' => 5000],
+            'tflux_installed' => ['bool'],
+            'antivirus_installed' => ['bool'],
+            'requester_in_tflux' => ['bool'],
+        ];
+        $errors = ApiValidator::validate($payload, $rules);
+
+        $deviceType = trim((string) ($payload['device_type'] ?? 'notebook'));
+        if (!array_key_exists($deviceType, Machine::deviceTypes())) {
+            $errors['device_type'][] = 'Tipo de dispositivo invalido.';
+            $deviceType = 'notebook';
+        }
+
+        $data = [
+            'company_id' => $companyId,
+            'device_type' => $deviceType,
+            'equipment_name' => self::nullablePayloadString($payload, 'equipment_name'),
+            'tag' => self::nullablePayloadString($payload, 'tag'),
+            'old_hostname' => self::nullablePayloadString($payload, 'old_hostname'),
+            'new_hostname' => self::nullablePayloadString($payload, 'new_hostname'),
+            'employee_name' => self::nullablePayloadString($payload, 'employee_name'),
+            'department' => self::nullablePayloadString($payload, 'department'),
+            'brand' => self::nullablePayloadString($payload, 'brand'),
+            'computer_model' => self::nullablePayloadString($payload, 'computer_model'),
+            'operating_system' => self::nullablePayloadString($payload, 'operating_system'),
+            'machine_password' => self::nullablePayloadString($payload, 'machine_password'),
+            'admin_user' => self::nullablePayloadString($payload, 'admin_user'),
+            'admin_password' => self::nullablePayloadString($payload, 'admin_password'),
+            'install_location' => self::nullablePayloadString($payload, 'install_location'),
+            'modem_name' => self::nullablePayloadString($payload, 'modem_name'),
+            'ip_address' => self::nullablePayloadString($payload, 'ip_address'),
+            'gateway' => self::nullablePayloadString($payload, 'gateway'),
+            'carrier' => self::nullablePayloadString($payload, 'carrier'),
+            'printer_brand' => self::nullablePayloadString($payload, 'printer_brand'),
+            'printer_connection_type' => self::nullablePayloadString($payload, 'printer_connection_type'),
+            'printer_shared' => self::payloadBool($payload, 'printer_shared'),
+            'notes' => self::nullablePayloadString($payload, 'notes'),
+            'tflux_installed' => self::payloadBool($payload, 'tflux_installed'),
+            'antivirus_installed' => self::payloadBool($payload, 'antivirus_installed'),
+            'requester_in_tflux' => self::payloadBool($payload, 'requester_in_tflux'),
+        ];
+
+        foreach (self::requiredMachineFieldsForType($deviceType) as $field) {
+            if (($data[$field] ?? null) === null || $data[$field] === '') {
+                $errors[$field][] = 'Campo obrigatorio para este tipo de dispositivo.';
+            }
+        }
+
+        if (($data['tag'] ?? '') !== '' && Machine::duplicateExists($companyId, 'tag', (string) $data['tag'], $ignoreId)) {
+            $errors['tag'][] = 'Esta etiqueta ja existe nesta empresa.';
+        }
+
+        if (($data['new_hostname'] ?? '') !== '' && Machine::duplicateExists($companyId, 'new_hostname', (string) $data['new_hostname'], $ignoreId)) {
+            $errors['new_hostname'][] = 'Este hostname novo ja existe nesta empresa.';
+        }
+
+        return [$data, $errors];
+    }
+
     private static function abortIfValidationFails(array $errors): void
     {
         if ($errors) {
@@ -330,6 +448,45 @@ class ApiV1Controller
         }
 
         return $changes['old'] ? $changes : [];
+    }
+
+    private static function nullablePayloadString(array $payload, string $field): ?string
+    {
+        $value = trim((string) ($payload[$field] ?? ''));
+
+        return $value === '' ? null : $value;
+    }
+
+    private static function payloadBool(array $payload, string $field): int
+    {
+        return array_key_exists($field, $payload) ? (int) filter_var($payload[$field], FILTER_VALIDATE_BOOLEAN) : 0;
+    }
+
+    private static function requiredMachineFieldsForType(string $type): array
+    {
+        $map = [
+            'notebook' => ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'computer_model', 'machine_password'],
+            'cpu' => ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'computer_model', 'machine_password'],
+            'roteador' => ['tag', 'computer_model', 'admin_user', 'admin_password', 'ip_address'],
+            'access_point' => ['install_location', 'tag', 'computer_model'],
+            'modem' => ['tag', 'computer_model', 'admin_user', 'admin_password', 'carrier'],
+            'impressora' => ['tag', 'brand', 'computer_model', 'printer_connection_type'],
+            'outros' => ['tag', 'computer_model'],
+        ];
+
+        return $map[$type] ?? $map['notebook'];
+    }
+
+    private static function sanitizeMachineAuditData(array $data): array
+    {
+        if (array_key_exists('machine_password', $data)) {
+            $data['machine_password'] = '[protegido]';
+        }
+        if (array_key_exists('admin_password', $data)) {
+            $data['admin_password'] = '[protegido]';
+        }
+
+        return $data;
     }
 
     private static function machineResource(array $machine): array

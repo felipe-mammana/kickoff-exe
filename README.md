@@ -133,6 +133,7 @@ Endpoints iniciais:
 - `PATCH /api/v1/companies/{id}`: atualiza parcialmente empresa, restrito a administradores.
 - `DELETE /api/v1/companies/{id}`: desativa empresa, restrito a administradores.
 - `GET /api/v1/companies/{id}/machines`: dispositivos da empresa.
+- `POST /api/v1/companies/{id}/machines`: cria dispositivo sem fotos.
 - `GET /api/v1/machines/{id}`: detalhe do dispositivo.
 - `GET /api/v1/machines/{id}/photos`: fotos do dispositivo.
 
@@ -192,6 +193,19 @@ Payload para atualizar empresa:
 No `PATCH`, envie apenas os campos que deseja alterar.
 
 `DELETE /api/v1/companies/{id}` nao apaga o registro fisicamente. Ele marca a empresa como inativa e preserva historico/auditoria.
+
+Payload minimo para criar dispositivo:
+
+```json
+{
+  "device_type": "outros",
+  "tag": "API-001",
+  "computer_model": "Equipamento generico",
+  "notes": "Criado via API"
+}
+```
+
+Cada `device_type` possui campos obrigatorios equivalentes ao formulario web. O endpoint de criacao de dispositivo ainda nao recebe fotos; uploads entram em uma etapa separada da API.
 
 Para adicionar novas rotas, edite `config/api_routes.php` e crie o metodo correspondente no controller da versao, como `ApiV1Controller`.
 
