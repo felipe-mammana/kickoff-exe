@@ -34,4 +34,4 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 UPDATE users
 SET is_admin = 1
-WHERE email IN ('felipe.mammana@exesolcuoes.com.br', 'admin@empresa.com');
+WHERE email = 'admin@empresa.com';

@@ -108,7 +108,3 @@ WHERE NOT EXISTS (SELECT 1 FROM companies WHERE name = 'Empresa Matriz');
 INSERT INTO companies (name)
 SELECT 'Filial Operacional'
 WHERE NOT EXISTS (SELECT 1 FROM companies WHERE name = 'Filial Operacional');
-
-INSERT INTO users (name, email, password_hash, is_admin)
-SELECT 'Felipe Mammana', 'felipe.mammana@exesolcuoes.com.br', '$2y$10$DBKgnwfvjnDM9syandO29.oi66fD/3CwUOy/Bzn/K1uxzPPdj0DhO', 1
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'felipe.mammana@exesolcuoes.com.br');

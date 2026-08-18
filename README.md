@@ -1,4 +1,4 @@
-# Inventario TI
+# EXE Inventario TI
 
 Sistema web simples em PHP e MySQL para cadastro e documentacao de dispositivos da empresa.
 
@@ -10,7 +10,34 @@ Funcionalidades principais:
 - Filtros por empresa, tipo, etiqueta, colaborador, departamento, modelo, status e data de cadastro.
 - Auditoria de logins, empresas, dispositivos e fotos.
 
-## Como rodar
+## Estrutura
+
+- `public/`: entrada publica da aplicacao, assets e uploads.
+- `config/`: configuracao do ambiente e banco.
+- `controllers/`: fluxo das telas e acoes.
+- `models/`: consultas e persistencia.
+- `views/`: templates PHP.
+- `database/`: schema, migracoes e seed administrativo.
+- `includes/`: bootstrap, helpers, sessao e seguranca basica.
+- `Frontend-prototipo/`: referencias visuais do prototipo.
+
+## Configuracao
+
+O arquivo `config/config.php` possui defaults seguros para desenvolvimento e le valores de:
+
+1. Variaveis de ambiente, quando existirem.
+2. `config/local.php`, quando existir.
+3. Valores padrao locais.
+
+Crie sua configuracao local copiando o exemplo:
+
+```powershell
+Copy-Item config/local.example.php config/local.php
+```
+
+Depois edite `config/local.php` com banco, URL e usuario inicial. Esse arquivo e ignorado pelo Git.
+
+## Como rodar localmente
 
 Requisitos:
 
@@ -18,7 +45,7 @@ Requisitos:
 - MySQL 5.7 ou superior
 
 1. Crie o banco importando `database/schema.sql` no MySQL.
-2. Ajuste usuario e senha em `config/config.php`, se necessario.
+2. Configure `config/local.php`, se necessario.
 3. Inicie o MySQL no XAMPP.
 4. Aplique a migracao. Ela pode ser rodada em banco novo ou existente:
 
@@ -51,5 +78,26 @@ C:\xampp\php\php.exe -S localhost:8000 -t public
 
 Login inicial:
 
-- E-mail: `admin@empresa.com`
-- Senha: `admin123`
+- E-mail: valor de `ADMIN_EMAIL`.
+- Senha: valor de `ADMIN_PASSWORD`, ou a senha temporaria exibida pelo seed.
+
+## Deploy no InfinityFree
+
+No InfinityFree, todos os arquivos devem ficar dentro de `htdocs`. Para esse formato:
+
+1. Gere ou use o pacote `infinityfree-htdocs.zip`.
+2. Envie e extraia o zip dentro de `htdocs`.
+3. Garanta que `htdocs/index.php` exista direto na raiz.
+4. Configure `htdocs/config/local.php` ou edite as variaveis equivalentes em `htdocs/config/config.php`.
+5. Importe `database/schema.sql` pelo phpMyAdmin.
+
+As pastas internas possuem `.htaccess` para bloquear acesso direto via navegador.
+
+## Seguranca
+
+- Senhas sao armazenadas com `password_hash`.
+- Formularios usam token CSRF.
+- Sessoes usam `httponly`, `SameSite=Lax` e modo estrito.
+- Uploads permitem apenas JPG, PNG e WEBP, com limite de 5MB.
+- `public/uploads` bloqueia execucao de PHP via `.htaccess`.
+- Arquivos sensiveis locais devem ficar em `config/local.php`, que nao vai para o Git.

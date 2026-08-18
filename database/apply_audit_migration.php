@@ -112,7 +112,7 @@ db()->exec(
 db()->exec(
     "UPDATE users
      SET is_admin = 1
-     WHERE email IN ('felipe.mammana@exesolcuoes.com.br', 'admin@empresa.com')"
+     WHERE email = " . db()->quote((string) config_value('ADMIN_EMAIL', 'admin@empresa.com'))
 );
 
 echo "Auditoria pronta." . PHP_EOL;

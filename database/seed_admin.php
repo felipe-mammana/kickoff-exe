@@ -4,23 +4,32 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
 
+$adminName = trim((string) config_value('ADMIN_NAME', 'Administrador'));
+$adminEmail = trim((string) config_value('ADMIN_EMAIL', 'admin@empresa.com'));
+$adminPassword = (string) config_value('ADMIN_PASSWORD', '');
+
+if ($adminEmail === '') {
+    fwrite(STDERR, 'Defina ADMIN_EMAIL em config/local.php ou nas variaveis de ambiente.' . PHP_EOL);
+    exit(1);
+}
+
+if ($adminPassword === '') {
+    $adminPassword = bin2hex(random_bytes(12));
+    echo 'ADMIN_PASSWORD nao definido; senha temporaria gerada para o primeiro acesso.' . PHP_EOL;
+}
+
 $stmt = db()->prepare(
     'INSERT INTO users (name, email, password_hash, is_admin)
      VALUES (:name, :email, :password_hash, 1)
      ON DUPLICATE KEY UPDATE name = VALUES(name), password_hash = VALUES(password_hash), is_admin = 1'
 );
 
-$users = [
-    ['name' => 'Administrador', 'email' => 'admin@empresa.com', 'password' => 'admin123'],
-    ['name' => 'Felipe Mammana', 'email' => 'felipe.mammana@exesolcuoes.com.br', 'password' => 'exe@123'],
-];
+$stmt->execute([
+    'name' => $adminName !== '' ? $adminName : 'Administrador',
+    'email' => $adminEmail,
+    'password_hash' => password_hash($adminPassword, PASSWORD_DEFAULT),
+]);
 
-foreach ($users as $user) {
-    $stmt->execute([
-        'name' => $user['name'],
-        'email' => $user['email'],
-        'password_hash' => password_hash($user['password'], PASSWORD_DEFAULT),
-    ]);
-
-    echo "Usuario inicial pronto: {$user['email']} / {$user['password']}" . PHP_EOL;
-}
+echo 'Usuario administrador pronto: ' . $adminEmail . PHP_EOL;
+echo 'Senha inicial: ' . $adminPassword . PHP_EOL;
+echo 'Troque esta senha depois do primeiro acesso.' . PHP_EOL;
