@@ -34,6 +34,7 @@ define('APP_ENV', (string) config_value('APP_ENV', 'local'));
 define('APP_DEBUG', config_bool('APP_DEBUG', APP_ENV === 'local'));
 define('APP_URL', rtrim((string) config_value('APP_URL', 'http://localhost:8000'), '/'));
 define('BASE_PATH', dirname(__DIR__));
+define('STORAGE_PATH', BASE_PATH . '/storage');
 define('UPLOAD_PATH', is_dir(BASE_PATH . '/public') ? BASE_PATH . '/public/uploads' : BASE_PATH . '/uploads');
 define('UPLOAD_URL', '/uploads');
 

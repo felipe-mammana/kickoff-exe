@@ -6,6 +6,12 @@ require_once dirname(__DIR__) . '/config/config.php';
 require_once dirname(__DIR__) . '/config/database.php';
 require_once __DIR__ . '/helpers.php';
 
+foreach ([STORAGE_PATH, STORAGE_PATH . '/sessions', UPLOAD_PATH] as $directory) {
+    if (!is_dir($directory)) {
+        mkdir($directory, 0755, true);
+    }
+}
+
 if (APP_DEBUG) {
     ini_set('display_errors', '1');
     error_reporting(E_ALL);
@@ -36,6 +42,7 @@ if (PHP_SAPI !== 'cli') {
     ini_set('session.use_strict_mode', '1');
     ini_set('session.cookie_httponly', '1');
     ini_set('session.cookie_samesite', 'Lax');
+    ini_set('session.save_path', STORAGE_PATH . '/sessions');
 }
 
 if (PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
@@ -46,8 +53,4 @@ if (PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
         'secure' => !empty($_SERVER['HTTPS']),
     ]);
     session_start();
-}
-
-if (!is_dir(UPLOAD_PATH)) {
-    mkdir(UPLOAD_PATH, 0755, true);
 }

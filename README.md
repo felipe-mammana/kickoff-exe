@@ -93,6 +93,48 @@ No InfinityFree, todos os arquivos devem ficar dentro de `htdocs`. Para esse for
 
 As pastas internas possuem `.htaccess` para bloquear acesso direto via navegador.
 
+## API
+
+A API e versionada por URL e retorna JSON padronizado. A versao inicial fica em `/api/v1`.
+
+Formato de sucesso:
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {}
+}
+```
+
+Formato de erro:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "not_found",
+    "message": "Endpoint da API nao encontrado.",
+    "details": {}
+  }
+}
+```
+
+Endpoints iniciais:
+
+- `GET /api/v1/health`: status publico da API.
+- `GET /api/v1/me`: usuario logado.
+- `GET /api/v1/device-types`: tipos de dispositivos.
+- `GET /api/v1/companies?active_only=true`: empresas.
+- `GET /api/v1/companies/{id}`: detalhe da empresa.
+- `GET /api/v1/companies/{id}/machines`: dispositivos da empresa.
+- `GET /api/v1/machines/{id}`: detalhe do dispositivo.
+- `GET /api/v1/machines/{id}/photos`: fotos do dispositivo.
+
+Por enquanto, os endpoints de dados usam a mesma sessao de login do sistema web. Campos sensiveis de senha de dispositivo nao sao expostos na API.
+
+Para adicionar novas rotas, edite `config/api_routes.php` e crie o metodo correspondente no controller da versao, como `ApiV1Controller`.
+
 ## Seguranca
 
 - Senhas sao armazenadas com `password_hash`.

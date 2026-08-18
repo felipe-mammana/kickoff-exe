@@ -6,6 +6,15 @@ $basePath = is_file(__DIR__ . '/includes/bootstrap.php') ? __DIR__ : dirname(__D
 
 require_once $basePath . '/includes/bootstrap.php';
 
+if (ApiRouter::isApiRequest()) {
+    try {
+        ApiRouter::dispatch();
+    } catch (Throwable $exception) {
+        error_log($exception->getMessage());
+        ApiResponse::error('server_error', APP_DEBUG ? $exception->getMessage() : 'Erro interno da API.', 500);
+    }
+}
+
 $route = $_GET['route'] ?? 'dashboard';
 
 try {
