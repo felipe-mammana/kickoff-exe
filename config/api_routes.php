@@ -16,5 +16,7 @@ return [
     ['GET', '/api/v1/companies/(?P<id>\d+)/machines', ['ApiV1Controller', 'companyMachines'], true],
     ['POST', '/api/v1/companies/(?P<id>\d+)/machines', ['ApiV1Controller', 'createMachine'], true],
     ['GET', '/api/v1/machines/(?P<id>\d+)', ['ApiV1Controller', 'machine'], true],
+    ['PUT', '/api/v1/machines/(?P<id>\d+)', ['ApiV1Controller', 'updateMachine'], true],
+    ['PATCH', '/api/v1/machines/(?P<id>\d+)', ['ApiV1Controller', 'updateMachine'], true],
     ['GET', '/api/v1/machines/(?P<id>\d+)/photos', ['ApiV1Controller', 'machinePhotos'], true],
 ];

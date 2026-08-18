@@ -135,9 +135,11 @@ Endpoints iniciais:
 - `GET /api/v1/companies/{id}/machines`: dispositivos da empresa.
 - `POST /api/v1/companies/{id}/machines`: cria dispositivo sem fotos.
 - `GET /api/v1/machines/{id}`: detalhe do dispositivo.
+- `PUT /api/v1/machines/{id}`: atualiza dispositivo.
+- `PATCH /api/v1/machines/{id}`: atualiza parcialmente dispositivo.
 - `GET /api/v1/machines/{id}/photos`: fotos do dispositivo.
 
-Por enquanto, os endpoints de dados usam a mesma sessao de login do sistema web. Campos sensiveis de senha de dispositivo nao sao expostos na API.
+Por enquanto, os endpoints de dispositivo nao enviam fotos. Campos omitidos nos updates sao preservados e campos sensiveis de senha de dispositivo nao sao expostos na API.
 
 Tambem e possivel autenticar usando Bearer Token. Crie um token pela CLI:
 

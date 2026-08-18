@@ -55,6 +55,8 @@ class ApiV1Controller
                 ['method' => 'GET', 'path' => '/api/v1/companies/{id}/machines', 'auth' => true],
                 ['method' => 'POST', 'path' => '/api/v1/companies/{id}/machines', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}', 'auth' => true],
+                ['method' => 'PUT', 'path' => '/api/v1/machines/{id}', 'auth' => true],
+                ['method' => 'PATCH', 'path' => '/api/v1/machines/{id}', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
             ],
         ]);
@@ -287,6 +289,47 @@ class ApiV1Controller
         ApiResponse::ok(self::machineResource($machine));
     }
 
+    public static function updateMachine(array $params): void
+    {
+        $machineId = (int) $params['id'];
+        $machine = Machine::find($machineId);
+
+        if (!$machine) {
+            ApiResponse::error('machine_not_found', 'Dispositivo nao encontrado.', 404);
+        }
+
+        $companyId = (int) $machine['company_id'];
+        $payload = ApiRequest::json();
+        [$data, $errors] = self::validateMachinePayload($payload, $companyId, $machineId, $machine);
+        self::abortIfValidationFails($errors);
+
+        $user = ApiAuth::user();
+        $data['updated_by'] = (int) $user['id'];
+        $changes = self::machineChanges($machine, $data);
+        $updateData = $data;
+        unset($updateData['company_id']);
+
+        Machine::update($machineId, $updateData);
+        $updatedMachine = Machine::find($machineId);
+
+        if ($changes) {
+            AuditLog::record([
+                'action_type' => 'machine_updated',
+                'affected_table' => 'machines',
+                'affected_record_id' => $machineId,
+                'company_id' => $companyId,
+                'machine_id' => $machineId,
+                'description' => 'Dispositivo alterado via API.',
+                'old_data' => $changes['old'],
+                'new_data' => $changes['new'],
+            ]);
+        }
+
+        ApiResponse::ok(self::machineResource($updatedMachine ?: $data + ['id' => $machineId]), [
+            'changed' => (bool) $changes,
+        ]);
+    }
+
     public static function machinePhotos(array $params): void
     {
         $machine = Machine::find((int) $params['id']);
@@ -337,7 +380,7 @@ class ApiV1Controller
         return [$data, $errors];
     }
 
-    private static function validateMachinePayload(array $payload, int $companyId, ?int $ignoreId = null): array
+    private static function validateMachinePayload(array $payload, int $companyId, ?int $ignoreId = null, ?array $current = null): array
     {
         $stringRules = ['string', 'max' => 160];
         $rules = [
@@ -369,39 +412,39 @@ class ApiV1Controller
         ];
         $errors = ApiValidator::validate($payload, $rules);
 
-        $deviceType = trim((string) ($payload['device_type'] ?? 'notebook'));
+        $deviceType = trim((string) ($payload['device_type'] ?? ($current['device_type'] ?? 'notebook')));
         if (!array_key_exists($deviceType, Machine::deviceTypes())) {
             $errors['device_type'][] = 'Tipo de dispositivo invalido.';
-            $deviceType = 'notebook';
+            $deviceType = (string) ($current['device_type'] ?? 'notebook');
         }
 
         $data = [
             'company_id' => $companyId,
             'device_type' => $deviceType,
-            'equipment_name' => self::nullablePayloadString($payload, 'equipment_name'),
-            'tag' => self::nullablePayloadString($payload, 'tag'),
-            'old_hostname' => self::nullablePayloadString($payload, 'old_hostname'),
-            'new_hostname' => self::nullablePayloadString($payload, 'new_hostname'),
-            'employee_name' => self::nullablePayloadString($payload, 'employee_name'),
-            'department' => self::nullablePayloadString($payload, 'department'),
-            'brand' => self::nullablePayloadString($payload, 'brand'),
-            'computer_model' => self::nullablePayloadString($payload, 'computer_model'),
-            'operating_system' => self::nullablePayloadString($payload, 'operating_system'),
-            'machine_password' => self::nullablePayloadString($payload, 'machine_password'),
-            'admin_user' => self::nullablePayloadString($payload, 'admin_user'),
-            'admin_password' => self::nullablePayloadString($payload, 'admin_password'),
-            'install_location' => self::nullablePayloadString($payload, 'install_location'),
-            'modem_name' => self::nullablePayloadString($payload, 'modem_name'),
-            'ip_address' => self::nullablePayloadString($payload, 'ip_address'),
-            'gateway' => self::nullablePayloadString($payload, 'gateway'),
-            'carrier' => self::nullablePayloadString($payload, 'carrier'),
-            'printer_brand' => self::nullablePayloadString($payload, 'printer_brand'),
-            'printer_connection_type' => self::nullablePayloadString($payload, 'printer_connection_type'),
-            'printer_shared' => self::payloadBool($payload, 'printer_shared'),
-            'notes' => self::nullablePayloadString($payload, 'notes'),
-            'tflux_installed' => self::payloadBool($payload, 'tflux_installed'),
-            'antivirus_installed' => self::payloadBool($payload, 'antivirus_installed'),
-            'requester_in_tflux' => self::payloadBool($payload, 'requester_in_tflux'),
+            'equipment_name' => self::nullablePayloadString($payload, 'equipment_name', $current['equipment_name'] ?? null),
+            'tag' => self::nullablePayloadString($payload, 'tag', $current['tag'] ?? null),
+            'old_hostname' => self::nullablePayloadString($payload, 'old_hostname', $current['old_hostname'] ?? null),
+            'new_hostname' => self::nullablePayloadString($payload, 'new_hostname', $current['new_hostname'] ?? null),
+            'employee_name' => self::nullablePayloadString($payload, 'employee_name', $current['employee_name'] ?? null),
+            'department' => self::nullablePayloadString($payload, 'department', $current['department'] ?? null),
+            'brand' => self::nullablePayloadString($payload, 'brand', $current['brand'] ?? null),
+            'computer_model' => self::nullablePayloadString($payload, 'computer_model', $current['computer_model'] ?? null),
+            'operating_system' => self::nullablePayloadString($payload, 'operating_system', $current['operating_system'] ?? null),
+            'machine_password' => self::nullablePayloadString($payload, 'machine_password', $current['machine_password'] ?? null),
+            'admin_user' => self::nullablePayloadString($payload, 'admin_user', $current['admin_user'] ?? null),
+            'admin_password' => self::nullablePayloadString($payload, 'admin_password', $current['admin_password'] ?? null),
+            'install_location' => self::nullablePayloadString($payload, 'install_location', $current['install_location'] ?? null),
+            'modem_name' => self::nullablePayloadString($payload, 'modem_name', $current['modem_name'] ?? null),
+            'ip_address' => self::nullablePayloadString($payload, 'ip_address', $current['ip_address'] ?? null),
+            'gateway' => self::nullablePayloadString($payload, 'gateway', $current['gateway'] ?? null),
+            'carrier' => self::nullablePayloadString($payload, 'carrier', $current['carrier'] ?? null),
+            'printer_brand' => self::nullablePayloadString($payload, 'printer_brand', $current['printer_brand'] ?? null),
+            'printer_connection_type' => self::nullablePayloadString($payload, 'printer_connection_type', $current['printer_connection_type'] ?? null),
+            'printer_shared' => self::payloadBool($payload, 'printer_shared', (int) ($current['printer_shared'] ?? 0)),
+            'notes' => self::nullablePayloadString($payload, 'notes', $current['notes'] ?? null),
+            'tflux_installed' => self::payloadBool($payload, 'tflux_installed', (int) ($current['tflux_installed'] ?? 0)),
+            'antivirus_installed' => self::payloadBool($payload, 'antivirus_installed', (int) ($current['antivirus_installed'] ?? 0)),
+            'requester_in_tflux' => self::payloadBool($payload, 'requester_in_tflux', (int) ($current['requester_in_tflux'] ?? 0)),
         ];
 
         foreach (self::requiredMachineFieldsForType($deviceType) as $field) {
@@ -450,16 +493,64 @@ class ApiV1Controller
         return $changes['old'] ? $changes : [];
     }
 
-    private static function nullablePayloadString(array $payload, string $field): ?string
+    private static function machineChanges(array $old, array $new): array
     {
-        $value = trim((string) ($payload[$field] ?? ''));
+        $labels = [
+            'tag' => 'Etiqueta',
+            'device_type' => 'Tipo de dispositivo',
+            'equipment_name' => 'Nome do equipamento',
+            'old_hostname' => 'Hostname antigo',
+            'new_hostname' => 'Hostname novo',
+            'employee_name' => 'Colaborador',
+            'department' => 'Departamento',
+            'brand' => 'Marca',
+            'computer_model' => 'Modelo do computador',
+            'operating_system' => 'Sistema operacional',
+            'machine_password' => 'Senha do equipamento',
+            'admin_user' => 'Usuario administrador',
+            'admin_password' => 'Senha administrador',
+            'install_location' => 'Local de instalacao',
+            'modem_name' => 'Nome do modem',
+            'ip_address' => 'IP de acesso',
+            'gateway' => 'Gateway',
+            'carrier' => 'Operadora',
+            'printer_brand' => 'Marca da impressora',
+            'printer_connection_type' => 'Tipo de conexao',
+            'printer_shared' => 'Impressora compartilhada',
+            'notes' => 'Observacoes',
+            'tflux_installed' => 'TFlux instalado',
+            'antivirus_installed' => 'Antivirus instalado',
+            'requester_in_tflux' => 'Solicitante cadastrado no TFlux',
+        ];
+        $changes = ['old' => [], 'new' => []];
+
+        foreach ($labels as $field => $label) {
+            $oldValue = (string) ($old[$field] ?? '');
+            $newValue = (string) ($new[$field] ?? '');
+
+            if ($oldValue !== $newValue) {
+                $changes['old'][$label] = in_array($field, ['machine_password', 'admin_password'], true) ? '[protegido]' : $oldValue;
+                $changes['new'][$label] = in_array($field, ['machine_password', 'admin_password'], true) ? '[protegido]' : $newValue;
+            }
+        }
+
+        return $changes['old'] ? $changes : [];
+    }
+
+    private static function nullablePayloadString(array $payload, string $field, ?string $default = null): ?string
+    {
+        if (!array_key_exists($field, $payload)) {
+            return $default;
+        }
+
+        $value = trim((string) $payload[$field]);
 
         return $value === '' ? null : $value;
     }
 
-    private static function payloadBool(array $payload, string $field): int
+    private static function payloadBool(array $payload, string $field, int $default = 0): int
     {
-        return array_key_exists($field, $payload) ? (int) filter_var($payload[$field], FILTER_VALIDATE_BOOLEAN) : 0;
+        return array_key_exists($field, $payload) ? (int) filter_var($payload[$field], FILTER_VALIDATE_BOOLEAN) : $default;
     }
 
     private static function requiredMachineFieldsForType(string $type): array
