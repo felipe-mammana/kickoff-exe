@@ -137,6 +137,7 @@ Endpoints iniciais:
 - `GET /api/v1/machines/{id}`: detalhe do dispositivo.
 - `PUT /api/v1/machines/{id}`: atualiza dispositivo.
 - `PATCH /api/v1/machines/{id}`: atualiza parcialmente dispositivo.
+- `DELETE /api/v1/machines/{id}`: desativa dispositivo.
 - `GET /api/v1/machines/{id}/photos`: fotos do dispositivo.
 
 Por enquanto, os endpoints de dispositivo nao enviam fotos. Campos omitidos nos updates sao preservados e campos sensiveis de senha de dispositivo nao sao expostos na API.
@@ -195,6 +196,8 @@ Payload para atualizar empresa:
 No `PATCH`, envie apenas os campos que deseja alterar.
 
 `DELETE /api/v1/companies/{id}` nao apaga o registro fisicamente. Ele marca a empresa como inativa e preserva historico/auditoria.
+
+`DELETE /api/v1/machines/{id}` tambem nao apaga o registro fisicamente. Ele marca o dispositivo como inativo e preserva historico/auditoria.
 
 Payload minimo para criar dispositivo:
 

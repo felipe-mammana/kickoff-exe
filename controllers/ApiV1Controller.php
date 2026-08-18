@@ -57,6 +57,7 @@ class ApiV1Controller
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}', 'auth' => true],
                 ['method' => 'PUT', 'path' => '/api/v1/machines/{id}', 'auth' => true],
                 ['method' => 'PATCH', 'path' => '/api/v1/machines/{id}', 'auth' => true],
+                ['method' => 'DELETE', 'path' => '/api/v1/machines/{id}', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
             ],
         ]);
@@ -327,6 +328,37 @@ class ApiV1Controller
 
         ApiResponse::ok(self::machineResource($updatedMachine ?: $data + ['id' => $machineId]), [
             'changed' => (bool) $changes,
+        ]);
+    }
+
+    public static function deactivateMachine(array $params): void
+    {
+        $machineId = (int) $params['id'];
+        $machine = Machine::find($machineId);
+
+        if (!$machine) {
+            ApiResponse::error('machine_not_found', 'Dispositivo nao encontrado.', 404);
+        }
+
+        $changed = !empty($machine['is_active']);
+        if ($changed) {
+            Machine::deactivate($machineId);
+            AuditLog::record([
+                'action_type' => 'machine_deactivated',
+                'affected_table' => 'machines',
+                'affected_record_id' => $machineId,
+                'company_id' => (int) $machine['company_id'],
+                'machine_id' => $machineId,
+                'description' => 'Dispositivo desativado via API.',
+                'old_data' => ['is_active' => 1],
+                'new_data' => ['is_active' => 0],
+            ]);
+        }
+
+        $updatedMachine = Machine::find($machineId);
+
+        ApiResponse::ok(self::machineResource($updatedMachine ?: $machine), [
+            'changed' => $changed,
         ]);
     }
 

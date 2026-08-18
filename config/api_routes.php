@@ -18,5 +18,6 @@ return [
     ['GET', '/api/v1/machines/(?P<id>\d+)', ['ApiV1Controller', 'machine'], true],
     ['PUT', '/api/v1/machines/(?P<id>\d+)', ['ApiV1Controller', 'updateMachine'], true],
     ['PATCH', '/api/v1/machines/(?P<id>\d+)', ['ApiV1Controller', 'updateMachine'], true],
+    ['DELETE', '/api/v1/machines/(?P<id>\d+)', ['ApiV1Controller', 'deactivateMachine'], true],
     ['GET', '/api/v1/machines/(?P<id>\d+)/photos', ['ApiV1Controller', 'machinePhotos'], true],
 ];
