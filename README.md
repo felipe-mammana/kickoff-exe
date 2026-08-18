@@ -139,8 +139,9 @@ Endpoints iniciais:
 - `PATCH /api/v1/machines/{id}`: atualiza parcialmente dispositivo.
 - `DELETE /api/v1/machines/{id}`: desativa dispositivo.
 - `GET /api/v1/machines/{id}/photos`: fotos do dispositivo.
+- `POST /api/v1/machines/{id}/photos`: envia fotos do dispositivo.
 
-Por enquanto, os endpoints de dispositivo nao enviam fotos. Campos omitidos nos updates sao preservados e campos sensiveis de senha de dispositivo nao sao expostos na API.
+Campos omitidos nos updates sao preservados e campos sensiveis de senha de dispositivo nao sao expostos na API.
 
 Tambem e possivel autenticar usando Bearer Token. Crie um token pela CLI:
 
@@ -210,7 +211,23 @@ Payload minimo para criar dispositivo:
 }
 ```
 
-Cada `device_type` possui campos obrigatorios equivalentes ao formulario web. O endpoint de criacao de dispositivo ainda nao recebe fotos; uploads entram em uma etapa separada da API.
+Cada `device_type` possui campos obrigatorios equivalentes ao formulario web. O endpoint de criacao de dispositivo nao recebe fotos no JSON; uploads entram em uma etapa separada da API.
+
+Upload de fotos do dispositivo:
+
+```text
+POST /api/v1/machines/{id}/photos
+Content-Type: multipart/form-data
+
+photos[]=@foto-geral.jpg
+network_photo[]=@configuracao-rede.png
+photo_type=general
+```
+
+- `photos[]`: uma ou mais fotos gerais.
+- `network_photo[]`: uma ou mais fotos de configuracao de rede.
+- `photo_type`: opcional para `photos[]`, aceita `general` ou `network_config`.
+- Formatos aceitos: JPG, PNG e WEBP, ate 5MB por arquivo.
 
 Para adicionar novas rotas, edite `config/api_routes.php` e crie o metodo correspondente no controller da versao, como `ApiV1Controller`.
 

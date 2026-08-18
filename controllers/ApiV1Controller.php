@@ -59,6 +59,7 @@ class ApiV1Controller
                 ['method' => 'PATCH', 'path' => '/api/v1/machines/{id}', 'auth' => true],
                 ['method' => 'DELETE', 'path' => '/api/v1/machines/{id}', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
+                ['method' => 'POST', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
             ],
         ]);
     }
@@ -373,6 +374,49 @@ class ApiV1Controller
         ApiResponse::ok(array_map([self::class, 'photoResource'], MachinePhoto::byMachine((int) $params['id'])));
     }
 
+    public static function uploadMachinePhotos(array $params): void
+    {
+        $machineId = (int) $params['id'];
+        $machine = Machine::find($machineId);
+
+        if (!$machine) {
+            ApiResponse::error('machine_not_found', 'Dispositivo nao encontrado.', 404);
+        }
+
+        $defaultPhotoType = self::normalizePhotoType((string) ($_POST['photo_type'] ?? 'general'));
+        [$generalPhotos, $generalErrors] = self::storeApiPhotos($machineId, 'photos', $defaultPhotoType);
+        [$networkPhotos, $networkErrors] = self::storeApiPhotos($machineId, 'network_photo', 'network_config');
+        $stored = array_merge($generalPhotos, $networkPhotos);
+        $errors = array_merge($generalErrors, $networkErrors);
+
+        if (!$stored && !$errors) {
+            ApiResponse::error('validation_failed', 'Envie ao menos uma foto.', 422, [
+                'fields' => ['photos' => ['Envie ao menos uma foto.']],
+            ]);
+        }
+
+        if (!$stored) {
+            ApiResponse::error('validation_failed', 'Nenhuma foto valida foi enviada.', 422, [
+                'fields' => ['photos' => $errors],
+            ]);
+        }
+
+        AuditLog::record([
+            'action_type' => 'machine_photos_added',
+            'affected_table' => 'machine_photos',
+            'affected_record_id' => $machineId,
+            'company_id' => (int) $machine['company_id'],
+            'machine_id' => $machineId,
+            'description' => count($stored) . ' foto(s) adicionada(s) ao dispositivo via API.',
+            'new_data' => $stored,
+        ]);
+
+        ApiResponse::ok(array_map([self::class, 'photoResource'], $stored), [
+            'uploaded' => count($stored),
+            'errors' => $errors,
+        ], 201);
+    }
+
     private static function companyResource(array $company): array
     {
         return [
@@ -610,6 +654,122 @@ class ApiV1Controller
         }
 
         return $data;
+    }
+
+    private static function storeApiPhotos(int $machineId, string $inputName, string $photoType): array
+    {
+        $stored = [];
+        $errors = [];
+
+        if (empty($_FILES[$inputName])) {
+            return [$stored, $errors];
+        }
+
+        $files = self::uploadedFiles($inputName);
+        if (!$files) {
+            return [$stored, $errors];
+        }
+
+        if (!is_dir(UPLOAD_PATH) && !mkdir(UPLOAD_PATH, 0755, true) && !is_dir(UPLOAD_PATH)) {
+            ApiResponse::error('upload_path_unavailable', 'Diretorio de upload indisponivel.', 500);
+        }
+
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+
+        foreach ($files as $file) {
+            if ((int) $file['error'] === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+
+            if ((int) $file['error'] !== UPLOAD_ERR_OK) {
+                $errors[] = 'Uma das fotos nao pode ser enviada.';
+                continue;
+            }
+
+            if ((int) $file['size'] > MAX_UPLOAD_BYTES) {
+                $errors[] = 'Uma foto excede o limite de 5MB.';
+                continue;
+            }
+
+            $tmpName = (string) $file['tmp_name'];
+            $mime = $finfo->file($tmpName);
+
+            if (!in_array($mime, ALLOWED_IMAGE_MIMES, true)) {
+                $errors[] = 'Formato de imagem invalido. Use JPG, PNG ou WEBP.';
+                continue;
+            }
+
+            $fileName = $machineId . '-' . bin2hex(random_bytes(12)) . '.' . self::imageExtension((string) $mime);
+            $destination = UPLOAD_PATH . '/' . $fileName;
+
+            if (!move_uploaded_file($tmpName, $destination)) {
+                $errors[] = 'Nao foi possivel salvar uma das fotos.';
+                continue;
+            }
+
+            $photoData = [
+                'machine_id' => $machineId,
+                'photo_type' => $photoType,
+                'file_name' => $fileName,
+                'original_name' => basename((string) $file['name']),
+                'mime_type' => (string) $mime,
+                'file_size' => (int) $file['size'],
+            ];
+            $photoData['id'] = MachinePhoto::create($photoData);
+            $photoData['created_at'] = date('Y-m-d H:i:s');
+            $stored[] = $photoData;
+        }
+
+        return [$stored, $errors];
+    }
+
+    private static function uploadedFiles(string $inputName): array
+    {
+        $files = $_FILES[$inputName] ?? [];
+        if (!is_array($files) || !array_key_exists('name', $files)) {
+            return [];
+        }
+
+        if (!is_array($files['name'])) {
+            return [[
+                'name' => $files['name'],
+                'type' => $files['type'] ?? '',
+                'tmp_name' => $files['tmp_name'] ?? '',
+                'error' => $files['error'] ?? UPLOAD_ERR_NO_FILE,
+                'size' => $files['size'] ?? 0,
+            ]];
+        }
+
+        $normalized = [];
+        foreach ($files['name'] as $index => $name) {
+            $normalized[] = [
+                'name' => $name,
+                'type' => $files['type'][$index] ?? '',
+                'tmp_name' => $files['tmp_name'][$index] ?? '',
+                'error' => $files['error'][$index] ?? UPLOAD_ERR_NO_FILE,
+                'size' => $files['size'][$index] ?? 0,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    private static function normalizePhotoType(string $photoType): string
+    {
+        return $photoType === 'network_config' ? 'network_config' : 'general';
+    }
+
+    private static function imageExtension(string $mime): string
+    {
+        if ($mime === 'image/png') {
+            return 'png';
+        }
+
+        if ($mime === 'image/webp') {
+            return 'webp';
+        }
+
+        return 'jpg';
     }
 
     private static function machineResource(array $machine): array

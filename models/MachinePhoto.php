@@ -38,13 +38,15 @@ class MachinePhoto
     }
 
 
-    public static function create(array $data): void
+    public static function create(array $data): int
     {
         $stmt = db()->prepare(
             'INSERT INTO machine_photos (machine_id, photo_type, file_name, original_name, mime_type, file_size)
              VALUES (:machine_id, :photo_type, :file_name, :original_name, :mime_type, :file_size)'
         );
         $stmt->execute($data);
+
+        return (int) db()->lastInsertId();
     }
 
     public static function find(int $id): ?array
