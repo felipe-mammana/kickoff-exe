@@ -20,6 +20,37 @@ class Company
         return db()->query($sql)->fetchAll();
     }
 
+    public static function paginated(bool $activeOnly, int $limit, int $offset): array
+    {
+        $sql = 'SELECT c.*, creator.name AS created_by_name, updater.name AS updated_by_name
+                FROM companies c
+                LEFT JOIN users creator ON creator.id = c.created_by
+                LEFT JOIN users updater ON updater.id = c.updated_by';
+
+        if ($activeOnly) {
+            $sql .= ' WHERE c.is_active = 1';
+        }
+
+        $sql .= ' ORDER BY c.is_active DESC, c.name LIMIT :limit OFFSET :offset';
+        $stmt = db()->prepare($sql);
+        $stmt->bindValue('limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue('offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll();
+    }
+
+    public static function countAll(bool $activeOnly = false): int
+    {
+        $sql = 'SELECT COUNT(*) FROM companies c';
+
+        if ($activeOnly) {
+            $sql .= ' WHERE c.is_active = 1';
+        }
+
+        return (int) db()->query($sql)->fetchColumn();
+    }
+
     public static function find(int $id): ?array
     {
         $stmt = db()->prepare(

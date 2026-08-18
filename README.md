@@ -122,6 +122,7 @@ Formato de erro:
 
 Endpoints iniciais:
 
+- `GET /api/v1`: indice da versao e endpoints disponiveis.
 - `GET /api/v1/health`: status publico da API.
 - `GET /api/v1/me`: usuario logado.
 - `GET /api/v1/device-types`: tipos de dispositivos.
@@ -132,6 +133,19 @@ Endpoints iniciais:
 - `GET /api/v1/machines/{id}/photos`: fotos do dispositivo.
 
 Por enquanto, os endpoints de dados usam a mesma sessao de login do sistema web. Campos sensiveis de senha de dispositivo nao sao expostos na API.
+
+Listagens aceitam paginacao:
+
+- `page`: pagina atual, padrao `1`.
+- `per_page`: itens por pagina, padrao `25`, maximo `100`.
+
+Exemplo:
+
+```text
+GET /api/v1/companies/1/machines?page=2&per_page=20&status=active
+```
+
+O retorno inclui `meta.pagination` com `page`, `per_page`, `total`, `last_page` e `has_more`.
 
 Para adicionar novas rotas, edite `config/api_routes.php` e crie o metodo correspondente no controller da versao, como `ApiV1Controller`.
 

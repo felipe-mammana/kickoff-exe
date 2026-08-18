@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 return [
+    ['GET', '/api/v1', ['ApiV1Controller', 'index'], false],
     ['GET', '/api/v1/health', ['ApiV1Controller', 'health'], false],
     ['GET', '/api/v1/me', ['ApiV1Controller', 'me'], true],
     ['GET', '/api/v1/device-types', ['ApiV1Controller', 'deviceTypes'], true],

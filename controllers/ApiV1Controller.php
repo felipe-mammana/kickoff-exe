@@ -37,6 +37,24 @@ class ApiV1Controller
         'updated_at',
     ];
 
+    public static function index(): void
+    {
+        ApiResponse::ok([
+            'version' => 'v1',
+            'status' => 'active',
+            'endpoints' => [
+                ['method' => 'GET', 'path' => '/api/v1/health', 'auth' => false],
+                ['method' => 'GET', 'path' => '/api/v1/me', 'auth' => true],
+                ['method' => 'GET', 'path' => '/api/v1/device-types', 'auth' => true],
+                ['method' => 'GET', 'path' => '/api/v1/companies', 'auth' => true],
+                ['method' => 'GET', 'path' => '/api/v1/companies/{id}', 'auth' => true],
+                ['method' => 'GET', 'path' => '/api/v1/companies/{id}/machines', 'auth' => true],
+                ['method' => 'GET', 'path' => '/api/v1/machines/{id}', 'auth' => true],
+                ['method' => 'GET', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
+            ],
+        ]);
+    }
+
     public static function health(): void
     {
         ApiResponse::ok([
@@ -71,10 +89,14 @@ class ApiV1Controller
 
     public static function companies(): void
     {
-        $activeOnly = self::queryBool('active_only', false);
+        $activeOnly = ApiRequest::bool('active_only', false);
+        $pagination = ApiRequest::pagination();
+        $total = Company::countAll($activeOnly);
+        $companies = Company::paginated($activeOnly, (int) $pagination['per_page'], (int) $pagination['offset']);
 
-        ApiResponse::ok(array_map([self::class, 'companyResource'], Company::all($activeOnly)), [
+        ApiResponse::ok(array_map([self::class, 'companyResource'], $companies), [
             'active_only' => $activeOnly,
+            'pagination' => ApiRequest::paginationMeta($total, $pagination),
         ]);
     }
 
@@ -99,20 +121,23 @@ class ApiV1Controller
         }
 
         $filters = [
-            'device_type' => self::queryString('device_type'),
-            'tag' => self::queryString('tag'),
-            'employee_name' => self::queryString('employee_name'),
-            'department' => self::queryString('department'),
-            'computer_model' => self::queryString('computer_model'),
-            'status' => self::queryString('status', 'active'),
-            'created_at' => self::queryString('created_at'),
+            'device_type' => ApiRequest::string('device_type'),
+            'tag' => ApiRequest::string('tag'),
+            'employee_name' => ApiRequest::string('employee_name'),
+            'department' => ApiRequest::string('department'),
+            'computer_model' => ApiRequest::string('computer_model'),
+            'status' => ApiRequest::string('status', 'active'),
+            'created_at' => ApiRequest::string('created_at'),
         ];
+        $pagination = ApiRequest::pagination();
+        $total = Machine::countByCompany($companyId, $filters);
 
-        $machines = Machine::byCompany($companyId, $filters);
+        $machines = Machine::byCompany($companyId, $filters, (int) $pagination['per_page'], (int) $pagination['offset']);
 
         ApiResponse::ok(array_map([self::class, 'machineResource'], $machines), [
             'company_id' => $companyId,
-            'filters' => self::filled($filters),
+            'filters' => ApiRequest::filled($filters),
+            'pagination' => ApiRequest::paginationMeta($total, $pagination),
         ]);
     }
 
@@ -191,22 +216,4 @@ class ApiV1Controller
         ];
     }
 
-    private static function queryString(string $key, string $default = ''): string
-    {
-        return trim((string) ($_GET[$key] ?? $default));
-    }
-
-    private static function queryBool(string $key, bool $default = false): bool
-    {
-        if (!array_key_exists($key, $_GET)) {
-            return $default;
-        }
-
-        return filter_var($_GET[$key], FILTER_VALIDATE_BOOLEAN);
-    }
-
-    private static function filled(array $values): array
-    {
-        return array_filter($values, static fn ($value): bool => (string) $value !== '');
-    }
 }

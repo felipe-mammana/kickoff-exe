@@ -24,44 +24,42 @@ class Machine
         return self::DEVICE_TYPES[$type ?? ''] ?? 'Dispositivo';
     }
 
-    public static function byCompany(int $companyId, array $filters = []): array
+    public static function byCompany(int $companyId, array $filters = [], ?int $limit = null, int $offset = 0): array
     {
         $sql =
             'SELECT m.*, COUNT(p.id) AS photos_count
              FROM machines m
              LEFT JOIN machine_photos p ON p.machine_id = m.id
              WHERE m.company_id = :company_id';
-        $params = ['company_id' => $companyId];
-
-        $status = $filters['status'] ?? 'active';
-        if ($status === 'inactive') {
-            $sql .= ' AND m.is_active = 0';
-        } elseif ($status !== 'all') {
-            $sql .= ' AND m.is_active = 1';
-        }
-
-        if (!empty($filters['device_type'])) {
-            $sql .= ' AND m.device_type = :device_type';
-            $params['device_type'] = $filters['device_type'];
-        }
-
-        foreach (['tag', 'employee_name', 'department', 'computer_model'] as $field) {
-            if (!empty($filters[$field])) {
-                $sql .= " AND m.{$field} LIKE :{$field}";
-                $params[$field] = '%' . $filters[$field] . '%';
-            }
-        }
-
-        if (!empty($filters['created_at'])) {
-            $sql .= ' AND DATE(m.created_at) = :created_at';
-            $params['created_at'] = $filters['created_at'];
-        }
+        $params = self::companyFilterParams($companyId, $filters);
+        $sql .= self::companyFilterSql($filters);
 
         $sql .= ' GROUP BY m.id ORDER BY m.updated_at DESC';
+
+        if ($limit !== null) {
+            $sql .= ' LIMIT :limit OFFSET :offset';
+        }
+
         $stmt = db()->prepare($sql);
+        if ($limit !== null) {
+            $stmt->bindValue('limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue('offset', $offset, PDO::PARAM_INT);
+        }
         $stmt->execute($params);
 
         return $stmt->fetchAll();
+    }
+
+    public static function countByCompany(int $companyId, array $filters = []): int
+    {
+        $sql = 'SELECT COUNT(*) FROM machines m WHERE m.company_id = :company_id';
+        $params = self::companyFilterParams($companyId, $filters);
+        $sql .= self::companyFilterSql($filters);
+
+        $stmt = db()->prepare($sql);
+        $stmt->execute($params);
+
+        return (int) $stmt->fetchColumn();
     }
 
     public static function stats(int $companyId): array
@@ -187,5 +185,54 @@ class Machine
         $stmt->execute($params);
 
         return (bool) $stmt->fetch();
+    }
+
+    private static function companyFilterSql(array $filters): string
+    {
+        $sql = '';
+        $status = $filters['status'] ?? 'active';
+
+        if ($status === 'inactive') {
+            $sql .= ' AND m.is_active = 0';
+        } elseif ($status !== 'all') {
+            $sql .= ' AND m.is_active = 1';
+        }
+
+        if (!empty($filters['device_type'])) {
+            $sql .= ' AND m.device_type = :device_type';
+        }
+
+        foreach (['tag', 'employee_name', 'department', 'computer_model'] as $field) {
+            if (!empty($filters[$field])) {
+                $sql .= " AND m.{$field} LIKE :{$field}";
+            }
+        }
+
+        if (!empty($filters['created_at'])) {
+            $sql .= ' AND DATE(m.created_at) = :created_at';
+        }
+
+        return $sql;
+    }
+
+    private static function companyFilterParams(int $companyId, array $filters): array
+    {
+        $params = ['company_id' => $companyId];
+
+        if (!empty($filters['device_type'])) {
+            $params['device_type'] = $filters['device_type'];
+        }
+
+        foreach (['tag', 'employee_name', 'department', 'computer_model'] as $field) {
+            if (!empty($filters[$field])) {
+                $params[$field] = '%' . $filters[$field] . '%';
+            }
+        }
+
+        if (!empty($filters['created_at'])) {
+            $params['created_at'] = $filters['created_at'];
+        }
+
+        return $params;
     }
 }
