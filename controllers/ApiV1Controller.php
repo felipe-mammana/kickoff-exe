@@ -60,6 +60,7 @@ class ApiV1Controller
                 ['method' => 'DELETE', 'path' => '/api/v1/machines/{id}', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
                 ['method' => 'POST', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
+                ['method' => 'DELETE', 'path' => '/api/v1/machine-photos/{id}', 'auth' => true],
             ],
         ]);
     }
@@ -415,6 +416,45 @@ class ApiV1Controller
             'uploaded' => count($stored),
             'errors' => $errors,
         ], 201);
+    }
+
+    public static function deleteMachinePhoto(array $params): void
+    {
+        $photoId = (int) $params['id'];
+        $photo = MachinePhoto::find($photoId);
+
+        if (!$photo) {
+            ApiResponse::error('photo_not_found', 'Foto nao encontrada.', 404);
+        }
+
+        $machine = Machine::find((int) $photo['machine_id']);
+        $path = UPLOAD_PATH . '/' . $photo['file_name'];
+        $fileDeleted = false;
+
+        if (is_file($path)) {
+            $fileDeleted = unlink($path);
+        }
+
+        MachinePhoto::delete($photoId);
+        AuditLog::record([
+            'action_type' => 'machine_photo_removed',
+            'affected_table' => 'machine_photos',
+            'affected_record_id' => $photoId,
+            'company_id' => $machine['company_id'] ?? null,
+            'machine_id' => (int) $photo['machine_id'],
+            'description' => 'Foto removida do dispositivo via API.',
+            'old_data' => [
+                'file_name' => $photo['file_name'],
+                'original_name' => $photo['original_name'],
+                'mime_type' => $photo['mime_type'],
+                'file_size' => (int) $photo['file_size'],
+            ],
+        ]);
+
+        ApiResponse::ok(self::photoResource($photo), [
+            'deleted' => true,
+            'file_deleted' => $fileDeleted,
+        ]);
     }
 
     private static function companyResource(array $company): array

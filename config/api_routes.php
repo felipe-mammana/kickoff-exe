@@ -21,4 +21,5 @@ return [
     ['DELETE', '/api/v1/machines/(?P<id>\d+)', ['ApiV1Controller', 'deactivateMachine'], true],
     ['GET', '/api/v1/machines/(?P<id>\d+)/photos', ['ApiV1Controller', 'machinePhotos'], true],
     ['POST', '/api/v1/machines/(?P<id>\d+)/photos', ['ApiV1Controller', 'uploadMachinePhotos'], true],
+    ['DELETE', '/api/v1/machine-photos/(?P<id>\d+)', ['ApiV1Controller', 'deleteMachinePhoto'], true],
 ];
