@@ -49,6 +49,8 @@ class ApiV1Controller
                 ['method' => 'GET', 'path' => '/api/v1/companies', 'auth' => true],
                 ['method' => 'POST', 'path' => '/api/v1/companies', 'auth' => true, 'admin' => true],
                 ['method' => 'GET', 'path' => '/api/v1/companies/{id}', 'auth' => true],
+                ['method' => 'PUT', 'path' => '/api/v1/companies/{id}', 'auth' => true, 'admin' => true],
+                ['method' => 'PATCH', 'path' => '/api/v1/companies/{id}', 'auth' => true, 'admin' => true],
                 ['method' => 'GET', 'path' => '/api/v1/companies/{id}/machines', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
@@ -59,29 +61,12 @@ class ApiV1Controller
     public static function createCompany(): void
     {
         $payload = ApiRequest::json();
-        $errors = ApiValidator::validate($payload, [
-            'name' => ['required', 'string', 'max' => 160],
-            'tag_pattern' => ['string', 'max' => 160],
-            'is_active' => ['bool'],
-        ]);
-
-        $name = trim((string) ($payload['name'] ?? ''));
-        if (!$errors && Company::duplicateNameExists($name)) {
-            $errors['name'][] = 'Ja existe uma empresa com este nome.';
-        }
-
-        if ($errors) {
-            ApiResponse::error('validation_failed', 'Revise os campos enviados.', 422, ['fields' => $errors]);
-        }
+        [$data, $errors] = self::validateCompanyPayload($payload, null, true);
+        self::abortIfValidationFails($errors);
 
         $user = ApiAuth::user();
-        $data = [
-            'name' => $name,
-            'tag_pattern' => trim((string) ($payload['tag_pattern'] ?? '')),
-            'is_active' => array_key_exists('is_active', $payload) ? (int) filter_var($payload['is_active'], FILTER_VALIDATE_BOOLEAN) : 1,
-            'created_by' => (int) $user['id'],
-            'updated_by' => (int) $user['id'],
-        ];
+        $data['created_by'] = (int) $user['id'];
+        $data['updated_by'] = (int) $user['id'];
         $companyId = Company::create($data);
         $company = Company::find($companyId);
 
@@ -96,6 +81,42 @@ class ApiV1Controller
 
         header('Location: /api/v1/companies/' . $companyId);
         ApiResponse::ok(self::companyResource($company ?: ['id' => $companyId] + $data), [], 201);
+    }
+
+    public static function updateCompany(array $params): void
+    {
+        $companyId = (int) $params['id'];
+        $company = Company::find($companyId);
+
+        if (!$company) {
+            ApiResponse::error('company_not_found', 'Empresa nao encontrada.', 404);
+        }
+
+        $payload = ApiRequest::json();
+        [$data, $errors] = self::validateCompanyPayload($payload, $companyId, false, $company);
+        self::abortIfValidationFails($errors);
+
+        $user = ApiAuth::user();
+        $data['updated_by'] = (int) $user['id'];
+        $changes = self::companyChanges($company, $data);
+        Company::update($companyId, $data);
+        $updatedCompany = Company::find($companyId);
+
+        if ($changes) {
+            AuditLog::record([
+                'action_type' => 'company_updated',
+                'affected_table' => 'companies',
+                'affected_record_id' => $companyId,
+                'company_id' => $companyId,
+                'description' => 'Empresa alterada via API.',
+                'old_data' => $changes['old'],
+                'new_data' => $changes['new'],
+            ]);
+        }
+
+        ApiResponse::ok(self::companyResource($updatedCompany ?: $data + ['id' => $companyId]), [
+            'changed' => (bool) $changes,
+        ]);
     }
 
     public static function health(): void
@@ -223,6 +244,60 @@ class ApiV1Controller
             'created_at' => $company['created_at'] ?? null,
             'updated_at' => $company['updated_at'] ?? null,
         ];
+    }
+
+    private static function validateCompanyPayload(array $payload, ?int $ignoreId = null, bool $creating = false, ?array $current = null): array
+    {
+        $rules = [
+            'name' => $creating ? ['required', 'string', 'max' => 160] : ['string', 'max' => 160],
+            'tag_pattern' => ['string', 'max' => 160],
+            'is_active' => ['bool'],
+        ];
+        $errors = ApiValidator::validate($payload, $rules);
+
+        $name = trim((string) ($payload['name'] ?? ($current['name'] ?? '')));
+        if (!$errors && $name !== '' && Company::duplicateNameExists($name, $ignoreId)) {
+            $errors['name'][] = 'Ja existe uma empresa com este nome.';
+        }
+
+        $data = [
+            'name' => $name,
+            'tag_pattern' => trim((string) ($payload['tag_pattern'] ?? ($current['tag_pattern'] ?? ''))),
+            'is_active' => array_key_exists('is_active', $payload)
+                ? (int) filter_var($payload['is_active'], FILTER_VALIDATE_BOOLEAN)
+                : (int) ($current['is_active'] ?? 1),
+        ];
+
+        return [$data, $errors];
+    }
+
+    private static function abortIfValidationFails(array $errors): void
+    {
+        if ($errors) {
+            ApiResponse::error('validation_failed', 'Revise os campos enviados.', 422, ['fields' => $errors]);
+        }
+    }
+
+    private static function companyChanges(array $old, array $new): array
+    {
+        $labels = [
+            'name' => 'Nome da empresa',
+            'tag_pattern' => 'Padrao de etiqueta',
+            'is_active' => 'Status',
+        ];
+        $changes = ['old' => [], 'new' => []];
+
+        foreach ($labels as $field => $label) {
+            $oldValue = (string) ($old[$field] ?? '');
+            $newValue = (string) ($new[$field] ?? '');
+
+            if ($oldValue !== $newValue) {
+                $changes['old'][$label] = $field === 'is_active' ? ($oldValue === '1' ? 'Ativa' : 'Inativa') : $oldValue;
+                $changes['new'][$label] = $field === 'is_active' ? ($newValue === '1' ? 'Ativa' : 'Inativa') : $newValue;
+            }
+        }
+
+        return $changes['old'] ? $changes : [];
     }
 
     private static function machineResource(array $machine): array

@@ -10,6 +10,8 @@ return [
     ['GET', '/api/v1/companies', ['ApiV1Controller', 'companies'], true],
     ['POST', '/api/v1/companies', ['ApiV1Controller', 'createCompany'], true, true],
     ['GET', '/api/v1/companies/(?P<id>\d+)', ['ApiV1Controller', 'company'], true],
+    ['PUT', '/api/v1/companies/(?P<id>\d+)', ['ApiV1Controller', 'updateCompany'], true, true],
+    ['PATCH', '/api/v1/companies/(?P<id>\d+)', ['ApiV1Controller', 'updateCompany'], true, true],
     ['GET', '/api/v1/companies/(?P<id>\d+)/machines', ['ApiV1Controller', 'companyMachines'], true],
     ['GET', '/api/v1/machines/(?P<id>\d+)', ['ApiV1Controller', 'machine'], true],
     ['GET', '/api/v1/machines/(?P<id>\d+)/photos', ['ApiV1Controller', 'machinePhotos'], true],

@@ -129,6 +129,8 @@ Endpoints iniciais:
 - `GET /api/v1/companies?active_only=true`: empresas.
 - `POST /api/v1/companies`: cria empresa, restrito a administradores.
 - `GET /api/v1/companies/{id}`: detalhe da empresa.
+- `PUT /api/v1/companies/{id}`: atualiza empresa, restrito a administradores.
+- `PATCH /api/v1/companies/{id}`: atualiza parcialmente empresa, restrito a administradores.
 - `GET /api/v1/companies/{id}/machines`: dispositivos da empresa.
 - `GET /api/v1/machines/{id}`: detalhe do dispositivo.
 - `GET /api/v1/machines/{id}/photos`: fotos do dispositivo.
@@ -175,6 +177,18 @@ Payload para criar empresa:
 ```
 
 Erros de validacao retornam `422` com `error.details.fields`.
+
+Payload para atualizar empresa:
+
+```json
+{
+  "name": "Empresa Atualizada",
+  "tag_pattern": "ATU-0001",
+  "is_active": true
+}
+```
+
+No `PATCH`, envie apenas os campos que deseja alterar.
 
 Para adicionar novas rotas, edite `config/api_routes.php` e crie o metodo correspondente no controller da versao, como `ApiV1Controller`.
 
