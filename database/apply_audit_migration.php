@@ -110,6 +110,22 @@ db()->exec(
 );
 
 db()->exec(
+    'CREATE TABLE IF NOT EXISTS api_tokens (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id INT UNSIGNED NOT NULL,
+        name VARCHAR(120) NOT NULL,
+        token_hash CHAR(64) NOT NULL UNIQUE,
+        last_used_at TIMESTAMP NULL,
+        expires_at TIMESTAMP NULL,
+        revoked_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_api_tokens_user (user_id),
+        INDEX idx_api_tokens_expires_at (expires_at),
+        CONSTRAINT fk_api_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB'
+);
+
+db()->exec(
     "UPDATE users
      SET is_admin = 1
      WHERE email = " . db()->quote((string) config_value('ADMIN_EMAIL', 'admin@empresa.com'))

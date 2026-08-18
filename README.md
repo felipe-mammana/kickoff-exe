@@ -134,6 +134,22 @@ Endpoints iniciais:
 
 Por enquanto, os endpoints de dados usam a mesma sessao de login do sistema web. Campos sensiveis de senha de dispositivo nao sao expostos na API.
 
+Tambem e possivel autenticar usando Bearer Token. Crie um token pela CLI:
+
+```powershell
+php database/create_api_token.php admin@empresa.com "Integracao interna" 90
+```
+
+O terceiro argumento e opcional e define a validade em dias. Sem ele, o token nao expira automaticamente.
+
+Use o token nas chamadas:
+
+```text
+Authorization: Bearer exe_token_gerado
+```
+
+Tokens sao armazenados no banco apenas como hash SHA-256. O valor completo aparece somente uma vez na criacao.
+
 Listagens aceitam paginacao:
 
 - `page`: pagina atual, padrao `1`.

@@ -28,7 +28,7 @@ class ApiRouter
                 continue;
             }
 
-            if ($requiresAuth && !current_user()) {
+            if ($requiresAuth && !ApiAuth::authenticate()) {
                 ApiResponse::error('unauthenticated', 'Autenticacao obrigatoria.', 401);
             }
 

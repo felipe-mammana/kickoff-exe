@@ -67,13 +67,18 @@ class ApiV1Controller
 
     public static function me(): void
     {
-        $user = current_user();
+        $user = ApiAuth::user();
+        $token = ApiAuth::token();
 
         ApiResponse::ok([
             'id' => (int) $user['id'],
             'name' => (string) $user['name'],
             'email' => (string) $user['email'],
             'is_admin' => (bool) $user['is_admin'],
+            'auth' => [
+                'type' => $token ? 'bearer_token' : 'session',
+                'token_name' => $token['name'] ?? null,
+            ],
         ]);
     }
 

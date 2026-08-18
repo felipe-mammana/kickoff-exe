@@ -101,6 +101,20 @@ CREATE TABLE IF NOT EXISTS machine_photos (
     CONSTRAINT fk_machine_photos_machine FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS api_tokens (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    last_used_at TIMESTAMP NULL,
+    expires_at TIMESTAMP NULL,
+    revoked_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_api_tokens_user (user_id),
+    INDEX idx_api_tokens_expires_at (expires_at),
+    CONSTRAINT fk_api_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 INSERT INTO companies (name)
 SELECT 'Empresa Matriz'
 WHERE NOT EXISTS (SELECT 1 FROM companies WHERE name = 'Empresa Matriz');
