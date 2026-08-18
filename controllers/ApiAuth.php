@@ -47,6 +47,13 @@ class ApiAuth
         return self::$token;
     }
 
+    public static function isAdmin(): bool
+    {
+        $user = self::user();
+
+        return !empty($user['is_admin']);
+    }
+
     private static function bearerToken(): ?string
     {
         $header = (string) ($_SERVER['HTTP_AUTHORIZATION'] ?? '');

@@ -21,6 +21,24 @@ class ApiRequest
         return filter_var($_GET[$key], FILTER_VALIDATE_BOOLEAN);
     }
 
+    public static function json(): array
+    {
+        $rawBody = file_get_contents('php://input');
+
+        if ($rawBody === false || trim($rawBody) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($rawBody, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+            ApiResponse::error('invalid_json', 'O corpo da requisicao deve ser um JSON valido.', 400, [
+                'json_error' => json_last_error_msg(),
+            ]);
+        }
+
+        return $decoded;
+    }
+
     public static function pagination(): array
     {
         $page = max(1, (int) ($_GET['page'] ?? 1));

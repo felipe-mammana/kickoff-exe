@@ -47,12 +47,55 @@ class ApiV1Controller
                 ['method' => 'GET', 'path' => '/api/v1/me', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/device-types', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/companies', 'auth' => true],
+                ['method' => 'POST', 'path' => '/api/v1/companies', 'auth' => true, 'admin' => true],
                 ['method' => 'GET', 'path' => '/api/v1/companies/{id}', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/companies/{id}/machines', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
             ],
         ]);
+    }
+
+    public static function createCompany(): void
+    {
+        $payload = ApiRequest::json();
+        $errors = ApiValidator::validate($payload, [
+            'name' => ['required', 'string', 'max' => 160],
+            'tag_pattern' => ['string', 'max' => 160],
+            'is_active' => ['bool'],
+        ]);
+
+        $name = trim((string) ($payload['name'] ?? ''));
+        if (!$errors && Company::duplicateNameExists($name)) {
+            $errors['name'][] = 'Ja existe uma empresa com este nome.';
+        }
+
+        if ($errors) {
+            ApiResponse::error('validation_failed', 'Revise os campos enviados.', 422, ['fields' => $errors]);
+        }
+
+        $user = ApiAuth::user();
+        $data = [
+            'name' => $name,
+            'tag_pattern' => trim((string) ($payload['tag_pattern'] ?? '')),
+            'is_active' => array_key_exists('is_active', $payload) ? (int) filter_var($payload['is_active'], FILTER_VALIDATE_BOOLEAN) : 1,
+            'created_by' => (int) $user['id'],
+            'updated_by' => (int) $user['id'],
+        ];
+        $companyId = Company::create($data);
+        $company = Company::find($companyId);
+
+        AuditLog::record([
+            'action_type' => 'company_created',
+            'affected_table' => 'companies',
+            'affected_record_id' => $companyId,
+            'company_id' => $companyId,
+            'description' => 'Empresa cadastrada via API.',
+            'new_data' => $data,
+        ]);
+
+        header('Location: /api/v1/companies/' . $companyId);
+        ApiResponse::ok(self::companyResource($company ?: ['id' => $companyId] + $data), [], 201);
     }
 
     public static function health(): void

@@ -127,6 +127,7 @@ Endpoints iniciais:
 - `GET /api/v1/me`: usuario logado.
 - `GET /api/v1/device-types`: tipos de dispositivos.
 - `GET /api/v1/companies?active_only=true`: empresas.
+- `POST /api/v1/companies`: cria empresa, restrito a administradores.
 - `GET /api/v1/companies/{id}`: detalhe da empresa.
 - `GET /api/v1/companies/{id}/machines`: dispositivos da empresa.
 - `GET /api/v1/machines/{id}`: detalhe do dispositivo.
@@ -162,6 +163,18 @@ GET /api/v1/companies/1/machines?page=2&per_page=20&status=active
 ```
 
 O retorno inclui `meta.pagination` com `page`, `per_page`, `total`, `last_page` e `has_more`.
+
+Payload para criar empresa:
+
+```json
+{
+  "name": "Nova Empresa",
+  "tag_pattern": "NOTE-0001",
+  "is_active": true
+}
+```
+
+Erros de validacao retornam `422` com `error.details.fields`.
 
 Para adicionar novas rotas, edite `config/api_routes.php` e crie o metodo correspondente no controller da versao, como `ApiV1Controller`.
 
