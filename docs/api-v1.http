@@ -1,0 +1,111 @@
+@baseUrl = http://127.0.0.1:8000
+@token = cole_o_token_aqui
+@companyId = 1
+@machineId = 1
+@photoId = 1
+
+### API index
+GET {{baseUrl}}/api/v1
+
+### Health check
+GET {{baseUrl}}/api/v1/health
+
+### Current user
+GET {{baseUrl}}/api/v1/me
+Authorization: Bearer {{token}}
+
+### Device types
+GET {{baseUrl}}/api/v1/device-types
+Authorization: Bearer {{token}}
+
+### List companies
+GET {{baseUrl}}/api/v1/companies?active_only=true&page=1&per_page=25
+Authorization: Bearer {{token}}
+
+### Create company
+POST {{baseUrl}}/api/v1/companies
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Empresa API Teste",
+  "tag_pattern": "API-0001",
+  "is_active": true
+}
+
+### Get company
+GET {{baseUrl}}/api/v1/companies/{{companyId}}
+Authorization: Bearer {{token}}
+
+### Update company
+PATCH {{baseUrl}}/api/v1/companies/{{companyId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "tag_pattern": "API-0002"
+}
+
+### Deactivate company
+DELETE {{baseUrl}}/api/v1/companies/{{companyId}}
+Authorization: Bearer {{token}}
+
+### List company machines
+GET {{baseUrl}}/api/v1/companies/{{companyId}}/machines?page=1&per_page=25&status=active
+Authorization: Bearer {{token}}
+
+### Create machine
+POST {{baseUrl}}/api/v1/companies/{{companyId}}/machines
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "device_type": "outros",
+  "tag": "API-001",
+  "computer_model": "Equipamento generico",
+  "notes": "Criado via API"
+}
+
+### Get machine
+GET {{baseUrl}}/api/v1/machines/{{machineId}}
+Authorization: Bearer {{token}}
+
+### Update machine
+PATCH {{baseUrl}}/api/v1/machines/{{machineId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "computer_model": "Equipamento atualizado",
+  "notes": "Atualizado via API"
+}
+
+### Deactivate machine
+DELETE {{baseUrl}}/api/v1/machines/{{machineId}}
+Authorization: Bearer {{token}}
+
+### List machine photos
+GET {{baseUrl}}/api/v1/machines/{{machineId}}/photos
+Authorization: Bearer {{token}}
+
+### Upload machine photos
+# Ajuste os caminhos locais dos arquivos antes de enviar.
+POST {{baseUrl}}/api/v1/machines/{{machineId}}/photos
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="photos[]"; filename="foto-geral.jpg"
+Content-Type: image/jpeg
+
+< ./foto-geral.jpg
+--boundary
+Content-Disposition: form-data; name="network_photo[]"; filename="configuracao-rede.png"
+Content-Type: image/png
+
+< ./configuracao-rede.png
+--boundary--
+
+### Delete machine photo
+DELETE {{baseUrl}}/api/v1/machine-photos/{{photoId}}
+Authorization: Bearer {{token}}

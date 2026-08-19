@@ -160,6 +160,8 @@ Authorization: Bearer exe_token_gerado
 
 Tokens sao armazenados no banco apenas como hash SHA-256. O valor completo aparece somente uma vez na criacao.
 
+Exemplos prontos para testar a API ficam em `docs/api-v1.http`. Ajuste `@baseUrl`, `@token` e os IDs no topo do arquivo antes de executar as chamadas.
+
 Listagens aceitam paginacao:
 
 - `page`: pagina atual, padrao `1`.
