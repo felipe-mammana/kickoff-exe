@@ -44,7 +44,7 @@ Requisitos:
 - PHP 7.4 ou superior com `pdo_mysql` e `fileinfo`
 - MySQL 5.7 ou superior
 
-1. Crie o banco importando `database/schema.sql` no MySQL.
+1. Crie o banco importando `database/schema.sql` no MySQL. Para uma base sem nenhuma informacao cadastrada, use `database/schema_empty.sql`.
 2. Configure `config/local.php`, se necessario.
 3. Inicie o MySQL no XAMPP.
 4. Aplique a migracao. Ela pode ser rodada em banco novo ou existente:
@@ -75,6 +75,8 @@ C:\xampp\php\php.exe -S localhost:8000 -t public
 ```
 
 7. Acesse `http://localhost:8000`.
+
+Para testar o sistema inteiro com uma base limpa, siga o roteiro em `docs/test-system.md`.
 
 Login inicial:
 
