@@ -16,7 +16,7 @@
         <span class="user-chip"><?= e(current_user()['name']) ?></span>
         <form action="/?route=logout" method="post">
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-            <button class="btn btn-muted" type="submit"><?= icon('log-out') ?><span>Sair</span></button>
+            <button class="icon-btn" type="submit" aria-label="Sair" title="Sair"><?= icon('log-out') ?></button>
         </form>
     </nav>
 </header>

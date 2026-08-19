@@ -71,42 +71,6 @@
     </section>
 
     <section class="dashboard-grid">
-        <aside class="dashboard-side">
-            <a class="quick-action" href="/?route=machines.create&company_id=<?= (int) $company['id'] ?>">
-                <?= icon('plus') ?>
-                <span>Cadastrar novo dispositivo</span>
-            </a>
-
-            <article class="content-panel">
-                <div class="panel-header compact">
-                    <div>
-                        <span class="eyebrow">Atividade</span>
-                        <h2>Ultimas alteracoes</h2>
-                    </div>
-                    <a class="link-primary" href="/?route=audit.index">Ver logs</a>
-                </div>
-
-                <?php if (!$machines): ?>
-                    <div class="empty-state compact">
-                        <h3>Sem atividade recente</h3>
-                        <p>Novos cadastros aparecerao aqui.</p>
-                    </div>
-                <?php else: ?>
-                    <ol class="activity-list">
-                        <?php foreach (array_slice($machines, 0, 4) as $item): ?>
-                            <li>
-                                <span class="activity-dot"></span>
-                                <div>
-                                    <strong><?= e($machineTitle($item)) ?></strong>
-                                    <small><?= e($deviceTypes[$item['device_type'] ?? ''] ?? 'Dispositivo') ?> - <?= e(($item['updated_at'] ?? '') ?: ($item['created_at'] ?? '')) ?></small>
-                                </div>
-                            </li>
-                        <?php endforeach; ?>
-                    </ol>
-                <?php endif; ?>
-            </article>
-        </aside>
-
         <section class="content-panel dashboard-main">
             <div class="panel-header">
                 <div>
@@ -115,12 +79,12 @@
                     <p><?= count($machines) ?> registro(s) encontrados</p>
                 </div>
                 <div class="panel-actions">
-                    <button class="icon-btn" type="button" aria-label="Filtrar"><?= icon('filter') ?></button>
-                    <a class="btn btn-muted export-btn <?= !$machines ? 'disabled' : '' ?>" href="<?= e(export_url('devices', 'csv', array_merge(['company_id' => (int) $company['id']], $filters))) ?>" data-export-link data-export-format="CSV" aria-disabled="<?= !$machines ? 'true' : 'false' ?>">
-                        <?= icon('file-spreadsheet') ?><span>CSV</span>
+                    <a class="icon-btn primary-action" href="/?route=machines.create&company_id=<?= (int) $company['id'] ?>" aria-label="Cadastrar dispositivo" title="Cadastrar dispositivo"><?= icon('plus') ?></a>
+                    <a class="icon-btn export-btn <?= !$machines ? 'disabled' : '' ?>" href="<?= e(export_url('devices', 'csv', array_merge(['company_id' => (int) $company['id']], $filters))) ?>" data-export-link data-export-format="CSV" aria-label="Exportar CSV" title="Exportar CSV" aria-disabled="<?= !$machines ? 'true' : 'false' ?>">
+                        <?= icon('file-spreadsheet') ?>
                     </a>
-                    <a class="btn btn-muted export-btn <?= !$machines ? 'disabled' : '' ?>" href="<?= e(export_url('devices', 'json', array_merge(['company_id' => (int) $company['id']], $filters))) ?>" data-export-link data-export-format="JSON" aria-disabled="<?= !$machines ? 'true' : 'false' ?>">
-                        <?= icon('braces') ?><span>JSON</span>
+                    <a class="icon-btn export-btn <?= !$machines ? 'disabled' : '' ?>" href="<?= e(export_url('devices', 'json', array_merge(['company_id' => (int) $company['id']], $filters))) ?>" data-export-link data-export-format="JSON" aria-label="Exportar JSON" title="Exportar JSON" aria-disabled="<?= !$machines ? 'true' : 'false' ?>">
+                        <?= icon('braces') ?>
                     </a>
                 </div>
             </div>
@@ -283,6 +247,35 @@
                 </div>
             <?php endif; ?>
         </section>
+
+        <article class="content-panel dashboard-activity">
+            <div class="panel-header compact">
+                <div>
+                    <span class="eyebrow">Atividade</span>
+                    <h2>Ultimas alteracoes</h2>
+                </div>
+                <a class="icon-btn" href="/?route=audit.index" aria-label="Ver logs" title="Ver logs"><?= icon('file-clock') ?></a>
+            </div>
+
+            <?php if (!$machines): ?>
+                <div class="empty-state compact">
+                    <h3>Sem atividade recente</h3>
+                    <p>Novos cadastros aparecerao aqui.</p>
+                </div>
+            <?php else: ?>
+                <ol class="activity-list">
+                    <?php foreach (array_slice($machines, 0, 4) as $item): ?>
+                        <li>
+                            <span class="activity-dot"></span>
+                            <div>
+                                <strong><?= e($machineTitle($item)) ?></strong>
+                                <small><?= e($deviceTypes[$item['device_type'] ?? ''] ?? 'Dispositivo') ?> - <?= e(($item['updated_at'] ?? '') ?: ($item['created_at'] ?? '')) ?></small>
+                            </div>
+                        </li>
+                    <?php endforeach; ?>
+                </ol>
+            <?php endif; ?>
+        </article>
     </section>
 
     <div class="gallery-modal" data-gallery-modal hidden>

@@ -2096,13 +2096,14 @@ body.sidebar-collapsed .sidebar-profile {
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: minmax(260px, 0.36fr) minmax(0, 1fr);
-    gap: var(--space-4);
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
     align-items: start;
 }
 
 .dashboard-side,
-.dashboard-main {
+.dashboard-main,
+.dashboard-activity {
     min-width: 0;
 }
 
@@ -2112,7 +2113,7 @@ body.sidebar-collapsed .sidebar-profile {
 }
 
 .quick-action {
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     gap: var(--space-3);
@@ -2136,7 +2137,36 @@ body.sidebar-collapsed .sidebar-profile {
 
 .panel-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--space-2);
+    justify-content: flex-end;
+}
+
+.primary-action {
+    border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
+    background: var(--accent);
+    color: #fff;
+}
+
+.primary-action:hover {
+    background: var(--accent-strong);
+    color: #fff;
+}
+
+.dashboard-main .filter-drawer {
+    margin-top: 1rem;
+}
+
+.dashboard-activity {
+    margin-top: 0;
+}
+
+.dashboard-activity .activity-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dashboard-activity .empty-state {
+    min-height: 8rem;
 }
 
 .link-primary {
@@ -2892,6 +2922,10 @@ form[id^="delete-photo-"] {
         grid-template-columns: 1fr;
     }
 
+    .dashboard-activity .activity-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .device-detail-grid {
         grid-template-columns: 1fr;
     }
@@ -3024,6 +3058,7 @@ form[id^="delete-photo-"] {
     .stats-grid,
     .asset-metrics,
     .audit-summary-grid,
+    .dashboard-activity .activity-list,
     .device-summary-grid,
     .fields-grid,
     .fields-grid.three-cols,
