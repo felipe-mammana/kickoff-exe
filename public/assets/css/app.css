@@ -21,6 +21,7 @@
     --sidebar-width: 256px;
     --topbar-height: 68px;
     --container-max: 1280px;
+    --panel-pad: 1.25rem;
 }
 
 :root[data-theme="dark"] {
@@ -600,7 +601,8 @@ body.sidebar-collapsed .sidebar-profile {
 .content-panel {
     min-width: 0;
     margin-bottom: var(--space-4);
-    padding: var(--space-4);
+    padding: var(--panel-pad);
+    border-radius: var(--radius);
 }
 
 .narrow-panel {
@@ -620,7 +622,7 @@ body.sidebar-collapsed .sidebar-profile {
     width: 100%;
     overflow-x: auto;
     border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius);
     background: var(--surface);
     scrollbar-color: color-mix(in srgb, var(--accent) 60%, var(--border)) var(--surface);
     scrollbar-width: thin;
@@ -653,7 +655,7 @@ body.sidebar-collapsed .sidebar-profile {
 
 .inventory-table th,
 .inventory-table td {
-    padding: 0.85rem 1rem;
+    padding: 0.78rem 0.9rem;
     border-right: 0;
     border-bottom: 1px solid var(--border);
     text-align: left;
@@ -675,7 +677,7 @@ body.sidebar-collapsed .sidebar-profile {
     z-index: 1;
     background: var(--surface-3);
     color: var(--muted);
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -683,7 +685,7 @@ body.sidebar-collapsed .sidebar-profile {
 
 .inventory-table td {
     color: var(--text);
-    font-size: 0.9rem;
+    font-size: 0.875rem;
 }
 
 .inventory-table tbody tr:hover {
@@ -1478,10 +1480,10 @@ body.sidebar-collapsed .sidebar-profile {
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    min-height: 6rem;
-    padding: var(--space-4);
+    min-height: 5.15rem;
+    padding: var(--panel-pad);
     border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius);
     background: var(--surface);
     box-shadow: var(--shadow-soft);
 }
@@ -1489,7 +1491,7 @@ body.sidebar-collapsed .sidebar-profile {
 .summary-card strong {
     display: block;
     color: var(--text);
-    font-size: 1.65rem;
+    font-size: 1.45rem;
     line-height: 1;
 }
 
@@ -1502,9 +1504,9 @@ body.sidebar-collapsed .sidebar-profile {
 .summary-icon {
     display: inline-grid;
     place-items: center;
-    flex: 0 0 2.75rem;
-    width: 2.75rem;
-    height: 2.75rem;
+    flex: 0 0 2.35rem;
+    width: 2.35rem;
+    height: 2.35rem;
     border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
     border-radius: var(--radius);
     background: color-mix(in srgb, var(--accent) 10%, var(--surface));
@@ -1597,32 +1599,32 @@ body.sidebar-collapsed .sidebar-profile {
 .audit-summary-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-3);
-    margin-bottom: var(--space-4);
+    gap: 0.85rem;
+    margin-bottom: 1rem;
 }
 
 .audit-filter-panel,
 .audit-log-panel {
-    margin-bottom: var(--space-4);
+    margin-bottom: 1rem;
 }
 
 .audit-filter-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-4);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.9rem;
     align-items: end;
-    padding: var(--space-4);
+    padding: var(--panel-pad);
 }
 
 .audit-filter-actions {
-    grid-column: span 3;
+    grid-column: span 5;
     justify-content: flex-end;
     align-self: end;
 }
 
 .audit-table-wrap {
     border: 0;
-    border-radius: 0;
+    border-radius: 0 0 var(--radius) var(--radius);
 }
 
 .audit-table {
@@ -1631,7 +1633,7 @@ body.sidebar-collapsed .sidebar-profile {
 
 .audit-table th,
 .audit-table td {
-    padding: 1rem;
+    padding: 0.82rem 0.9rem;
 }
 
 .audit-table th:first-child,
@@ -1689,12 +1691,13 @@ body.sidebar-collapsed .sidebar-profile {
     width: fit-content;
     align-items: center;
     gap: 0.4rem;
-    padding: 0.34rem 0.58rem;
+    min-height: 1.65rem;
+    padding: 0.26rem 0.5rem;
     border: 1px solid var(--border);
     border-radius: 999px;
     background: var(--surface-2);
     color: var(--muted);
-    font-size: 0.76rem;
+    font-size: 0.72rem;
     font-weight: 900;
 }
 
@@ -1743,9 +1746,9 @@ body.sidebar-collapsed .sidebar-profile {
 
 .audit-avatar {
     display: inline-flex;
-    flex: 0 0 2.25rem;
-    width: 2.25rem;
-    height: 2.25rem;
+    flex: 0 0 2rem;
+    width: 2rem;
+    height: 2rem;
     align-items: center;
     justify-content: center;
     border: 1px solid var(--border);
@@ -1799,9 +1802,9 @@ body.sidebar-collapsed .sidebar-profile {
 
 .audit-json-grid {
     width: min(680px, 72vw);
-    padding: var(--space-3);
+    padding: 0.85rem;
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-xs);
     background: var(--surface-2);
     box-shadow: var(--shadow-soft);
 }
