@@ -1782,22 +1782,77 @@ body.sidebar-collapsed .sidebar-profile {
     overflow-wrap: anywhere;
 }
 
-.audit-change-details {
-    min-width: 280px;
-}
-
-.audit-change-details summary {
+.audit-change-trigger {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
+    min-height: 2rem;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
+    border-radius: var(--radius-xs);
+    background: color-mix(in srgb, var(--accent) 9%, var(--surface));
     color: var(--accent);
     cursor: pointer;
+    font: inherit;
+    font-size: 0.78rem;
     font-weight: 900;
 }
 
-.audit-change-details summary .icon {
+.audit-change-trigger:hover {
+    border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+
+.audit-change-trigger .icon {
     width: 1rem;
     height: 1rem;
+}
+
+.audit-change-modal[hidden] {
+    display: none;
+}
+
+.audit-change-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: grid;
+    place-items: center;
+    padding: var(--space-4);
+    background: rgba(4, 9, 15, 0.72);
+    backdrop-filter: blur(12px);
+}
+
+.audit-change-dialog {
+    display: grid;
+    gap: var(--space-4);
+    width: min(980px, 100%);
+    max-height: min(760px, calc(100vh - 3rem));
+    overflow: hidden;
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+
+.audit-change-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border);
+}
+
+.audit-change-head h2,
+.audit-change-head p {
+    margin: 0;
+}
+
+.audit-change-head p {
+    margin-top: 0.3rem;
+    color: var(--muted);
 }
 
 .audit-json-grid {
@@ -1807,6 +1862,13 @@ body.sidebar-collapsed .sidebar-profile {
     border-radius: var(--radius-xs);
     background: var(--surface-2);
     box-shadow: var(--shadow-soft);
+}
+
+.audit-json-modal-grid {
+    width: 100%;
+    max-height: min(590px, calc(100vh - 13rem));
+    overflow: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .audit-empty {
@@ -2957,6 +3019,10 @@ form[id^="delete-photo-"] {
         width: 100%;
     }
 
+    .audit-json-modal-grid {
+        grid-template-columns: 1fr;
+    }
+
     .settings-wide-panel {
         grid-column: auto;
     }
@@ -3125,8 +3191,12 @@ form[id^="delete-photo-"] {
         align-items: flex-start;
     }
 
-    .audit-change-details {
-        min-width: 0;
+    .audit-change-dialog {
+        padding: var(--space-3);
+    }
+
+    .audit-change-head {
+        align-items: flex-start;
     }
 
     .settings-check-list > div {

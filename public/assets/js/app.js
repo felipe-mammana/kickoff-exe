@@ -281,6 +281,51 @@
         }
     });
 
+    const auditChangeModal = document.querySelector('[data-audit-change-modal]');
+    const auditChangeTitle = document.querySelector('[data-audit-change-title]');
+    const auditChangeDescription = document.querySelector('[data-audit-change-description]');
+    const auditChangeBefore = document.querySelector('[data-audit-change-before]');
+    const auditChangeAfter = document.querySelector('[data-audit-change-after]');
+
+    function closeAuditChangeModal() {
+        if (auditChangeModal) {
+            auditChangeModal.hidden = true;
+        }
+        document.body.classList.remove('modal-open');
+    }
+
+    document.querySelectorAll('[data-audit-change-open]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            if (!auditChangeModal) {
+                return;
+            }
+
+            if (auditChangeTitle) {
+                auditChangeTitle.textContent = button.getAttribute('data-audit-title') || 'Alteracoes';
+            }
+            if (auditChangeDescription) {
+                auditChangeDescription.textContent = button.getAttribute('data-audit-description') || '';
+            }
+            if (auditChangeBefore) {
+                auditChangeBefore.textContent = button.getAttribute('data-audit-before') || '-';
+            }
+            if (auditChangeAfter) {
+                auditChangeAfter.textContent = button.getAttribute('data-audit-after') || '-';
+            }
+
+            auditChangeModal.hidden = false;
+            document.body.classList.add('modal-open');
+        });
+    });
+
+    document.querySelector('[data-audit-change-close]')?.addEventListener('click', closeAuditChangeModal);
+
+    auditChangeModal?.addEventListener('click', function (event) {
+        if (event.target === auditChangeModal) {
+            closeAuditChangeModal();
+        }
+    });
+
     const lightbox = document.querySelector('[data-lightbox]');
     const lightboxImg = document.querySelector('[data-lightbox-img]');
     const lightboxClose = document.querySelector('[data-lightbox-close]');
@@ -326,6 +371,11 @@
 
             if (galleryModal && !galleryModal.hidden) {
                 galleryModal.hidden = true;
+                return;
+            }
+
+            if (auditChangeModal && !auditChangeModal.hidden) {
+                closeAuditChangeModal();
             }
         }
     });

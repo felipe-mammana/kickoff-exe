@@ -232,19 +232,17 @@ foreach ($filters as $filterValue) {
                             </td>
                             <td data-label="Dados">
                                 <?php if ($hasChanges): ?>
-                                    <details class="audit-change-details">
-                                        <summary><?= icon('eye') ?><span>Ver alteracoes</span></summary>
-                                        <div class="json-grid audit-json-grid">
-                                            <div>
-                                                <span>Antes</span>
-                                                <pre><?= e(pretty_json($log['old_data'])) ?></pre>
-                                            </div>
-                                            <div>
-                                                <span>Depois</span>
-                                                <pre><?= e(pretty_json($log['new_data'])) ?></pre>
-                                            </div>
-                                        </div>
-                                    </details>
+                                    <button
+                                        class="audit-change-trigger"
+                                        type="button"
+                                        data-audit-change-open
+                                        data-audit-title="<?= e($actionLabels[$actionType] ?? $actionType) ?>"
+                                        data-audit-description="<?= e($log['description']) ?>"
+                                        data-audit-before="<?= e(pretty_json($log['old_data'])) ?>"
+                                        data-audit-after="<?= e(pretty_json($log['new_data'])) ?>"
+                                    >
+                                        <?= icon('eye') ?><span>Ver alteracoes</span>
+                                    </button>
                                 <?php else: ?>
                                     <span class="status-chip neutral">Sem alteracoes</span>
                                 <?php endif; ?>
@@ -256,3 +254,27 @@ foreach ($filters as $filterValue) {
         </div>
     <?php endif; ?>
 </section>
+
+<div class="audit-change-modal" data-audit-change-modal hidden>
+    <div class="audit-change-dialog" role="dialog" aria-modal="true" aria-labelledby="audit-change-title">
+        <header class="audit-change-head">
+            <div>
+                <span class="eyebrow">Alteracoes registradas</span>
+                <h2 id="audit-change-title" data-audit-change-title>Alteracoes</h2>
+                <p data-audit-change-description></p>
+            </div>
+            <button class="icon-btn" type="button" data-audit-change-close aria-label="Fechar" title="Fechar"><?= icon('x') ?></button>
+        </header>
+
+        <div class="json-grid audit-json-grid audit-json-modal-grid">
+            <div>
+                <span>Antes</span>
+                <pre data-audit-change-before>-</pre>
+            </div>
+            <div>
+                <span>Depois</span>
+                <pre data-audit-change-after>-</pre>
+            </div>
+        </div>
+    </div>
+</div>
