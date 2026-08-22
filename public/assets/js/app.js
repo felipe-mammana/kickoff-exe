@@ -282,14 +282,20 @@
     });
 
     const auditChangeModal = document.querySelector('[data-audit-change-modal]');
-    const auditChangeTitle = document.querySelector('[data-audit-change-title]');
-    const auditChangeDescription = document.querySelector('[data-audit-change-description]');
-    const auditChangeBefore = document.querySelector('[data-audit-change-before]');
-    const auditChangeAfter = document.querySelector('[data-audit-change-after]');
+
+    if (auditChangeModal && auditChangeModal.parentElement !== document.body) {
+        document.body.appendChild(auditChangeModal);
+    }
+
+    const auditChangeTitle = auditChangeModal?.querySelector('[data-audit-change-title]');
+    const auditChangeDescription = auditChangeModal?.querySelector('[data-audit-change-description]');
+    const auditChangeBefore = auditChangeModal?.querySelector('[data-audit-change-before]');
+    const auditChangeAfter = auditChangeModal?.querySelector('[data-audit-change-after]');
 
     function closeAuditChangeModal() {
         if (auditChangeModal) {
             auditChangeModal.hidden = true;
+            auditChangeModal.classList.remove('is-open');
         }
         document.body.classList.remove('modal-open');
     }
@@ -314,6 +320,7 @@
             }
 
             auditChangeModal.hidden = false;
+            auditChangeModal.classList.add('is-open');
             document.body.classList.add('modal-open');
         });
     });

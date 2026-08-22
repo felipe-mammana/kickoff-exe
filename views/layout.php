@@ -6,6 +6,11 @@ $isCompany = strpos($route, 'companies.') === 0;
 $isUsers = strpos($route, 'users.') === 0;
 $isSettings = strpos($route, 'settings.') === 0;
 $companyIdForNav = (int) ($_GET['company_id'] ?? ($company['id'] ?? ($machine['company_id'] ?? 0)));
+$assetVersion = static function (string $path): string {
+    $file = BASE_PATH . '/public' . $path;
+
+    return is_file($file) ? (string) filemtime($file) : '1';
+};
 ?>
 <!doctype html>
 <html lang="pt-BR" data-theme="light">
@@ -25,7 +30,7 @@ $companyIdForNav = (int) ($_GET['company_id'] ?? ($company['id'] ?? ($machine['c
             document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
         })();
     </script>
-    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/app.css?v=<?= e($assetVersion('/assets/css/app.css')) ?>">
 </head>
 <body class="is-loading">
     <div class="app-loader" data-app-loader aria-hidden="true">
@@ -63,7 +68,7 @@ $companyIdForNav = (int) ($_GET['company_id'] ?? ($company['id'] ?? ($machine['c
         </main>
     <?php endif; ?>
 
-    <script src="/assets/js/app.js"></script>
-    <script src="/assets/js/export.js"></script>
+    <script src="/assets/js/app.js?v=<?= e($assetVersion('/assets/js/app.js')) ?>"></script>
+    <script src="/assets/js/export.js?v=<?= e($assetVersion('/assets/js/export.js')) ?>"></script>
 </body>
 </html>

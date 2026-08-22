@@ -1809,14 +1809,15 @@ body.sidebar-collapsed .sidebar-profile {
 }
 
 .audit-change-modal[hidden] {
-    display: none;
+    display: none !important;
 }
 
 .audit-change-modal {
     position: fixed;
     inset: 0;
-    z-index: 1300;
+    z-index: 9999;
     display: grid;
+    isolation: isolate;
     place-items: center;
     padding: var(--space-4);
     background: transparent;
