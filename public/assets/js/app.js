@@ -127,7 +127,14 @@
 
             const shouldShow = input.type === 'password';
             input.type = shouldShow ? 'text' : 'password';
-            event.currentTarget.textContent = shouldShow ? 'Ocultar' : 'Ver';
+
+            const nextLabel = shouldShow ? 'Ocultar senha' : 'Mostrar senha';
+            event.currentTarget.setAttribute('aria-label', nextLabel);
+            event.currentTarget.setAttribute('title', nextLabel);
+
+            if (!event.currentTarget.querySelector('.icon')) {
+                event.currentTarget.textContent = shouldShow ? 'Ocultar' : 'Ver';
+            }
         });
     });
 

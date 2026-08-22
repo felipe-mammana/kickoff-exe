@@ -28,7 +28,9 @@
             <span>Senha</span>
             <span class="password-wrap">
                 <input type="password" name="password" autocomplete="current-password" required data-password-input>
-                <button type="button" data-password-toggle>Ver</button>
+                <button class="password-toggle-icon" type="button" data-password-toggle aria-label="Mostrar senha" title="Mostrar senha">
+                    <?= icon('eye') ?>
+                </button>
             </span>
         </label>
 

@@ -1160,6 +1160,18 @@ body.sidebar-collapsed .sidebar-profile {
     transform: translateY(-50%);
 }
 
+.password-wrap .password-toggle-icon {
+    display: inline-grid;
+    width: 2.35rem;
+    padding: 0;
+    place-items: center;
+}
+
+.password-wrap .password-toggle-icon .icon {
+    width: 1rem;
+    height: 1rem;
+}
+
 .form-grid,
 .details-grid {
     display: grid;
