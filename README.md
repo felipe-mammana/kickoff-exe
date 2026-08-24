@@ -37,6 +37,14 @@ Copy-Item config/local.example.php config/local.php
 
 Depois edite `config/local.php` com banco, URL e usuario inicial. Esse arquivo e ignorado pelo Git.
 
+Gere uma `APP_KEY` propria para cada ambiente. Ela e usada para criptografar credenciais de dispositivos:
+
+```powershell
+php database/generate_app_key.php
+```
+
+Copie a linha gerada para `config/local.php`. Guarde essa chave: sem ela, credenciais ja criptografadas nao podem ser abertas.
+
 ## Como rodar localmente
 
 Requisitos:
@@ -51,6 +59,7 @@ Requisitos:
 
 ```powershell
 php database/apply_audit_migration.php
+php database/apply_credential_crypto_migration.php
 ```
 
 5. Crie o usuario inicial:
@@ -70,6 +79,7 @@ Se estiver usando XAMPP e o comando `php` nao for reconhecido no PowerShell, use
 ```powershell
 cd C:\Users\felip\OneDrive\Desktop\exe-kickoff
 C:\xampp\php\php.exe database\apply_audit_migration.php
+C:\xampp\php\php.exe database\apply_credential_crypto_migration.php
 C:\xampp\php\php.exe database\seed_admin.php
 C:\xampp\php\php.exe -S localhost:8000 -t public
 ```

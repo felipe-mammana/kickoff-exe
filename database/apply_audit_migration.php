@@ -56,7 +56,7 @@ add_column_if_missing('machines', 'equipment_name', 'equipment_name VARCHAR(160)
 add_column_if_missing('machines', 'brand', 'brand VARCHAR(160) NULL AFTER department');
 add_column_if_missing('machines', 'operating_system', 'operating_system VARCHAR(160) NULL AFTER computer_model');
 add_column_if_missing('machines', 'admin_user', 'admin_user VARCHAR(160) NULL AFTER machine_password');
-add_column_if_missing('machines', 'admin_password', 'admin_password VARCHAR(160) NULL AFTER admin_user');
+add_column_if_missing('machines', 'admin_password', 'admin_password TEXT NULL AFTER admin_user');
 add_column_if_missing('machines', 'install_location', 'install_location VARCHAR(160) NULL AFTER admin_password');
 add_column_if_missing('machines', 'modem_name', 'modem_name VARCHAR(160) NULL AFTER install_location');
 add_column_if_missing('machines', 'ip_address', 'ip_address VARCHAR(80) NULL AFTER modem_name');

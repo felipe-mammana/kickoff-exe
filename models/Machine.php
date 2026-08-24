@@ -14,6 +14,8 @@ class Machine
         'outros' => 'Outros dispositivos',
     ];
 
+    private const ENCRYPTED_FIELDS = ['machine_password', 'admin_password'];
+
     public static function deviceTypes(): array
     {
         return self::DEVICE_TYPES;
@@ -47,7 +49,7 @@ class Machine
         }
         $stmt->execute($params);
 
-        return $stmt->fetchAll();
+        return array_map([self::class, 'decryptCredentials'], $stmt->fetchAll());
     }
 
     public static function countByCompany(int $companyId, array $filters = []): int
@@ -102,11 +104,12 @@ class Machine
         $stmt->execute(['id' => $id]);
         $machine = $stmt->fetch();
 
-        return $machine ?: null;
+        return $machine ? self::decryptCredentials($machine) : null;
     }
 
     public static function create(array $data): int
     {
+        $data = self::encryptCredentials($data);
         $stmt = db()->prepare(
             'INSERT INTO machines (
                 company_id, device_type, equipment_name, tag, old_hostname, new_hostname, employee_name, department,
@@ -127,6 +130,7 @@ class Machine
 
     public static function update(int $id, array $data): void
     {
+        $data = self::encryptCredentials($data);
         $data['id'] = $id;
         $stmt = db()->prepare(
             'UPDATE machines SET
@@ -234,5 +238,27 @@ class Machine
         }
 
         return $params;
+    }
+
+    private static function encryptCredentials(array $data): array
+    {
+        foreach (self::ENCRYPTED_FIELDS as $field) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = CredentialCrypto::encrypt($data[$field]);
+            }
+        }
+
+        return $data;
+    }
+
+    private static function decryptCredentials(array $data): array
+    {
+        foreach (self::ENCRYPTED_FIELDS as $field) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = CredentialCrypto::decrypt($data[$field]);
+            }
+        }
+
+        return $data;
     }
 }

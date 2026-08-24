@@ -7,6 +7,7 @@ return [
     'APP_ENV' => 'local',
     'APP_DEBUG' => true,
     'APP_URL' => 'http://localhost:8000',
+    'APP_KEY' => 'gere-uma-chave-com-database/generate_app_key.php',
 
     'DB_HOST' => '127.0.0.1',
     'DB_NAME' => 'inventario_ti',
