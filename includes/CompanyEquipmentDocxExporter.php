@@ -139,9 +139,6 @@ class CompanyEquipmentDocxExporter
         foreach ($photos as $photo) {
             $path = UPLOAD_PATH . '/' . (string) ($photo['file_name'] ?? '');
             $labelParts = [MachinePhoto::topicLabel($photo['photo_topic'] ?? 'equipamento')];
-            if (!empty($photo['location_name'])) {
-                $labelParts[] = (string) $photo['location_name'];
-            }
             if (($photo['photo_type'] ?? 'general') === 'network_config') {
                 $labelParts[] = 'Rede';
             }

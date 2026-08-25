@@ -286,15 +286,11 @@ $typeIcons = [
                 <div class="upload-meta-grid compact">
                     <label class="field">
                         <span>Topico da foto de rede</span>
-                        <select name="network_photo_topic">
+                        <select name="network_photo_topic[]">
                             <?php foreach (MachinePhoto::topics() as $topicValue => $topicLabel): ?>
                                 <option value="<?= e($topicValue) ?>" <?= $topicValue === 'equipamento' ? 'selected' : '' ?>><?= e($topicLabel) ?></option>
                             <?php endforeach; ?>
                         </select>
-                    </label>
-                    <label class="field">
-                        <span>Nome do local</span>
-                        <input type="text" name="network_photo_location_name" placeholder="Ex.: Sala TI, Rack recepcao">
                     </label>
                 </div>
                 <div class="upload-choice-grid compact">
@@ -351,20 +347,6 @@ $typeIcons = [
 
             <div class="photo-layout">
                 <div class="photo-upload-column">
-                    <div class="upload-meta-grid">
-                        <label class="field">
-                            <span>Topico das fotos</span>
-                            <select name="photo_topic">
-                                <?php foreach (MachinePhoto::topics() as $topicValue => $topicLabel): ?>
-                                    <option value="<?= e($topicValue) ?>" <?= $topicValue === 'equipamento' ? 'selected' : '' ?>><?= e($topicLabel) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </label>
-                        <label class="field">
-                            <span>Nome do local</span>
-                            <input type="text" name="photo_location_name" placeholder="Ex.: Escritorio, Recepcao, Rack">
-                        </label>
-                    </div>
                     <div class="upload-choice-grid">
                         <label class="upload-drop asset-upload">
                             <input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp" multiple data-photo-input data-photo-primary>
@@ -396,7 +378,6 @@ $typeIcons = [
                                     <figcaption>
                                         <span>
                                             <?= e(MachinePhoto::topicLabel($photo['photo_topic'] ?? 'equipamento')) ?>
-                                            <?= !empty($photo['location_name']) ? ' - ' . e($photo['location_name']) : '' ?>
                                             <?= ($photo['photo_type'] ?? 'general') === 'network_config' ? ' - Rede' : '' ?>
                                             : <?= e($photo['original_name']) ?>
                                         </span>

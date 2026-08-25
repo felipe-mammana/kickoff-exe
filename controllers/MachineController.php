@@ -318,8 +318,6 @@ class MachineController
 
         $finfo = new finfo(FILEINFO_MIME_TYPE);
         $total = count($_FILES[$inputName]['name']);
-        $topic = self::normalizePhotoTopic((string) ($_POST[$inputName . '_topic'] ?? ($_POST['photo_topic'] ?? 'equipamento')));
-        $locationName = self::nullable($inputName . '_location_name') ?? self::nullable('photo_location_name');
 
         for ($i = 0; $i < $total; $i++) {
             if ($_FILES[$inputName]['error'][$i] === UPLOAD_ERR_NO_FILE) {
@@ -357,8 +355,8 @@ class MachineController
                 $photoData = [
                     'machine_id' => $machineId,
                     'photo_type' => $photoType,
-                    'photo_topic' => $topic,
-                    'location_name' => $locationName,
+                    'photo_topic' => self::photoTopicForUpload($inputName, $i),
+                    'location_name' => null,
                     'file_name' => $fileName,
                     'original_name' => basename((string) $_FILES[$inputName]['name'][$i]),
                     'mime_type' => $mime,
@@ -370,6 +368,18 @@ class MachineController
         }
 
         return $stored;
+    }
+
+    private static function photoTopicForUpload(string $inputName, int $index): string
+    {
+        $field = $inputName . '_topic';
+        $topic = $_POST[$field] ?? $_POST['photo_topic'] ?? 'equipamento';
+
+        if (is_array($topic)) {
+            $topic = $topic[$index] ?? 'equipamento';
+        }
+
+        return self::normalizePhotoTopic((string) $topic);
     }
 
     private static function normalizePhotoTopic(string $topic): string

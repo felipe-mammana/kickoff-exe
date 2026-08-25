@@ -718,7 +718,7 @@ class ApiV1Controller
 
         $finfo = new finfo(FILEINFO_MIME_TYPE);
 
-        foreach ($files as $file) {
+        foreach ($files as $index => $file) {
             if ((int) $file['error'] === UPLOAD_ERR_NO_FILE) {
                 continue;
             }
@@ -752,8 +752,8 @@ class ApiV1Controller
             $photoData = [
                 'machine_id' => $machineId,
                 'photo_type' => $photoType,
-                'photo_topic' => self::normalizePhotoTopic((string) ($_POST[$inputName . '_topic'] ?? ($_POST['photo_topic'] ?? 'equipamento'))),
-                'location_name' => self::nullableUploadMeta($inputName . '_location_name') ?? self::nullableUploadMeta('location_name'),
+                'photo_topic' => self::photoTopicForUpload($inputName, (int) $index),
+                'location_name' => null,
                 'file_name' => $fileName,
                 'original_name' => basename((string) $file['name']),
                 'mime_type' => (string) $mime,
@@ -765,6 +765,17 @@ class ApiV1Controller
         }
 
         return [$stored, $errors];
+    }
+
+    private static function photoTopicForUpload(string $inputName, int $index): string
+    {
+        $topic = $_POST[$inputName . '_topic'] ?? $_POST['photo_topic'] ?? 'equipamento';
+
+        if (is_array($topic)) {
+            $topic = $topic[$index] ?? 'equipamento';
+        }
+
+        return self::normalizePhotoTopic((string) $topic);
     }
 
     private static function uploadedFiles(string $inputName): array
@@ -806,13 +817,6 @@ class ApiV1Controller
     private static function normalizePhotoTopic(string $topic): string
     {
         return array_key_exists($topic, MachinePhoto::topics()) ? $topic : 'equipamento';
-    }
-
-    private static function nullableUploadMeta(string $field): ?string
-    {
-        $value = trim((string) ($_POST[$field] ?? ''));
-
-        return $value === '' ? null : $value;
     }
 
     private static function imageExtension(string $mime): string

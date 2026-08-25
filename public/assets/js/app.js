@@ -174,6 +174,12 @@
     const input = document.querySelector('[data-photo-primary]') || photoInputs[0];
     const preview = document.querySelector('[data-photo-preview]');
     const emptyPreview = document.querySelector('[data-photo-empty]');
+    const photoTopics = [
+        ['equipamento', 'Equipamento'],
+        ['local', 'Local'],
+        ['ambiente', 'Ambiente'],
+        ['outras', 'Outras'],
+    ];
 
     if (input && preview) {
         let selectedPhotos = [];
@@ -182,7 +188,10 @@
             photoInput.addEventListener('change', function () {
                 Array.from(photoInput.files || []).forEach(function (file) {
                     if (file.type.startsWith('image/')) {
-                        selectedPhotos.push(file);
+                        selectedPhotos.push({
+                            file: file,
+                            topic: 'equipamento',
+                        });
                     }
                 });
                 syncInputFiles();
@@ -196,7 +205,8 @@
                 emptyPreview.hidden = selectedPhotos.length > 0;
             }
 
-            selectedPhotos.forEach(function (file, index) {
+            selectedPhotos.forEach(function (photo, index) {
+                const file = photo.file;
                 if (!file.type.startsWith('image/')) {
                     return;
                 }
@@ -204,6 +214,9 @@
                 const card = document.createElement('figure');
                 const img = document.createElement('img');
                 const caption = document.createElement('figcaption');
+                const meta = document.createElement('div');
+                const name = document.createElement('span');
+                const topic = document.createElement('select');
                 const remove = document.createElement('button');
 
                 img.src = URL.createObjectURL(file);
@@ -212,6 +225,20 @@
                     URL.revokeObjectURL(img.src);
                 };
 
+                name.textContent = file.name;
+                topic.name = 'photos_topic[]';
+                topic.setAttribute('aria-label', 'Topico da foto ' + file.name);
+                photoTopics.forEach(function (option) {
+                    const item = document.createElement('option');
+                    item.value = option[0];
+                    item.textContent = option[1];
+                    item.selected = photo.topic === option[0];
+                    topic.appendChild(item);
+                });
+                topic.addEventListener('change', function () {
+                    selectedPhotos[index].topic = topic.value;
+                });
+
                 remove.type = 'button';
                 remove.textContent = 'Remover';
                 remove.className = 'link-danger';
@@ -219,14 +246,16 @@
                     removeFile(index);
                 });
 
-                caption.append(file.name, remove);
+                meta.className = 'preview-meta';
+                meta.append(name, topic);
+                caption.append(meta, remove);
                 card.append(img, caption);
                 preview.appendChild(card);
             });
         }
 
         function removeFile(removeIndex) {
-            selectedPhotos = selectedPhotos.filter(function (_file, index) {
+            selectedPhotos = selectedPhotos.filter(function (_photo, index) {
                 return index !== removeIndex;
             });
             syncInputFiles();
@@ -239,8 +268,8 @@
             }
 
             const dataTransfer = new DataTransfer();
-            selectedPhotos.forEach(function (file) {
-                dataTransfer.items.add(file);
+            selectedPhotos.forEach(function (photo) {
+                dataTransfer.items.add(photo.file);
             });
             input.files = dataTransfer.files;
             photoInputs.forEach(function (photoInput) {

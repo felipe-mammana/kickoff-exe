@@ -1333,7 +1333,9 @@ body.sidebar-collapsed .sidebar-profile {
 }
 
 .upload-meta-grid.compact {
+    grid-template-columns: minmax(0, 1fr);
     margin-top: var(--space-3);
+    max-width: 24rem;
 }
 
 .upload-choice-grid.compact {
@@ -1413,12 +1415,36 @@ body.sidebar-collapsed .sidebar-profile {
     font-size: 0.82rem;
 }
 
-.photo-grid figcaption span,
-.preview-grid figcaption {
+.photo-grid figcaption span {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.preview-meta {
+    display: grid;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.preview-meta span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.preview-meta select {
+    width: 100%;
+    min-height: 2.25rem;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.78rem;
 }
 
 .link-danger {

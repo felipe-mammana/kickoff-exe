@@ -15,9 +15,6 @@ $photoSrc = static fn (array $photo): string => UPLOAD_URL . '/' . (string) ($ph
 $photoName = static fn (array $photo): string => (string) (($photo['original_name'] ?? '') ?: 'Foto do dispositivo');
 $photoCaption = static function (array $photo) use ($photoName): string {
     $parts = [MachinePhoto::topicLabel($photo['photo_topic'] ?? 'equipamento')];
-    if (!empty($photo['location_name'])) {
-        $parts[] = (string) $photo['location_name'];
-    }
     if (($photo['photo_type'] ?? 'general') === 'network_config') {
         $parts[] = 'Rede';
     }

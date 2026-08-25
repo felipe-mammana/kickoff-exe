@@ -43,9 +43,6 @@
     };
     $photoCaption = static function (array $photo): string {
         $parts = [MachinePhoto::topicLabel($photo['photo_topic'] ?? 'equipamento')];
-        if (!empty($photo['location_name'])) {
-            $parts[] = (string) $photo['location_name'];
-        }
         if (($photo['photo_type'] ?? 'general') === 'network_config') {
             $parts[] = 'Rede';
         }
