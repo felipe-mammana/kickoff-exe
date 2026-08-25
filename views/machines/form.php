@@ -42,7 +42,7 @@ $typeIcons = [
         <p>Insira as informacoes tecnicas, vincule a empresa e registre evidencias do ativo.</p>
     </div>
     <a class="btn btn-muted" href="<?= $isEdit ? '/?route=machines.show&id=' . (int) $machine['id'] : '/?company_id=' . (int) ($company['id'] ?? 0) ?>">
-        <?= icon('eye') ?><span>Voltar</span>
+        <?= icon('arrow-left') ?><span>Voltar</span>
     </a>
 </section>
 

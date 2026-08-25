@@ -75,6 +75,17 @@
     const deviceType = document.querySelector('[data-device-type]');
     const deviceTypeCards = document.querySelectorAll('[data-device-type-card]');
     const printerConnection = document.querySelector('[data-printer-connection]');
+    const deviceRequiredFields = {
+        notebook: ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'computer_model', 'machine_password'],
+        cpu: ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'computer_model', 'machine_password'],
+        roteador: ['tag', 'computer_model', 'admin_user', 'admin_password', 'ip_address'],
+        access_point: ['install_location', 'tag', 'computer_model'],
+        modem: ['tag', 'computer_model', 'admin_user', 'admin_password', 'carrier'],
+        impressora: ['tag', 'brand', 'computer_model', 'printer_connection_type'],
+        outros: ['tag', 'computer_model'],
+    };
+    const draftKey = deviceForm ? 'machine-form-draft:' + location.pathname + location.search + ':' + (deviceForm.getAttribute('action') || '') : null;
+    const photoDraftKey = draftKey ? draftKey + ':photos' : null;
 
     function syncDeviceSections() {
         if (!deviceForm || !deviceType) {
@@ -101,6 +112,119 @@
         });
 
         syncPrinterFields();
+    }
+
+    function formFields() {
+        if (!deviceForm) {
+            return [];
+        }
+
+        return Array.from(deviceForm.querySelectorAll('input, select, textarea')).filter(function (field) {
+            return field.name && !field.disabled && field.type !== 'file' && field.name !== 'csrf_token';
+        });
+    }
+
+    function saveFormDraft() {
+        if (!draftKey) {
+            return;
+        }
+
+        const draft = {};
+        formFields().forEach(function (field) {
+            draft[field.name] = field.type === 'checkbox' ? field.checked : field.value;
+        });
+
+        try {
+            localStorage.setItem(draftKey, JSON.stringify(draft));
+        } catch (error) {
+            return;
+        }
+    }
+
+    function restoreFormDraft() {
+        if (!draftKey) {
+            return;
+        }
+
+        let draft = null;
+        try {
+            draft = JSON.parse(localStorage.getItem(draftKey) || 'null');
+        } catch (error) {
+            draft = null;
+        }
+
+        if (!draft) {
+            return;
+        }
+
+        if (deviceType && draft.device_type) {
+            deviceType.value = draft.device_type;
+            syncDeviceSections();
+        }
+
+        formFields().forEach(function (field) {
+            if (!Object.prototype.hasOwnProperty.call(draft, field.name)) {
+                return;
+            }
+
+            if (field.type === 'checkbox') {
+                field.checked = Boolean(draft[field.name]);
+                return;
+            }
+
+            if (!field.value) {
+                field.value = draft[field.name] || '';
+            }
+        });
+    }
+
+    function clearClientErrors() {
+        deviceForm?.querySelectorAll('[data-client-error]').forEach(function (error) {
+            error.remove();
+        });
+        deviceForm?.querySelectorAll('.has-error').forEach(function (field) {
+            field.classList.remove('has-error');
+        });
+    }
+
+    function markClientError(field, message) {
+        const wrapper = field.closest('.field') || field.closest('label');
+        if (!wrapper) {
+            return;
+        }
+
+        wrapper.classList.add('has-error');
+        const error = document.createElement('small');
+        error.dataset.clientError = 'true';
+        error.textContent = message;
+        wrapper.appendChild(error);
+    }
+
+    function validateDeviceForm() {
+        if (!deviceForm || !deviceType) {
+            return true;
+        }
+
+        clearClientErrors();
+        const required = deviceRequiredFields[deviceType.value] || deviceRequiredFields.notebook;
+        let firstInvalid = null;
+
+        required.forEach(function (name) {
+            const field = deviceForm.querySelector('[name="' + name + '"]:not(:disabled)');
+            if (!field || String(field.value || '').trim() !== '') {
+                return;
+            }
+
+            firstInvalid = firstInvalid || field;
+            markClientError(field, 'Campo obrigatorio.');
+        });
+
+        if (firstInvalid) {
+            firstInvalid.focus();
+            return false;
+        }
+
+        return true;
     }
 
     function syncPrinterFields() {
@@ -136,7 +260,17 @@
         });
     });
     printerConnection?.addEventListener('change', syncPrinterFields);
+    restoreFormDraft();
     syncDeviceSections();
+    deviceForm?.addEventListener('input', saveFormDraft);
+    deviceForm?.addEventListener('change', saveFormDraft);
+
+    deviceForm?.addEventListener('submit', function (event) {
+        saveFormDraft();
+        if (!validateDeviceForm()) {
+            event.preventDefault();
+        }
+    });
 
     document.querySelectorAll('[data-password-toggle]').forEach(function (toggle) {
         toggle.addEventListener('click', function (event) {
@@ -174,6 +308,7 @@
     const input = document.querySelector('[data-photo-primary]') || photoInputs[0];
     const preview = document.querySelector('[data-photo-preview]');
     const emptyPreview = document.querySelector('[data-photo-empty]');
+    let selectedPhotos = [];
     const photoTopics = [
         ['equipamento', 'Equipamento'],
         ['local', 'Local'],
@@ -182,7 +317,74 @@
     ];
 
     if (input && preview) {
-        let selectedPhotos = [];
+        function openDraftDb() {
+            return new Promise(function (resolve, reject) {
+                if (!('indexedDB' in window)) {
+                    reject(new Error('IndexedDB indisponivel.'));
+                    return;
+                }
+
+                const request = indexedDB.open('exeKickoffDrafts', 1);
+                request.onupgradeneeded = function () {
+                    request.result.createObjectStore('photoDrafts', { keyPath: 'key' });
+                };
+                request.onsuccess = function () {
+                    resolve(request.result);
+                };
+                request.onerror = function () {
+                    reject(request.error);
+                };
+            });
+        }
+
+        function savePhotoDraft() {
+            if (!photoDraftKey) {
+                return;
+            }
+
+            openDraftDb().then(function (db) {
+                const transaction = db.transaction('photoDrafts', 'readwrite');
+                transaction.objectStore('photoDrafts').put({
+                    key: photoDraftKey,
+                    photos: selectedPhotos,
+                });
+                transaction.oncomplete = function () {
+                    db.close();
+                };
+            }).catch(function () {
+                return;
+            });
+        }
+
+        function restorePhotoDraft() {
+            if (!photoDraftKey) {
+                return;
+            }
+
+            openDraftDb().then(function (db) {
+                const transaction = db.transaction('photoDrafts', 'readonly');
+                const request = transaction.objectStore('photoDrafts').get(photoDraftKey);
+
+                request.onsuccess = function () {
+                    const photos = request.result?.photos || [];
+                    selectedPhotos = photos.filter(function (photo) {
+                        return photo.file instanceof File && photo.file.type.startsWith('image/');
+                    }).map(function (photo) {
+                        return {
+                            file: photo.file,
+                            topic: photo.topic || 'equipamento',
+                        };
+                    });
+                    syncInputFiles();
+                    renderPreview();
+                };
+                transaction.oncomplete = function () {
+                    db.close();
+                };
+            }).catch(function () {
+                return;
+            });
+        }
 
         photoInputs.forEach(function (photoInput) {
             photoInput.addEventListener('change', function () {
@@ -196,6 +398,7 @@
                 });
                 syncInputFiles();
                 renderPreview();
+                savePhotoDraft();
             });
         });
 
@@ -237,6 +440,7 @@
                 });
                 topic.addEventListener('change', function () {
                     selectedPhotos[index].topic = topic.value;
+                    savePhotoDraft();
                 });
 
                 remove.type = 'button';
@@ -260,6 +464,7 @@
             });
             syncInputFiles();
             renderPreview();
+            savePhotoDraft();
         }
 
         function syncInputFiles() {
@@ -278,6 +483,8 @@
                 }
             });
         }
+
+        restorePhotoDraft();
     }
 
     const companySearch = document.querySelector('[data-company-search]');
