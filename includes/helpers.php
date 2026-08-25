@@ -148,6 +148,7 @@ function icon(string $name, string $class = 'icon'): string
         'router' => '<rect width="20" height="8" x="2" y="14" rx="2"></rect><path d="M6.01 18H6"></path><path d="M10.01 18H10"></path><path d="M15 10v4"></path><path d="M17.84 7.17a4 4 0 0 0-5.66 0"></path><path d="M20.66 4.34a8 8 0 0 0-11.32 0"></path>',
         'download' => '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5 5 5-5"></path><path d="M12 15V3"></path>',
         'more-vertical' => '<circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>',
+        'arrow-left' => '<path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path>',
         'chevron-right' => '<path d="m9 18 6-6-6-6"></path>',
         'chevron-left' => '<path d="m15 18-6-6 6-6"></path>',
         'x' => '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',

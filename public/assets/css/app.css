@@ -3226,7 +3226,24 @@ form[id^="delete-photo-"] {
 @media (max-width: 620px) {
     .topbar {
         align-items: center;
+        min-height: 4.25rem;
         padding-inline: var(--space-3);
+    }
+
+    .topbar-left,
+    .top-actions {
+        align-items: center;
+    }
+
+    .topbar .icon-btn,
+    .topbar .theme-toggle,
+    .topbar .btn {
+        flex: 0 0 auto;
+        width: 3.75rem;
+        height: 3.75rem;
+        min-height: 3.75rem;
+        padding: 0;
+        justify-content: center;
     }
 
     .top-actions {

@@ -71,7 +71,7 @@ php database/seed_admin.php
 6. Inicie o servidor local:
 
 ```powershell
-php -S localhost:8000 -t public
+powershell.exe -ExecutionPolicy Bypass -File scripts\start_local_server.ps1
 ```
 
 Se estiver usando XAMPP e o comando `php` nao for reconhecido no PowerShell, use o caminho completo:
@@ -81,7 +81,7 @@ cd C:\Users\felip\OneDrive\Desktop\exe-kickoff
 C:\xampp\php\php.exe database\apply_audit_migration.php
 C:\xampp\php\php.exe database\apply_credential_crypto_migration.php
 C:\xampp\php\php.exe database\seed_admin.php
-C:\xampp\php\php.exe -S localhost:8000 -t public
+powershell.exe -ExecutionPolicy Bypass -File scripts\start_local_server.ps1
 ```
 
 7. Acesse `http://localhost:8000`.

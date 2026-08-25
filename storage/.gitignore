@@ -3,3 +3,5 @@
 !.htaccess
 !sessions/
 !sessions/.gitignore
+!tmp/
+!tmp/.gitignore
