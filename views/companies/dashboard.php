@@ -86,6 +86,9 @@
                     <a class="icon-btn export-btn <?= !$machines ? 'disabled' : '' ?>" href="<?= e(export_url('devices', 'json', array_merge(['company_id' => (int) $company['id']], $filters))) ?>" data-export-link data-export-format="JSON" aria-label="Exportar JSON" title="Exportar JSON" aria-disabled="<?= !$machines ? 'true' : 'false' ?>">
                         <?= icon('braces') ?>
                     </a>
+                    <a class="icon-btn export-btn <?= !$machines ? 'disabled' : '' ?>" href="<?= e(export_url('devices', 'docx', array_merge(['company_id' => (int) $company['id']], $filters))) ?>" data-export-link data-export-format="DOCX" aria-label="Exportar DOCX" title="Exportar DOCX" aria-disabled="<?= !$machines ? 'true' : 'false' ?>">
+                        <?= icon('file-text') ?>
+                    </a>
                 </div>
             </div>
 

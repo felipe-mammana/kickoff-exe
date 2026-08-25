@@ -5,7 +5,7 @@ declare(strict_types=1);
 class ExportController
 {
     private const TYPES = ['companies', 'devices', 'users', 'audit'];
-    private const FORMATS = ['csv', 'json'];
+    private const FORMATS = ['csv', 'json', 'docx'];
 
     public static function download(): void
     {
@@ -20,8 +20,21 @@ class ExportController
             return;
         }
 
+        if ($format === 'docx' && $type !== 'devices') {
+            http_response_code(404);
+            view('errors/404', ['title' => 'Exportacao nao encontrada']);
+            return;
+        }
+
         if (in_array($type, ['companies', 'users', 'audit'], true)) {
             require_admin();
+        }
+
+        if ($format === 'docx') {
+            $payload = self::devicesDocxPayload();
+            self::recordAudit($type, $format, $payload['filters'], count($payload['machines']));
+            self::sendDocx(self::filename($type, $format, $payload['company']['name'] ?? null), $payload);
+            return;
         }
 
         $payload = self::payload($type);
@@ -244,6 +257,37 @@ class ExportController
         return ['filters' => self::filledFilters($filters), 'columns' => self::columns($rows), 'rows' => $rows];
     }
 
+    private static function devicesDocxPayload(): array
+    {
+        $companyId = (int) ($_GET['company_id'] ?? 0);
+        $company = $companyId ? Company::find($companyId) : null;
+
+        if (!$company) {
+            http_response_code(404);
+            view('errors/404', ['title' => 'Empresa nao encontrada']);
+            exit;
+        }
+
+        $filters = [
+            'device_type' => trim((string) ($_GET['device_type'] ?? '')),
+            'tag' => trim((string) ($_GET['tag'] ?? '')),
+            'employee_name' => trim((string) ($_GET['employee_name'] ?? '')),
+            'department' => trim((string) ($_GET['department'] ?? '')),
+            'computer_model' => trim((string) ($_GET['computer_model'] ?? '')),
+            'status' => trim((string) ($_GET['status'] ?? 'active')),
+            'created_at' => trim((string) ($_GET['created_at'] ?? '')),
+        ];
+        $machines = Machine::byCompany($companyId, $filters);
+        $photosByMachine = MachinePhoto::groupedByMachines(array_column($machines, 'id'));
+
+        return [
+            'company' => $company,
+            'filters' => self::filledFilters(['company_id' => $companyId] + $filters),
+            'machines' => $machines,
+            'photos_by_machine' => $photosByMachine,
+        ];
+    }
+
     private static function sendCsv(string $filename, array $columns, array $rows): void
     {
         header('Content-Type: text/csv; charset=UTF-8');
@@ -274,6 +318,21 @@ class ExportController
         exit;
     }
 
+    private static function sendDocx(string $filename, array $payload): void
+    {
+        $exporter = new CompanyEquipmentDocxExporter();
+        $docx = $exporter->build($payload['company'], $payload['machines'], $payload['photos_by_machine']);
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . strlen($docx));
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        echo $docx;
+        exit;
+    }
+
     private static function recordAudit(string $type, string $format, array $filters, int $total): void
     {
         AuditLog::record([
@@ -289,9 +348,13 @@ class ExportController
         ]);
     }
 
-    private static function filename(string $type, string $format): string
+    private static function filename(string $type, string $format, ?string $companyName = null): string
     {
-        return self::tableName($type) . '_' . date('Y-m-d') . '.' . $format;
+        $prefix = $companyName && $format === 'docx'
+            ? self::slug($companyName) . '_equipamentos_de_rede'
+            : self::tableName($type);
+
+        return $prefix . '_' . date('Y-m-d') . '.' . $format;
     }
 
     private static function tableName(string $type): string
@@ -322,5 +385,14 @@ class ExportController
     private static function filledFilters(array $filters): array
     {
         return array_filter($filters, static fn ($value): bool => (string) $value !== '');
+    }
+
+    private static function slug(string $value): string
+    {
+        $value = function_exists('iconv') ? (iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value) ?: $value) : $value;
+        $value = strtolower(trim($value));
+        $value = preg_replace('/[^a-z0-9]+/', '_', $value) ?: 'empresa';
+
+        return trim($value, '_') ?: 'empresa';
     }
 }
