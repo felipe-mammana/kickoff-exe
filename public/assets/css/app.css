@@ -164,6 +164,19 @@ body.sidebar-collapsed .app-frame {
     transition: width 220ms ease, padding 220ms ease, transform 220ms ease;
 }
 
+.sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.sidebar-close,
+.sidebar-backdrop,
+.sidebar-toggle-close {
+    display: none;
+}
+
 body.sidebar-collapsed .sidebar {
     padding-inline: var(--space-2);
 }
@@ -2083,6 +2096,20 @@ body.sidebar-collapsed .sidebar-profile {
     padding: var(--space-4);
 }
 
+.debug-box {
+    width: min(100%, 920px);
+    max-height: 320px;
+    overflow: auto;
+    margin: 0;
+    padding: var(--space-3);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+    color: var(--text);
+    font-size: 0.86rem;
+    white-space: pre-wrap;
+}
+
 .breadcrumbs {
     display: flex;
     align-items: center;
@@ -2908,6 +2935,10 @@ form[id^="delete-photo-"] {
 }
 
 @media (max-width: 1080px) {
+    body.sidebar-open {
+        overflow: hidden;
+    }
+
     .app-frame,
     body.sidebar-collapsed .app-frame {
         grid-template-columns: 1fr;
@@ -2916,11 +2947,35 @@ form[id^="delete-photo-"] {
     .sidebar,
     body.sidebar-collapsed .sidebar {
         position: fixed;
-        z-index: 60;
+        z-index: 90;
         width: min(var(--sidebar-width), calc(100vw - 2rem));
         padding: var(--space-4);
         transform: translateX(calc(-100% - 2rem));
         transition: transform 220ms ease;
+    }
+
+    .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: block;
+        border: 0;
+        background: rgba(4, 9, 15, 0.58);
+        opacity: 0;
+        pointer-events: none;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        transition: opacity 180ms ease;
+    }
+
+    body.sidebar-open .sidebar-backdrop {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .sidebar-close {
+        display: inline-flex;
+        flex: 0 0 auto;
     }
 
     body.sidebar-collapsed .sidebar-brand span:last-child,
@@ -2958,6 +3013,14 @@ form[id^="delete-photo-"] {
 
     .sidebar-toggle {
         display: inline-flex;
+    }
+
+    body.sidebar-open .sidebar-toggle-open {
+        display: none;
+    }
+
+    body.sidebar-open .sidebar-toggle-close {
+        display: inline-grid;
     }
 
     .topbar-search input {

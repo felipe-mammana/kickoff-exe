@@ -43,6 +43,7 @@ $assetVersion = static function (string $path): string {
     <?php if (current_user()): ?>
         <div class="app-frame">
             <?php require BASE_PATH . '/views/partials/sidebar.php'; ?>
+            <button class="sidebar-backdrop" type="button" data-sidebar-close aria-label="Fechar menu"></button>
 
             <div class="app-main">
                 <?php require BASE_PATH . '/views/partials/topbar.php'; ?>

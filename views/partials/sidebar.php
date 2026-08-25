@@ -1,8 +1,13 @@
 <aside class="sidebar" data-sidebar>
-    <a class="brand sidebar-brand" href="/">
-        <?= brand_logo('brand-logo sidebar-logo-full') ?>
-        <?= brand_logo('brand-icon sidebar-logo-icon', true) ?>
-    </a>
+    <div class="sidebar-head">
+        <a class="brand sidebar-brand" href="/">
+            <?= brand_logo('brand-logo sidebar-logo-full') ?>
+            <?= brand_logo('brand-icon sidebar-logo-icon', true) ?>
+        </a>
+        <button class="icon-btn sidebar-close" type="button" data-sidebar-close aria-label="Fechar menu" title="Fechar menu">
+            <?= icon('x') ?>
+        </button>
+    </div>
 
     <nav class="side-nav" aria-label="Menu principal">
         <a class="<?= $route === 'dashboard' ? 'active' : '' ?>" href="/">

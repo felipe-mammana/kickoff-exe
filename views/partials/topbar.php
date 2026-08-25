@@ -1,7 +1,8 @@
 <header class="topbar">
     <div class="topbar-left">
-        <button class="icon-btn sidebar-toggle" type="button" data-sidebar-toggle aria-label="Abrir menu">
-            <?= icon('menu') ?>
+        <button class="icon-btn sidebar-toggle" type="button" data-sidebar-toggle aria-label="Abrir menu" aria-expanded="false">
+            <span class="sidebar-toggle-open"><?= icon('menu') ?></span>
+            <span class="sidebar-toggle-close"><?= icon('x') ?></span>
         </button>
         <div class="topbar-search" role="search">
             <?= icon('search') ?>
