@@ -146,6 +146,11 @@ $typeIcons = [
                     <input type="text" name="department" value="<?= $value('department') ?>">
                     <?php if (isset($errors['department'])): ?><small><?= e($errors['department']) ?></small><?php endif; ?>
                 </label>
+                <label class="<?= $fieldClass($errors, 'install_location') ?>">
+                    <span>Local</span>
+                    <input type="text" name="install_location" value="<?= $value('install_location') ?>" placeholder="Ex.: Sala TI, Recepcao, Financeiro">
+                    <?php if (isset($errors['install_location'])): ?><small><?= e($errors['install_location']) ?></small><?php endif; ?>
+                </label>
                 <label class="<?= $fieldClass($errors, 'machine_password') ?>">
                     <span>Senha da maquina</span>
                     <span class="password-wrap">
