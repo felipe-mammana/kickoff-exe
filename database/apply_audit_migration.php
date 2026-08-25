@@ -68,6 +68,8 @@ add_column_if_missing('machines', 'printer_shared', 'printer_shared TINYINT(1) N
 add_column_if_missing('machines', 'is_active', 'is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER requester_in_tflux');
 add_column_if_missing('machines', 'updated_by', 'updated_by INT UNSIGNED NULL AFTER created_by');
 add_column_if_missing('machine_photos', 'photo_type', "photo_type VARCHAR(40) NOT NULL DEFAULT 'general' AFTER machine_id");
+add_column_if_missing('machine_photos', 'photo_topic', "photo_topic VARCHAR(40) NOT NULL DEFAULT 'equipamento' AFTER photo_type");
+add_column_if_missing('machine_photos', 'location_name', 'location_name VARCHAR(160) NULL AFTER photo_topic');
 
 if (index_exists('machines', 'unique_company_new_hostname')) {
     db()->exec('ALTER TABLE machines DROP INDEX unique_company_new_hostname');

@@ -59,7 +59,10 @@ class MachineController
             'new_data' => self::sanitizeAuditData($data),
         ]);
 
-        $photos = array_merge(self::storePhotos($machineId), self::storePhotos($machineId, 'network_photo', 'network_config'));
+        $photos = array_merge(
+            self::storePhotos($machineId),
+            self::storePhotos($machineId, 'network_photo', 'network_config')
+        );
         if ($photos) {
             AuditLog::record([
                 'action_type' => 'machine_photos_added',
@@ -212,6 +215,8 @@ class MachineController
             'old_data' => [
                 'file_name' => $photo['file_name'],
                 'original_name' => $photo['original_name'],
+                'photo_topic' => $photo['photo_topic'] ?? 'equipamento',
+                'location_name' => $photo['location_name'] ?? null,
                 'mime_type' => $photo['mime_type'],
                 'file_size' => (int) $photo['file_size'],
             ],
@@ -313,6 +318,8 @@ class MachineController
 
         $finfo = new finfo(FILEINFO_MIME_TYPE);
         $total = count($_FILES[$inputName]['name']);
+        $topic = self::normalizePhotoTopic((string) ($_POST[$inputName . '_topic'] ?? ($_POST['photo_topic'] ?? 'equipamento')));
+        $locationName = self::nullable($inputName . '_location_name') ?? self::nullable('photo_location_name');
 
         for ($i = 0; $i < $total; $i++) {
             if ($_FILES[$inputName]['error'][$i] === UPLOAD_ERR_NO_FILE) {
@@ -350,6 +357,8 @@ class MachineController
                 $photoData = [
                     'machine_id' => $machineId,
                     'photo_type' => $photoType,
+                    'photo_topic' => $topic,
+                    'location_name' => $locationName,
                     'file_name' => $fileName,
                     'original_name' => basename((string) $_FILES[$inputName]['name'][$i]),
                     'mime_type' => $mime,
@@ -361,6 +370,11 @@ class MachineController
         }
 
         return $stored;
+    }
+
+    private static function normalizePhotoTopic(string $topic): string
+    {
+        return array_key_exists($topic, MachinePhoto::topics()) ? $topic : 'equipamento';
     }
 
     private static function changedFields(array $old, array $new): array

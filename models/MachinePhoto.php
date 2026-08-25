@@ -4,6 +4,23 @@ declare(strict_types=1);
 
 class MachinePhoto
 {
+    public const TOPICS = [
+        'local' => 'Local',
+        'ambiente' => 'Ambiente',
+        'equipamento' => 'Equipamento',
+        'outras' => 'Outras',
+    ];
+
+    public static function topics(): array
+    {
+        return self::TOPICS;
+    }
+
+    public static function topicLabel(?string $topic): string
+    {
+        return self::TOPICS[$topic ?? ''] ?? self::TOPICS['equipamento'];
+    }
+
     public static function byMachine(int $machineId): array
     {
         $stmt = db()->prepare('SELECT * FROM machine_photos WHERE machine_id = :machine_id ORDER BY created_at DESC');
@@ -40,9 +57,13 @@ class MachinePhoto
 
     public static function create(array $data): int
     {
+        $topic = (string) ($data['photo_topic'] ?? 'equipamento');
+        $data['photo_topic'] = array_key_exists($topic, self::TOPICS) ? $topic : 'equipamento';
+        $data['location_name'] = trim((string) ($data['location_name'] ?? '')) ?: null;
+
         $stmt = db()->prepare(
-            'INSERT INTO machine_photos (machine_id, photo_type, file_name, original_name, mime_type, file_size)
-             VALUES (:machine_id, :photo_type, :file_name, :original_name, :mime_type, :file_size)'
+            'INSERT INTO machine_photos (machine_id, photo_type, photo_topic, location_name, file_name, original_name, mime_type, file_size)
+             VALUES (:machine_id, :photo_type, :photo_topic, :location_name, :file_name, :original_name, :mime_type, :file_size)'
         );
         $stmt->execute($data);
 

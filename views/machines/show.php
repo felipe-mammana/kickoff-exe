@@ -13,6 +13,18 @@ $firstValue = static function (array $fields, string $default = '-') use ($machi
 };
 $photoSrc = static fn (array $photo): string => UPLOAD_URL . '/' . (string) ($photo['file_name'] ?? '');
 $photoName = static fn (array $photo): string => (string) (($photo['original_name'] ?? '') ?: 'Foto do dispositivo');
+$photoCaption = static function (array $photo) use ($photoName): string {
+    $parts = [MachinePhoto::topicLabel($photo['photo_topic'] ?? 'equipamento')];
+    if (!empty($photo['location_name'])) {
+        $parts[] = (string) $photo['location_name'];
+    }
+    if (($photo['photo_type'] ?? 'general') === 'network_config') {
+        $parts[] = 'Rede';
+    }
+    $parts[] = $photoName($photo);
+
+    return implode(' - ', $parts);
+};
 $title = $firstValue(['tag', 'new_hostname', 'old_hostname', 'modem_name', 'install_location', 'computer_model'], 'Dispositivo');
 $networkPhotos = array_values(array_filter($photos, static fn (array $photo): bool => ($photo['photo_type'] ?? 'general') === 'network_config'));
 $generalPhotos = array_values(array_filter($photos, static fn (array $photo): bool => ($photo['photo_type'] ?? 'general') !== 'network_config'));
@@ -174,7 +186,7 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
                             <button class="photo-button" type="button" data-lightbox-src="<?= e($photoSrc($photo)) ?>" data-lightbox-alt="<?= e($photoName($photo)) ?>">
                                 <img src="<?= e($photoSrc($photo)) ?>" alt="<?= e($photoName($photo)) ?>">
                             </button>
-                            <figcaption><?= e($photoName($photo)) ?></figcaption>
+                            <figcaption><?= e($photoCaption($photo)) ?></figcaption>
                         </figure>
                     <?php endforeach; ?>
                 </div>
@@ -202,7 +214,7 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
                             <button class="photo-button" type="button" data-lightbox-src="<?= e($photoSrc($photo)) ?>" data-lightbox-alt="<?= e($photoName($photo)) ?>">
                                 <img src="<?= e($photoSrc($photo)) ?>" alt="<?= e($photoName($photo)) ?>">
                             </button>
-                            <figcaption><?= e($photoName($photo)) ?></figcaption>
+                            <figcaption><?= e($photoCaption($photo)) ?></figcaption>
                         </figure>
                     <?php endforeach; ?>
                 </div>

@@ -446,6 +446,8 @@ class ApiV1Controller
             'old_data' => [
                 'file_name' => $photo['file_name'],
                 'original_name' => $photo['original_name'],
+                'photo_topic' => $photo['photo_topic'] ?? 'equipamento',
+                'location_name' => $photo['location_name'] ?? null,
                 'mime_type' => $photo['mime_type'],
                 'file_size' => (int) $photo['file_size'],
             ],
@@ -750,6 +752,8 @@ class ApiV1Controller
             $photoData = [
                 'machine_id' => $machineId,
                 'photo_type' => $photoType,
+                'photo_topic' => self::normalizePhotoTopic((string) ($_POST[$inputName . '_topic'] ?? ($_POST['photo_topic'] ?? 'equipamento'))),
+                'location_name' => self::nullableUploadMeta($inputName . '_location_name') ?? self::nullableUploadMeta('location_name'),
                 'file_name' => $fileName,
                 'original_name' => basename((string) $file['name']),
                 'mime_type' => (string) $mime,
@@ -799,6 +803,18 @@ class ApiV1Controller
         return $photoType === 'network_config' ? 'network_config' : 'general';
     }
 
+    private static function normalizePhotoTopic(string $topic): string
+    {
+        return array_key_exists($topic, MachinePhoto::topics()) ? $topic : 'equipamento';
+    }
+
+    private static function nullableUploadMeta(string $field): ?string
+    {
+        $value = trim((string) ($_POST[$field] ?? ''));
+
+        return $value === '' ? null : $value;
+    }
+
     private static function imageExtension(string $mime): string
     {
         if ($mime === 'image/png') {
@@ -842,6 +858,9 @@ class ApiV1Controller
             'id' => (int) $photo['id'],
             'machine_id' => (int) $photo['machine_id'],
             'photo_type' => (string) $photo['photo_type'],
+            'photo_topic' => (string) ($photo['photo_topic'] ?? 'equipamento'),
+            'photo_topic_label' => MachinePhoto::topicLabel($photo['photo_topic'] ?? 'equipamento'),
+            'location_name' => $photo['location_name'] ?? null,
             'file_name' => (string) $photo['file_name'],
             'original_name' => (string) $photo['original_name'],
             'mime_type' => (string) $photo['mime_type'],

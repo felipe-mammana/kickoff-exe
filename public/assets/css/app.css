@@ -1325,6 +1325,17 @@ body.sidebar-collapsed .sidebar-profile {
     gap: var(--space-3);
 }
 
+.upload-meta-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+}
+
+.upload-meta-grid.compact {
+    margin-top: var(--space-3);
+}
+
 .upload-choice-grid.compact {
     margin-top: var(--space-3);
 }
@@ -3081,6 +3092,7 @@ form[id^="delete-photo-"] {
 
     .asset-selection-grid,
     .photo-layout,
+    .upload-meta-grid,
     .company-filter-panel,
     .audit-filter-grid {
         grid-template-columns: 1fr;
@@ -3232,7 +3244,8 @@ form[id^="delete-photo-"] {
         padding: 0;
     }
 
-    .upload-choice-grid {
+    .upload-choice-grid,
+    .upload-meta-grid {
         grid-template-columns: 1fr;
     }
 

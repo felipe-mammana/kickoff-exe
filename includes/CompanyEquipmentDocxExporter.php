@@ -138,8 +138,15 @@ class CompanyEquipmentDocxExporter
         $xml = $this->paragraph('Fotos cadastradas', 'Heading3');
         foreach ($photos as $photo) {
             $path = UPLOAD_PATH . '/' . (string) ($photo['file_name'] ?? '');
-            $label = (($photo['photo_type'] ?? 'general') === 'network_config' ? 'Configuracao de rede' : 'Foto geral')
-                . ' - ' . (string) (($photo['original_name'] ?? '') ?: ($photo['file_name'] ?? 'foto'));
+            $labelParts = [MachinePhoto::topicLabel($photo['photo_topic'] ?? 'equipamento')];
+            if (!empty($photo['location_name'])) {
+                $labelParts[] = (string) $photo['location_name'];
+            }
+            if (($photo['photo_type'] ?? 'general') === 'network_config') {
+                $labelParts[] = 'Rede';
+            }
+            $labelParts[] = (string) (($photo['original_name'] ?? '') ?: ($photo['file_name'] ?? 'foto'));
+            $label = implode(' - ', $labelParts);
 
             if (!is_file($path)) {
                 $xml .= $this->paragraph($label . ' (arquivo nao encontrado)', 'Caption');

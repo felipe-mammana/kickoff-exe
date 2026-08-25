@@ -93,6 +93,8 @@ CREATE TABLE IF NOT EXISTS machine_photos (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     machine_id INT UNSIGNED NOT NULL,
     photo_type VARCHAR(40) NOT NULL DEFAULT 'general',
+    photo_topic VARCHAR(40) NOT NULL DEFAULT 'equipamento',
+    location_name VARCHAR(160) NULL,
     file_name VARCHAR(255) NOT NULL,
     original_name VARCHAR(255) NOT NULL,
     mime_type VARCHAR(80) NOT NULL,

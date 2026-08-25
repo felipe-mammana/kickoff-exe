@@ -41,6 +41,18 @@
     $machineModel = static function (array $item): string {
         return (string) (($item['brand'] ?? '') ?: ($item['printer_brand'] ?? '') ?: ($item['computer_model'] ?? '') ?: '-');
     };
+    $photoCaption = static function (array $photo): string {
+        $parts = [MachinePhoto::topicLabel($photo['photo_topic'] ?? 'equipamento')];
+        if (!empty($photo['location_name'])) {
+            $parts[] = (string) $photo['location_name'];
+        }
+        if (($photo['photo_type'] ?? 'general') === 'network_config') {
+            $parts[] = 'Rede';
+        }
+        $parts[] = (string) (($photo['original_name'] ?? '') ?: 'Foto do dispositivo');
+
+        return implode(' - ', $parts);
+    };
     ?>
 
     <section class="asset-metrics" aria-label="Resumo da empresa">
@@ -301,7 +313,7 @@
                                     <button class="photo-button" type="button" data-lightbox-src="<?= e(UPLOAD_URL . '/' . ($photo['file_name'] ?? '')) ?>" data-lightbox-alt="<?= e($photo['original_name'] ?? 'Foto do dispositivo') ?>">
                                         <img src="<?= e(UPLOAD_URL . '/' . ($photo['file_name'] ?? '')) ?>" alt="<?= e($photo['original_name'] ?? 'Foto do dispositivo') ?>">
                                     </button>
-                                    <figcaption><?= e($photo['original_name'] ?? 'Foto do dispositivo') ?></figcaption>
+                                    <figcaption><?= e($photoCaption($photo)) ?></figcaption>
                                 </figure>
                             <?php endforeach; ?>
                         </div>

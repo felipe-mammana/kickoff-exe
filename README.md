@@ -237,11 +237,17 @@ Content-Type: multipart/form-data
 photos[]=@foto-geral.jpg
 network_photo[]=@configuracao-rede.png
 photo_type=general
+photo_topic=equipamento
+photo_location_name=Recepcao
 ```
 
 - `photos[]`: uma ou mais fotos gerais.
 - `network_photo[]`: uma ou mais fotos de configuracao de rede.
 - `photo_type`: opcional para `photos[]`, aceita `general` ou `network_config`.
+- `photo_topic`: opcional, aceita `local`, `ambiente`, `equipamento` ou `outras`.
+- `photo_location_name`: opcional, nome do local relacionado as fotos gerais.
+- `network_photo_topic`: opcional, topico especifico para `network_photo[]`.
+- `network_photo_location_name`: opcional, nome do local da foto de configuracao de rede.
 - Formatos aceitos: JPG, PNG e WEBP, ate 5MB por arquivo.
 
 Remocao de foto:
