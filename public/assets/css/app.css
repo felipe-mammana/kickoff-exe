@@ -705,6 +705,15 @@ body.sidebar-collapsed .sidebar-profile {
     background: var(--surface-2);
 }
 
+.inventory-table tbody tr[data-row-href] {
+    cursor: pointer;
+}
+
+.inventory-table tbody tr[data-row-href]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
 .inventory-table tbody tr:hover td:first-child strong {
     color: var(--accent);
 }
@@ -748,6 +757,19 @@ body.sidebar-collapsed .sidebar-profile {
     min-height: 2.1rem;
     padding: 0.45rem 0.65rem;
     font-size: 0.82rem;
+}
+
+.row-tap-hint {
+    display: none;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--muted);
+    font-weight: 800;
+}
+
+.row-tap-hint .icon {
+    width: 1rem;
+    height: 1rem;
 }
 
 .photo-gallery-trigger {
@@ -3294,12 +3316,29 @@ form[id^="delete-photo-"] {
         box-shadow: var(--shadow-soft);
     }
 
+    .inventory-table tr[data-row-href] {
+        position: relative;
+    }
+
+    .inventory-table tr[data-row-href]:active {
+        transform: scale(0.995);
+    }
+
     .inventory-table td {
         display: grid;
         grid-template-columns: minmax(120px, 0.45fr) minmax(0, 1fr);
         gap: var(--space-2);
         padding: 0.72rem 0.85rem;
         border-right: 0;
+    }
+
+    .inventory-table td:first-child {
+        background: color-mix(in srgb, var(--accent) 7%, transparent);
+    }
+
+    .inventory-table td[data-label="Acoes"] {
+        align-items: center;
+        background: color-mix(in srgb, var(--surface) 70%, transparent);
     }
 
     .inventory-table td::before {
@@ -3313,6 +3352,18 @@ form[id^="delete-photo-"] {
 
     .table-actions {
         justify-content: flex-start;
+    }
+
+    .row-tap-hint {
+        display: inline-flex;
+        margin-top: var(--space-2);
+        grid-column: 1 / -1;
+    }
+
+    .photo-gallery-trigger,
+    .table-actions .icon-btn {
+        position: relative;
+        z-index: 2;
     }
 
     .export-actions {

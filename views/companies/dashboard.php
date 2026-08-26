@@ -194,7 +194,7 @@
                                     'impressora' => 'printer',
                                 ][$machine['device_type'] ?? ''] ?? 'settings';
                                 ?>
-                                <tr>
+                                <tr data-row-href="/?route=machines.show&id=<?= (int) $machine['id'] ?>" tabindex="0" aria-label="Abrir detalhes de <?= e($machineTitle($machine)) ?>">
                                     <td data-label="Tipo">
                                         <span class="asset-type">
                                             <?= icon($typeIcon) ?>
@@ -251,6 +251,7 @@
                                             <a class="icon-btn" href="/?route=machines.show&id=<?= (int) $machine['id'] ?>" aria-label="Ver"><?= icon('eye') ?></a>
                                             <a class="icon-btn" href="/?route=machines.edit&id=<?= (int) $machine['id'] ?>" aria-label="Editar"><?= icon('edit-3') ?></a>
                                         </div>
+                                        <small class="row-tap-hint"><?= icon('chevron-right') ?> Toque no card para ver detalhes</small>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

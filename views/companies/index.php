@@ -73,7 +73,7 @@
                         $initials = strtoupper(substr((string) $company['name'], 0, 2));
                         $statusText = $company['is_active'] ? 'ativa' : 'inativa';
                         ?>
-                        <tr data-company-row data-company-name="<?= e(strtolower((string) $company['name'])) ?>" data-company-status="<?= e($statusText) ?>">
+                        <tr data-company-row data-row-href="/?route=companies.show&id=<?= (int) $company['id'] ?>" tabindex="0" aria-label="Abrir empresa <?= e($company['name']) ?>" data-company-name="<?= e(strtolower((string) $company['name'])) ?>" data-company-status="<?= e($statusText) ?>">
                             <td data-label="Empresa">
                                 <div class="company-cell">
                                     <span class="company-avatar"><?= e($initials) ?></span>
@@ -95,6 +95,7 @@
                                     <a class="icon-btn" href="/?route=companies.show&id=<?= (int) $company['id'] ?>" aria-label="Ver empresa"><?= icon('eye') ?></a>
                                     <a class="icon-btn" href="/?route=companies.edit&id=<?= (int) $company['id'] ?>" aria-label="Editar empresa"><?= icon('edit-3') ?></a>
                                 </div>
+                                <small class="row-tap-hint"><?= icon('chevron-right') ?> Toque no card para ver detalhes</small>
                             </td>
                         </tr>
                     <?php endforeach; ?>

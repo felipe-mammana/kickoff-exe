@@ -508,6 +508,35 @@
     companySearch?.addEventListener('input', filterCompanies);
     companyStatus?.addEventListener('change', filterCompanies);
 
+    document.querySelectorAll('[data-row-href]').forEach(function (row) {
+        function shouldIgnoreRowNavigation(target) {
+            return Boolean(target.closest('a, button, input, select, textarea, label, [data-gallery-open]'));
+        }
+
+        row.addEventListener('click', function (event) {
+            if (shouldIgnoreRowNavigation(event.target)) {
+                return;
+            }
+
+            const href = row.getAttribute('data-row-href');
+            if (href) {
+                window.location.href = href;
+            }
+        });
+
+        row.addEventListener('keydown', function (event) {
+            if (!['Enter', ' '].includes(event.key) || shouldIgnoreRowNavigation(event.target)) {
+                return;
+            }
+
+            const href = row.getAttribute('data-row-href');
+            if (href) {
+                event.preventDefault();
+                window.location.href = href;
+            }
+        });
+    });
+
     const galleryModal = document.querySelector('[data-gallery-modal]');
     const galleryTitle = document.querySelector('[data-gallery-title]');
     const companyModal = document.querySelector('[data-company-modal]');
