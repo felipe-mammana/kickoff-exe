@@ -78,44 +78,6 @@ body.modal-open {
     overflow: hidden;
 }
 
-body.is-loading {
-    overflow: hidden;
-}
-
-body.loader-hidden .app-loader {
-    opacity: 0;
-    pointer-events: none;
-    visibility: hidden;
-}
-
-.app-loader {
-    position: fixed;
-    inset: 0;
-    z-index: 999;
-    display: grid;
-    place-items: center;
-    background: var(--bg);
-    opacity: 1;
-    transition: opacity 260ms ease, visibility 260ms ease;
-}
-
-.app-loader-brand {
-    display: grid;
-    justify-items: center;
-    gap: var(--space-3);
-    animation: brand-pulse 1400ms ease-in-out infinite;
-}
-
-.loader-logo {
-    padding: 0.55rem 0.75rem;
-    border-radius: var(--radius);
-    background: rgba(255, 255, 255, 0.92);
-}
-
-.loader-icon {
-    opacity: 0.9;
-}
-
 a {
     color: inherit;
     text-decoration: none;
@@ -985,15 +947,6 @@ body.sidebar-collapsed .sidebar-profile {
     cursor: not-allowed;
     opacity: 0.52;
     pointer-events: none;
-}
-
-.btn.is-loading {
-    cursor: wait;
-    opacity: 0.72;
-}
-
-.btn.is-loading .icon {
-    animation: export-spin 900ms linear infinite;
 }
 
 .btn-primary {
@@ -3040,24 +2993,6 @@ form[id^="delete-photo-"] {
     to {
         opacity: 1;
         transform: translateY(0);
-    }
-}
-
-@keyframes brand-pulse {
-    0%,
-    100% {
-        opacity: 0.78;
-        transform: scale(0.985);
-    }
-    50% {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-@keyframes export-spin {
-    to {
-        transform: rotate(360deg);
     }
 }
 

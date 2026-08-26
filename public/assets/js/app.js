@@ -8,11 +8,6 @@
         storedTheme = 'light';
     }
 
-    window.addEventListener('load', function () {
-        document.body.classList.remove('is-loading');
-        document.body.classList.add('loader-hidden');
-    });
-
     function setTheme(theme) {
         root.setAttribute('data-theme', theme);
         try {

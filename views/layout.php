@@ -32,14 +32,7 @@ $assetVersion = static function (string $path): string {
     </script>
     <link rel="stylesheet" href="/assets/css/app.css?v=<?= e($assetVersion('/assets/css/app.css')) ?>">
 </head>
-<body class="is-loading">
-    <div class="app-loader" data-app-loader aria-hidden="true">
-        <div class="app-loader-brand">
-            <?= brand_logo('brand-logo loader-logo') ?>
-            <?= brand_logo('brand-icon loader-icon', true) ?>
-        </div>
-    </div>
-
+<body>
     <?php if (current_user()): ?>
         <div class="app-frame">
             <?php require BASE_PATH . '/views/partials/sidebar.php'; ?>

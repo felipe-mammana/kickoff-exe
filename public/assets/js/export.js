@@ -118,15 +118,7 @@
                 return;
             }
 
-            const label = link.querySelector('span')?.textContent || 'Exportar';
-            link.classList.add('is-loading');
-            link.setAttribute('aria-busy', 'true');
-            toast('Exportando arquivo...', 'info');
-            window.setTimeout(function () {
-                link.classList.remove('is-loading');
-                link.removeAttribute('aria-busy');
-                toast(label + ' concluido com sucesso.', 'success');
-            }, 1200);
+            link.blur();
         });
     });
 
