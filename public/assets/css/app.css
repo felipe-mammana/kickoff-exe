@@ -808,11 +808,13 @@ body.sidebar-collapsed .sidebar-profile {
     font-weight: 750;
 }
 
-.gallery-modal[hidden] {
+.gallery-modal[hidden],
+.company-modal[hidden] {
     display: none;
 }
 
-.gallery-modal {
+.gallery-modal,
+.company-modal {
     position: fixed;
     inset: 0;
     z-index: 70;
@@ -823,7 +825,8 @@ body.sidebar-collapsed .sidebar-profile {
     backdrop-filter: blur(10px);
 }
 
-.gallery-dialog {
+.gallery-dialog,
+.company-modal-dialog {
     width: min(1280px, calc(100vw - 2rem));
     max-height: min(90vh, 920px);
     overflow: auto;
@@ -831,6 +834,14 @@ body.sidebar-collapsed .sidebar-profile {
     border-radius: var(--radius-xl);
     background: var(--surface);
     box-shadow: var(--shadow);
+}
+
+.company-modal-dialog {
+    width: min(680px, calc(100vw - 2rem));
+}
+
+.modal-company-form {
+    padding: var(--space-4);
 }
 
 .gallery-head {
@@ -2088,35 +2099,102 @@ body.sidebar-collapsed .sidebar-profile {
     inset: 0;
     z-index: 100;
     display: grid;
-    place-items: center;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
     padding: clamp(0.75rem, 2vw, var(--space-4));
     background: rgba(0, 0, 0, 0.92);
     backdrop-filter: blur(10px);
+}
+
+.lightbox-topbar {
+    position: relative;
+    z-index: 102;
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    width: min(100%, 1120px);
+    justify-self: center;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid color-mix(in srgb, #fff 18%, transparent);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--surface) 82%, transparent);
+    color: var(--text);
+}
+
+.lightbox-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.lightbox-action,
+.lightbox-close,
+.lightbox-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid color-mix(in srgb, #fff 22%, transparent);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.lightbox-action {
+    min-height: 2.5rem;
+    gap: var(--space-2);
+    padding: 0.55rem 0.75rem;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.lightbox-close,
+.lightbox-nav {
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+}
+
+.lightbox-stage {
+    grid-column: 2;
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
 }
 
 .lightbox img {
     display: block;
     width: auto;
     height: auto;
-    max-width: calc(100vw - 2rem);
-    max-height: calc(100vh - 2rem);
+    max-width: min(100%, 1120px);
+    max-height: calc(100vh - 10rem);
     border-radius: var(--radius);
     object-fit: contain;
     box-shadow: var(--shadow);
 }
 
 .lightbox-close {
-    position: fixed;
-    top: clamp(0.75rem, 2vw, var(--space-4));
-    right: clamp(0.75rem, 2vw, var(--space-4));
     z-index: 101;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--text);
-    padding: 0.7rem 1rem;
-    cursor: pointer;
     font-weight: 800;
+}
+
+.lightbox-nav.prev {
+    grid-column: 1;
+}
+
+.lightbox-nav.next {
+    grid-column: 3;
+}
+
+.lightbox-thumbs {
+    grid-column: 1 / -1;
+    min-height: 0.25rem;
 }
 
 .empty-state {
@@ -2204,6 +2282,25 @@ body.sidebar-collapsed .sidebar-profile {
     border-radius: var(--radius-xl);
     background: var(--surface);
     box-shadow: var(--shadow-soft);
+}
+
+.metric-link {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.metric-link:hover,
+.metric-link:focus-visible {
+    border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+}
+
+.metric-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
 }
 
 .metric-icon {
@@ -3324,6 +3421,61 @@ form[id^="delete-photo-"] {
 
     .company-filter-panel .btn {
         width: 100%;
+    }
+
+    .gallery-modal,
+    .company-modal,
+    .lightbox {
+        padding: var(--space-2);
+    }
+
+    .gallery-dialog,
+    .company-modal-dialog {
+        width: 100%;
+        max-height: calc(100dvh - 1rem);
+        border-radius: var(--radius-lg);
+    }
+
+    .gallery-head {
+        align-items: flex-start;
+        padding: var(--space-3);
+    }
+
+    .gallery-set,
+    .modal-company-form {
+        padding: var(--space-3);
+    }
+
+    .lightbox {
+        grid-template-rows: auto minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--space-2);
+    }
+
+    .lightbox-topbar {
+        grid-column: 1;
+        align-items: flex-start;
+        padding: var(--space-2);
+    }
+
+    .lightbox-action span {
+        display: none;
+    }
+
+    .lightbox-stage {
+        grid-column: 1;
+        width: 100%;
+        height: 100%;
+    }
+
+    .lightbox img {
+        max-width: 100%;
+        max-height: calc(100dvh - 8rem);
+    }
+
+    .lightbox-nav,
+    .lightbox-thumbs {
+        display: none;
     }
 
     .audit-filter-grid .btn {

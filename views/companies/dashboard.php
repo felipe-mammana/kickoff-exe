@@ -53,34 +53,34 @@
     ?>
 
     <section class="asset-metrics" aria-label="Resumo da empresa">
-        <article class="asset-metric-card">
+        <a class="asset-metric-card metric-link" href="/?company_id=<?= (int) $company['id'] ?>#inventory-table">
             <div class="metric-icon"><?= icon('building-2') ?></div>
             <span>Total de dispositivos</span>
             <strong><?= (int) $stats['total'] ?></strong>
             <small><?= e($company['name']) ?></small>
-        </article>
-        <article class="asset-metric-card">
+        </a>
+        <a class="asset-metric-card metric-link" href="/?company_id=<?= (int) $company['id'] ?>&device_type=notebook#inventory-table">
             <div class="metric-icon success"><?= icon('laptop') ?></div>
             <span>Notebooks</span>
             <strong><?= (int) ($stats['notebooks'] ?? 0) ?></strong>
             <small>Ativos no inventario</small>
-        </article>
-        <article class="asset-metric-card">
+        </a>
+        <a class="asset-metric-card metric-link" href="/?company_id=<?= (int) $company['id'] ?>&device_type=cpu#inventory-table">
             <div class="metric-icon success"><?= icon('monitor-cog') ?></div>
             <span>CPU / Desktop</span>
             <strong><?= (int) ($stats['cpus'] ?? 0) ?></strong>
             <small>Esta empresa</small>
-        </article>
-        <article class="asset-metric-card">
+        </a>
+        <a class="asset-metric-card metric-link" href="/?company_id=<?= (int) $company['id'] ?>&device_type=impressora#inventory-table">
             <div class="metric-icon warning"><?= icon('printer') ?></div>
             <span>Impressoras</span>
             <strong><?= (int) ($stats['printers'] ?? 0) ?></strong>
             <small>Com ou sem rede</small>
-        </article>
+        </a>
     </section>
 
     <section class="dashboard-grid">
-        <section class="content-panel dashboard-main">
+        <section class="content-panel dashboard-main" id="inventory-table">
             <div class="panel-header">
                 <div>
                     <span class="eyebrow">Inventario</span>

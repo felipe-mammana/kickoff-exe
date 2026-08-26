@@ -9,7 +9,7 @@
         <h1>Empresas cadastradas</h1>
         <p>Gerencie organizacoes, padroes de etiqueta e inventarios vinculados.</p>
     </div>
-    <a class="btn btn-primary" href="/?route=companies.create"><?= icon('plus') ?><span>Cadastrar nova empresa</span></a>
+    <button class="btn btn-primary" type="button" data-company-modal-open><?= icon('plus') ?><span>Cadastrar nova empresa</span></button>
 </section>
 
 <section class="company-filter-panel">
@@ -52,7 +52,7 @@
         <div class="empty-state compact">
             <h3>Nenhuma empresa cadastrada</h3>
             <p>Cadastre a primeira empresa para iniciar o inventario.</p>
-            <a class="btn btn-primary" href="/?route=companies.create"><?= icon('plus') ?><span>Cadastrar empresa</span></a>
+            <button class="btn btn-primary" type="button" data-company-modal-open><?= icon('plus') ?><span>Cadastrar empresa</span></button>
         </div>
     <?php else: ?>
         <div class="inventory-table-wrap">
@@ -103,3 +103,41 @@
         </div>
     <?php endif; ?>
 </section>
+
+<div class="company-modal" data-company-modal hidden>
+    <div class="company-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="company-modal-title">
+        <div class="gallery-head">
+            <div>
+                <span class="eyebrow">Nova empresa</span>
+                <h2 id="company-modal-title">Cadastrar empresa</h2>
+            </div>
+            <button class="icon-btn" type="button" data-company-modal-close aria-label="Fechar"><?= icon('x') ?></button>
+        </div>
+
+        <form class="company-form modal-company-form" action="/?route=companies.store" method="post" novalidate>
+            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+
+            <div class="fields-grid">
+                <label class="field">
+                    <span>Nome da empresa</span>
+                    <input type="text" name="name" placeholder="Ex.: Global Logistics S.A." required data-company-modal-focus>
+                </label>
+
+                <label class="field">
+                    <span>Padrao de etiqueta</span>
+                    <input type="text" name="tag_pattern" placeholder="NOTE-0001, CPU-0001, IMP-0001">
+                </label>
+            </div>
+
+            <label class="check-card company-status-card">
+                <input type="checkbox" name="is_active" checked>
+                <span>Empresa ativa</span>
+            </label>
+
+            <div class="form-actions-bar company-actions">
+                <button class="btn btn-muted" type="button" data-company-modal-close>Cancelar</button>
+                <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Cadastrar empresa</span></button>
+            </div>
+        </form>
+    </div>
+</div>

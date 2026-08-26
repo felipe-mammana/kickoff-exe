@@ -510,6 +510,58 @@
 
     const galleryModal = document.querySelector('[data-gallery-modal]');
     const galleryTitle = document.querySelector('[data-gallery-title]');
+    const companyModal = document.querySelector('[data-company-modal]');
+    const companyModalFocus = document.querySelector('[data-company-modal-focus]');
+
+    if (galleryModal && galleryModal.parentElement !== document.body) {
+        document.body.appendChild(galleryModal);
+    }
+
+    if (companyModal && companyModal.parentElement !== document.body) {
+        document.body.appendChild(companyModal);
+    }
+
+    function closeGalleryModal() {
+        if (galleryModal) {
+            galleryModal.hidden = true;
+        }
+        if ((!companyModal || companyModal.hidden) && (!lightbox || lightbox.hidden)) {
+            document.body.classList.remove('modal-open');
+        }
+    }
+
+    function closeCompanyModal() {
+        if (companyModal) {
+            companyModal.hidden = true;
+        }
+        if ((!galleryModal || galleryModal.hidden) && (!lightbox || lightbox.hidden)) {
+            document.body.classList.remove('modal-open');
+        }
+    }
+
+    document.querySelectorAll('[data-company-modal-open]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            if (!companyModal) {
+                return;
+            }
+
+            companyModal.hidden = false;
+            document.body.classList.add('modal-open');
+            setTimeout(function () {
+                companyModalFocus?.focus();
+            }, 50);
+        });
+    });
+
+    document.querySelectorAll('[data-company-modal-close]').forEach(function (button) {
+        button.addEventListener('click', closeCompanyModal);
+    });
+
+    companyModal?.addEventListener('click', function (event) {
+        if (event.target === companyModal) {
+            closeCompanyModal();
+        }
+    });
 
     document.querySelectorAll('[data-gallery-open]').forEach(function (button) {
         button.addEventListener('click', function () {
@@ -530,18 +582,15 @@
             }
 
             galleryModal.hidden = false;
+            document.body.classList.add('modal-open');
         });
     });
 
-    document.querySelector('[data-gallery-close]')?.addEventListener('click', function () {
-        if (galleryModal) {
-            galleryModal.hidden = true;
-        }
-    });
+    document.querySelector('[data-gallery-close]')?.addEventListener('click', closeGalleryModal);
 
     galleryModal?.addEventListener('click', function (event) {
         if (event.target === galleryModal) {
-            galleryModal.hidden = true;
+            closeGalleryModal();
         }
     });
 
@@ -601,6 +650,10 @@
     const lightboxImg = document.querySelector('[data-lightbox-img]');
     const lightboxClose = document.querySelector('[data-lightbox-close]');
 
+    if (lightbox && lightbox.parentElement !== document.body) {
+        document.body.appendChild(lightbox);
+    }
+
     document.querySelectorAll('[data-lightbox-src]').forEach(function (button) {
         button.addEventListener('click', function () {
             if (!lightbox || !lightboxImg) {
@@ -610,6 +663,7 @@
             lightboxImg.src = button.getAttribute('data-lightbox-src') || '';
             lightboxImg.alt = button.getAttribute('data-lightbox-alt') || '';
             lightbox.hidden = false;
+            lightbox.scrollTop = 0;
             document.body.classList.add('modal-open');
         });
     });
@@ -622,7 +676,9 @@
             lightboxImg.src = '';
             lightboxImg.alt = '';
         }
-        document.body.classList.remove('modal-open');
+        if ((!galleryModal || galleryModal.hidden) && (!companyModal || companyModal.hidden)) {
+            document.body.classList.remove('modal-open');
+        }
     }
 
     lightboxClose?.addEventListener('click', closeLightbox);
@@ -646,7 +702,12 @@
             }
 
             if (galleryModal && !galleryModal.hidden) {
-                galleryModal.hidden = true;
+                closeGalleryModal();
+                return;
+            }
+
+            if (companyModal && !companyModal.hidden) {
+                closeCompanyModal();
                 return;
             }
 
