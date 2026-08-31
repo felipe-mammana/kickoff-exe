@@ -14,6 +14,14 @@ class Machine
         'outros' => 'Outros dispositivos',
     ];
 
+    public const TAG_PREFIX_TYPE_MAP = [
+        'notebook' => 'N',
+        'cpu' => 'C',
+        'roteador' => 'R',
+        'impressora' => 'I',
+        'modem' => 'LINK',
+    ];
+
     private const ENCRYPTED_FIELDS = ['machine_password', 'admin_password'];
 
     public static function deviceTypes(): array
@@ -26,7 +34,73 @@ class Machine
         return self::DEVICE_TYPES[$type ?? ''] ?? 'Dispositivo';
     }
 
-    public static function byCompany(int $companyId, array $filters = [], ?int $limit = null, int $offset = 0): array
+    public static function tagPrefix(string $deviceType, $company): ?string
+    {
+        if (!array_key_exists($deviceType, self::TAG_PREFIX_TYPE_MAP)) {
+            return null;
+        }
+
+        $typePrefix = self::TAG_PREFIX_TYPE_MAP[$deviceType];
+        if ($typePrefix === 'LINK') {
+            return 'LINK';
+        }
+
+        $companyData = is_int($company) ? Company::find($company) : $company;
+        $companyCode = Company::tagCode($companyData);
+
+        return $typePrefix . $companyCode;
+    }
+
+    public static function normalizeTag(?string $rawTag, string $deviceType, $company): ?string
+    {
+        if ($rawTag === null) {
+            return null;
+        }
+
+        $trimmed = trim($rawTag);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        $prefix = self::tagPrefix($deviceType, $company);
+        if ($prefix === null) {
+            return $trimmed;
+        }
+
+        $upper = strtoupper($trimmed);
+        if (substr($upper, 0, strlen($prefix)) === $prefix) {
+            $digits = (string) preg_replace('/\D/', '', substr($upper, strlen($prefix)));
+        } else {
+            $digits = (string) preg_replace('/\D/', '', $upper);
+        }
+
+        if ($digits === '') {
+            return $upper;
+        }
+
+        return $prefix . $digits;
+    }
+
+    public static function extractTagNumber(?string $tag, string $deviceType, $company): string
+    {
+        if ($tag === null || trim($tag) === '') {
+            return '';
+        }
+
+        $prefix = self::tagPrefix($deviceType, $company);
+        if ($prefix === null) {
+            return trim($tag);
+        }
+
+        $upper = strtoupper(trim($tag));
+        if (substr($upper, 0, strlen($prefix)) === $prefix) {
+            return (string) preg_replace('/\D/', '', substr($upper, strlen($prefix)));
+        }
+
+        return (string) preg_replace('/\D/', '', $upper);
+    }
+
+    public static function byCompany(int $companyId, array $filters = [], ?int $limit = null, int $offset = 0, bool $decryptCredentials = false): array
     {
         $sql =
             'SELECT m.*, COUNT(p.id) AS photos_count
@@ -49,7 +123,9 @@ class Machine
         }
         $stmt->execute($params);
 
-        return array_map([self::class, 'decryptCredentials'], $stmt->fetchAll());
+        $machines = $stmt->fetchAll();
+
+        return $decryptCredentials ? array_map([self::class, 'decryptCredentials'], $machines) : $machines;
     }
 
     public static function countByCompany(int $companyId, array $filters = []): int
@@ -92,7 +168,7 @@ class Machine
         ];
     }
 
-    public static function find(int $id): ?array
+    public static function find(int $id, bool $decryptCredentials = false): ?array
     {
         $stmt = db()->prepare(
             'SELECT m.*, c.name AS company_name
@@ -104,7 +180,11 @@ class Machine
         $stmt->execute(['id' => $id]);
         $machine = $stmt->fetch();
 
-        return $machine ? self::decryptCredentials($machine) : null;
+        if (!$machine) {
+            return null;
+        }
+
+        return $decryptCredentials ? self::decryptCredentials($machine) : $machine;
     }
 
     public static function create(array $data): int

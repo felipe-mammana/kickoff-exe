@@ -29,6 +29,10 @@ class ApiRequest
             return [];
         }
 
+        if (strlen($rawBody) > API_MAX_JSON_BYTES) {
+            ApiResponse::error('payload_too_large', 'O corpo da requisicao excede o tamanho permitido.', 413);
+        }
+
         $decoded = json_decode($rawBody, true);
         if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
             ApiResponse::error('invalid_json', 'O corpo da requisicao deve ser um JSON valido.', 400, [
@@ -37,6 +41,26 @@ class ApiRequest
         }
 
         return $decoded;
+    }
+
+    public static function csrfToken(): ?string
+    {
+        $headers = [
+            $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null,
+            $_SERVER['HTTP_X_CSRFTOKEN'] ?? null,
+            $_POST['csrf_token'] ?? null,
+        ];
+
+        foreach ($headers as $token) {
+            if (is_string($token) && trim($token) !== '') {
+                return trim($token);
+            }
+        }
+
+        $payload = self::json();
+        $token = $payload['csrf_token'] ?? null;
+
+        return is_string($token) && trim($token) !== '' ? trim($token) : null;
     }
 
     public static function pagination(): array

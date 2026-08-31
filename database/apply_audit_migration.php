@@ -45,6 +45,11 @@ if (!column_exists('users', 'is_admin')) {
     echo "Coluna users.is_admin criada." . PHP_EOL;
 }
 
+if (!column_exists('users', 'is_active')) {
+    db()->exec('ALTER TABLE users ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER is_admin');
+    echo "Coluna users.is_active criada." . PHP_EOL;
+}
+
 add_column_if_missing('companies', 'tag_pattern', 'tag_pattern VARCHAR(160) NULL AFTER name');
 add_column_if_missing('companies', 'is_active', 'is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER tag_pattern');
 add_column_if_missing('companies', 'created_by', 'created_by INT UNSIGNED NULL AFTER is_active');
@@ -70,6 +75,7 @@ add_column_if_missing('machines', 'updated_by', 'updated_by INT UNSIGNED NULL AF
 add_column_if_missing('machine_photos', 'photo_type', "photo_type VARCHAR(40) NOT NULL DEFAULT 'general' AFTER machine_id");
 add_column_if_missing('machine_photos', 'photo_topic', "photo_topic VARCHAR(40) NOT NULL DEFAULT 'equipamento' AFTER photo_type");
 add_column_if_missing('machine_photos', 'location_name', 'location_name VARCHAR(160) NULL AFTER photo_topic');
+add_column_if_missing('audit_logs', 'user_agent', 'user_agent VARCHAR(255) NULL AFTER ip_address');
 
 if (index_exists('machines', 'unique_company_new_hostname')) {
     db()->exec('ALTER TABLE machines DROP INDEX unique_company_new_hostname');
@@ -98,6 +104,7 @@ db()->exec(
         old_data LONGTEXT NULL,
         new_data LONGTEXT NULL,
         ip_address VARCHAR(45) NULL,
+        user_agent VARCHAR(255) NULL,
         session_identifier VARCHAR(128) NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_audit_user (user_id),

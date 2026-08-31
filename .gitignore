@@ -7,5 +7,12 @@ Thumbs.db
 .DS_Store
 node_modules/
 vendor/
+.agents/
+skills-lock.json
 deploy_infinityfree/
 infinityfree-htdocs.zip
+output/
+security-reports/
+server_upload_clean/
+public/downloads/
+*.docx

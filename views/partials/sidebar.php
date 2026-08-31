@@ -25,11 +25,15 @@
             </a>
             <a class="<?= $isUsers ? 'active' : '' ?>" href="/?route=users.index">
                 <span class="nav-icon"><?= icon('users') ?></span>
-                <span>Usuarios</span>
+                <span>Usuários</span>
+            </a>
+            <a class="<?= $isVault ? 'active' : '' ?>" href="/?route=vault.index">
+                <span class="nav-icon"><?= icon('lock') ?></span>
+                <span>Cofre</span>
             </a>
             <a class="<?= $isSettings ? 'active' : '' ?>" href="/?route=settings.index">
                 <span class="nav-icon"><?= icon('settings') ?></span>
-                <span>Configuracoes</span>
+                <span>Configurações</span>
             </a>
         <?php endif; ?>
     </nav>
@@ -38,7 +42,7 @@
         <div class="avatar"><?= e(strtoupper(substr((string) current_user()['name'], 0, 1))) ?></div>
         <div>
             <strong><?= e(current_user()['name']) ?></strong>
-            <small><?= is_admin() ? 'Administrador' : 'Usuario' ?></small>
+            <small><?= is_admin() ? 'Administrador' : 'Usuário' ?></small>
         </div>
     </div>
 </aside>

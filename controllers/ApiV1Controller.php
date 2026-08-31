@@ -55,12 +55,12 @@ class ApiV1Controller
                 ['method' => 'GET', 'path' => '/api/v1/companies/{id}/machines', 'auth' => true],
                 ['method' => 'POST', 'path' => '/api/v1/companies/{id}/machines', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}', 'auth' => true],
-                ['method' => 'PUT', 'path' => '/api/v1/machines/{id}', 'auth' => true],
-                ['method' => 'PATCH', 'path' => '/api/v1/machines/{id}', 'auth' => true],
-                ['method' => 'DELETE', 'path' => '/api/v1/machines/{id}', 'auth' => true],
+                ['method' => 'PUT', 'path' => '/api/v1/machines/{id}', 'auth' => true, 'admin' => true],
+                ['method' => 'PATCH', 'path' => '/api/v1/machines/{id}', 'auth' => true, 'admin' => true],
+                ['method' => 'DELETE', 'path' => '/api/v1/machines/{id}', 'auth' => true, 'admin' => true],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
                 ['method' => 'POST', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
-                ['method' => 'DELETE', 'path' => '/api/v1/machine-photos/{id}', 'auth' => true],
+                ['method' => 'DELETE', 'path' => '/api/v1/machine-photos/{id}', 'auth' => true, 'admin' => true],
             ],
         ]);
     }
@@ -96,7 +96,11 @@ class ApiV1Controller
         $company = Company::find($companyId);
 
         if (!$company) {
-            ApiResponse::error('company_not_found', 'Empresa nao encontrada.', 404);
+            ApiResponse::error('company_not_found', 'Empresa não encontrada.', 404);
+        }
+
+        if (empty($company['is_active'])) {
+            ApiResponse::error('company_inactive', 'Empresa inativa não permite cadastro de dispositivos.', 422);
         }
 
         $payload = ApiRequest::json();
@@ -132,7 +136,7 @@ class ApiV1Controller
         $company = Company::find($companyId);
 
         if (!$company) {
-            ApiResponse::error('company_not_found', 'Empresa nao encontrada.', 404);
+            ApiResponse::error('company_not_found', 'Empresa não encontrada.', 404);
         }
 
         $changed = !empty($company['is_active']);
@@ -212,7 +216,7 @@ class ApiV1Controller
         $company = Company::find((int) $params['id']);
 
         if (!$company) {
-            ApiResponse::error('company_not_found', 'Empresa nao encontrada.', 404);
+            ApiResponse::error('company_not_found', 'Empresa não encontrada.', 404);
         }
 
         ApiResponse::ok(self::companyResource($company));
@@ -224,7 +228,7 @@ class ApiV1Controller
         $company = Company::find($companyId);
 
         if (!$company) {
-            ApiResponse::error('company_not_found', 'Empresa nao encontrada.', 404);
+            ApiResponse::error('company_not_found', 'Empresa não encontrada.', 404);
         }
 
         $filters = [
@@ -254,7 +258,7 @@ class ApiV1Controller
         $company = Company::find($companyId);
 
         if (!$company) {
-            ApiResponse::error('company_not_found', 'Empresa nao encontrada.', 404);
+            ApiResponse::error('company_not_found', 'Empresa não encontrada.', 404);
         }
 
         $payload = ApiRequest::json();
@@ -286,7 +290,7 @@ class ApiV1Controller
         $machine = Machine::find((int) $params['id']);
 
         if (!$machine) {
-            ApiResponse::error('machine_not_found', 'Dispositivo nao encontrado.', 404);
+            ApiResponse::error('machine_not_found', 'Dispositivo não encontrado.', 404);
         }
 
         ApiResponse::ok(self::machineResource($machine));
@@ -298,7 +302,7 @@ class ApiV1Controller
         $machine = Machine::find($machineId);
 
         if (!$machine) {
-            ApiResponse::error('machine_not_found', 'Dispositivo nao encontrado.', 404);
+            ApiResponse::error('machine_not_found', 'Dispositivo não encontrado.', 404);
         }
 
         $companyId = (int) $machine['company_id'];
@@ -339,7 +343,7 @@ class ApiV1Controller
         $machine = Machine::find($machineId);
 
         if (!$machine) {
-            ApiResponse::error('machine_not_found', 'Dispositivo nao encontrado.', 404);
+            ApiResponse::error('machine_not_found', 'Dispositivo não encontrado.', 404);
         }
 
         $changed = !empty($machine['is_active']);
@@ -369,7 +373,7 @@ class ApiV1Controller
         $machine = Machine::find((int) $params['id']);
 
         if (!$machine) {
-            ApiResponse::error('machine_not_found', 'Dispositivo nao encontrado.', 404);
+            ApiResponse::error('machine_not_found', 'Dispositivo não encontrado.', 404);
         }
 
         ApiResponse::ok(array_map([self::class, 'photoResource'], MachinePhoto::byMachine((int) $params['id'])));
@@ -381,7 +385,7 @@ class ApiV1Controller
         $machine = Machine::find($machineId);
 
         if (!$machine) {
-            ApiResponse::error('machine_not_found', 'Dispositivo nao encontrado.', 404);
+            ApiResponse::error('machine_not_found', 'Dispositivo não encontrado.', 404);
         }
 
         $defaultPhotoType = self::normalizePhotoType((string) ($_POST['photo_type'] ?? 'general'));
@@ -397,7 +401,7 @@ class ApiV1Controller
         }
 
         if (!$stored) {
-            ApiResponse::error('validation_failed', 'Nenhuma foto valida foi enviada.', 422, [
+            ApiResponse::error('validation_failed', 'Nenhuma foto válida foi enviada.', 422, [
                 'fields' => ['photos' => $errors],
             ]);
         }
@@ -424,14 +428,14 @@ class ApiV1Controller
         $photo = MachinePhoto::find($photoId);
 
         if (!$photo) {
-            ApiResponse::error('photo_not_found', 'Foto nao encontrada.', 404);
+            ApiResponse::error('photo_not_found', 'Foto não encontrada.', 404);
         }
 
         $machine = Machine::find((int) $photo['machine_id']);
-        $path = UPLOAD_PATH . '/' . $photo['file_name'];
+        $path = upload_file_path((string) $photo['file_name']);
         $fileDeleted = false;
 
-        if (is_file($path)) {
+        if ($path !== null && is_file($path)) {
             $fileDeleted = unlink($path);
         }
 
@@ -532,15 +536,23 @@ class ApiV1Controller
 
         $deviceType = trim((string) ($payload['device_type'] ?? ($current['device_type'] ?? 'notebook')));
         if (!array_key_exists($deviceType, Machine::deviceTypes())) {
-            $errors['device_type'][] = 'Tipo de dispositivo invalido.';
+            $errors['device_type'][] = 'Tipo de dispositivo inválido.';
             $deviceType = (string) ($current['device_type'] ?? 'notebook');
+        }
+
+        $company = Company::find($companyId);
+        $rawTag = self::nullablePayloadString($payload, 'tag', $current['tag'] ?? null);
+        $tag = Machine::normalizeTag($rawTag, $deviceType, $company);
+        $tagPrefix = Machine::tagPrefix($deviceType, $company);
+        if ($tagPrefix !== null && $tag === $tagPrefix) {
+            $tag = null;
         }
 
         $data = [
             'company_id' => $companyId,
             'device_type' => $deviceType,
             'equipment_name' => self::nullablePayloadString($payload, 'equipment_name', $current['equipment_name'] ?? null),
-            'tag' => self::nullablePayloadString($payload, 'tag', $current['tag'] ?? null),
+            'tag' => $tag,
             'old_hostname' => self::nullablePayloadString($payload, 'old_hostname', $current['old_hostname'] ?? null),
             'new_hostname' => self::nullablePayloadString($payload, 'new_hostname', $current['new_hostname'] ?? null),
             'employee_name' => self::nullablePayloadString($payload, 'employee_name', $current['employee_name'] ?? null),
@@ -567,7 +579,9 @@ class ApiV1Controller
 
         foreach (self::requiredMachineFieldsForType($deviceType) as $field) {
             if (($data[$field] ?? null) === null || $data[$field] === '') {
-                $errors[$field][] = 'Campo obrigatorio para este tipo de dispositivo.';
+                $errors[$field][] = $field === 'tag' && $tagPrefix !== null
+                    ? 'Informe o número da etiqueta.'
+                    : 'Campo obrigatório para este tipo de dispositivo.';
             }
         }
 
@@ -625,9 +639,9 @@ class ApiV1Controller
             'computer_model' => 'Modelo do computador',
             'operating_system' => 'Sistema operacional',
             'machine_password' => 'Senha do equipamento',
-            'admin_user' => 'Usuario administrador',
+            'admin_user' => 'Usuário administrador',
             'admin_password' => 'Senha administrador',
-            'install_location' => 'Local de instalacao',
+            'install_location' => 'Local de instalação',
             'modem_name' => 'Nome do modem',
             'ip_address' => 'IP de acesso',
             'gateway' => 'Gateway',
@@ -635,7 +649,7 @@ class ApiV1Controller
             'printer_brand' => 'Marca da impressora',
             'printer_connection_type' => 'Tipo de conexao',
             'printer_shared' => 'Impressora compartilhada',
-            'notes' => 'Observacoes',
+            'notes' => 'Observações',
             'tflux_installed' => 'TFlux instalado',
             'antivirus_installed' => 'Antivirus instalado',
             'requester_in_tflux' => 'Solicitante cadastrado no TFlux',
@@ -674,13 +688,13 @@ class ApiV1Controller
     private static function requiredMachineFieldsForType(string $type): array
     {
         $map = [
-            'notebook' => ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'computer_model', 'machine_password'],
-            'cpu' => ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'computer_model', 'machine_password'],
-            'roteador' => ['tag', 'computer_model', 'admin_user', 'admin_password', 'ip_address'],
-            'access_point' => ['install_location', 'tag', 'computer_model'],
-            'modem' => ['tag', 'computer_model', 'admin_user', 'admin_password', 'carrier'],
-            'impressora' => ['tag', 'brand', 'computer_model', 'printer_connection_type'],
-            'outros' => ['tag', 'computer_model'],
+            'notebook' => ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'machine_password'],
+            'cpu' => ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'machine_password'],
+            'roteador' => ['tag', 'admin_user', 'admin_password', 'ip_address'],
+            'access_point' => ['install_location', 'tag'],
+            'modem' => ['tag', 'admin_user', 'admin_password', 'carrier'],
+            'impressora' => ['tag', 'brand', 'printer_connection_type'],
+            'outros' => ['tag'],
         ];
 
         return $map[$type] ?? $map['notebook'];
@@ -724,7 +738,7 @@ class ApiV1Controller
             }
 
             if ((int) $file['error'] !== UPLOAD_ERR_OK) {
-                $errors[] = 'Uma das fotos nao pode ser enviada.';
+                $errors[] = 'Uma das fotos não pôde ser enviada.';
                 continue;
             }
 
@@ -737,7 +751,12 @@ class ApiV1Controller
             $mime = $finfo->file($tmpName);
 
             if (!in_array($mime, ALLOWED_IMAGE_MIMES, true)) {
-                $errors[] = 'Formato de imagem invalido. Use JPG, PNG ou WEBP.';
+                $errors[] = 'Formato de imagem inválido. Use JPG, PNG ou WEBP.';
+                continue;
+            }
+
+            if (@getimagesize($tmpName) === false) {
+                $errors[] = 'Uma foto enviada não pôde ser lida como imagem válida.';
                 continue;
             }
 
@@ -745,7 +764,7 @@ class ApiV1Controller
             $destination = UPLOAD_PATH . '/' . $fileName;
 
             if (!move_uploaded_file($tmpName, $destination)) {
-                $errors[] = 'Nao foi possivel salvar uma das fotos.';
+                $errors[] = 'Não foi possível salvar uma das fotos.';
                 continue;
             }
 
@@ -755,7 +774,7 @@ class ApiV1Controller
                 'photo_topic' => self::photoTopicForUpload($inputName, (int) $index),
                 'location_name' => null,
                 'file_name' => $fileName,
-                'original_name' => basename((string) $file['name']),
+                'original_name' => safe_original_filename((string) $file['name']),
                 'mime_type' => (string) $mime,
                 'file_size' => (int) $file['size'],
             ];
@@ -869,7 +888,7 @@ class ApiV1Controller
             'original_name' => (string) $photo['original_name'],
             'mime_type' => (string) $photo['mime_type'],
             'file_size' => (int) $photo['file_size'],
-            'url' => UPLOAD_URL . '/' . $photo['file_name'],
+            'url' => upload_file_url((string) $photo['file_name']),
             'created_at' => $photo['created_at'] ?? null,
         ];
     }

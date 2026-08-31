@@ -26,6 +26,10 @@ $typeIcons = [
     'impressora' => 'printer',
     'outros' => 'settings',
 ];
+$companyTagCode = Company::tagCode($company ?? null);
+$currentTagPrefix = Machine::tagPrefix($selectedType, $company ?? null);
+$currentTagNumber = Machine::extractTagNumber($machine['tag'] ?? null, $selectedType, $company ?? null);
+$isFreeTag = $currentTagPrefix === null;
 ?>
 
 <nav class="breadcrumbs" aria-label="Breadcrumb">
@@ -39,7 +43,7 @@ $typeIcons = [
 <section class="asset-page-head">
     <div>
         <h1><?= $isEdit ? 'Editar dispositivo' : 'Novo cadastro de dispositivo' ?></h1>
-        <p>Insira as informacoes tecnicas, vincule a empresa e registre evidencias do ativo.</p>
+        <p>Insira as informações técnicas, vincule a empresa e registre evidências do ativo.</p>
     </div>
     <a class="btn btn-muted" href="<?= $isEdit ? '/?route=machines.show&id=' . (int) $machine['id'] : '/?company_id=' . (int) ($company['id'] ?? 0) ?>">
         <?= icon('arrow-left') ?><span>Voltar</span>
@@ -60,7 +64,7 @@ $typeIcons = [
                 <span class="step-number">1</span>
                 <div>
                     <h2>Selecao inicial</h2>
-                    <p>Escolha o tipo do dispositivo para adaptar o formulario automaticamente.</p>
+                    <p>Escolha o tipo do dispositivo para adaptar o formulário automaticamente.</p>
                 </div>
             </header>
 
@@ -72,16 +76,9 @@ $typeIcons = [
                         <small class="field-hint">Padrao de etiqueta: <?= e($company['tag_pattern']) ?></small>
                     <?php endif; ?>
                 </label>
-
-                <label class="<?= $fieldClass($errors, 'device_type') ?>">
-                    <span>Tipo de dispositivo</span>
-                    <select name="device_type" data-device-type required>
-                        <?php foreach ($deviceTypes as $type => $label): ?>
-                            <option value="<?= e($type) ?>" <?= $selectedType === $type ? 'selected' : '' ?>><?= e($label) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </label>
             </div>
+
+            <input type="hidden" name="device_type" value="<?= e($selectedType) ?>" data-device-type required>
 
             <div class="device-type-grid" data-device-type-grid>
                 <?php foreach ($deviceTypes as $type => $label): ?>
@@ -97,26 +94,21 @@ $typeIcons = [
             <header class="asset-section-head">
                 <span class="step-number">2</span>
                 <div>
-                    <h2>Identificacao do ativo</h2>
-                    <p>Dados comuns para rastreio, etiqueta e localizacao no inventario.</p>
+                    <h2>Identificação do ativo</h2>
+                    <p>Dados comuns para rastreio, etiqueta e localização no inventário.</p>
                 </div>
             </header>
 
-            <div class="fields-grid">
-                <label class="<?= $fieldClass($errors, 'tag') ?>">
-                    <span>Numero da etiqueta</span>
-                    <input type="text" name="tag" value="<?= $value('tag') ?>" placeholder="<?= e($company['tag_pattern'] ?: 'NOTE-0001') ?>">
+            <div class="fields-grid single-col">
+                <label class="<?= $fieldClass($errors, 'tag') ?>" data-tag-field-wrapper>
+                    <span data-tag-label><?= $isFreeTag ? 'Etiqueta' : 'Numero da etiqueta' ?></span>
+                    <input type="hidden" name="tag" value="<?= $value('tag') ?>" data-tag-full>
+                    <span class="tag-mask-control" data-company-tag-code="<?= e($companyTagCode) ?>" data-tag-mask-wrap <?= $isFreeTag ? 'hidden' : '' ?>>
+                        <strong data-tag-prefix><?= e($currentTagPrefix ?: '') ?></strong>
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" data-tag-number value="<?= e($currentTagNumber) ?>" placeholder="001" aria-label="Numero da etiqueta" <?= $isFreeTag ? 'disabled' : '' ?>>
+                    </span>
+                    <input type="text" data-tag-free value="<?= $isFreeTag ? $value('tag') : '' ?>" placeholder="Ex.: AP-001" aria-label="Etiqueta do dispositivo" <?= !$isFreeTag ? 'hidden disabled' : '' ?>>
                     <?php if (isset($errors['tag'])): ?><small><?= e($errors['tag']) ?></small><?php endif; ?>
-                </label>
-                <label class="<?= $fieldClass($errors, 'old_hostname') ?>" data-device-section="notebook cpu">
-                    <span>Hostname antigo</span>
-                    <input type="text" name="old_hostname" value="<?= $value('old_hostname') ?>">
-                    <?php if (isset($errors['old_hostname'])): ?><small><?= e($errors['old_hostname']) ?></small><?php endif; ?>
-                </label>
-                <label class="<?= $fieldClass($errors, 'new_hostname') ?>" data-device-section="notebook cpu">
-                    <span>Hostname novo</span>
-                    <input type="text" name="new_hostname" value="<?= $value('new_hostname') ?>">
-                    <?php if (isset($errors['new_hostname'])): ?><small><?= e($errors['new_hostname']) ?></small><?php endif; ?>
                 </label>
             </div>
         </section>
@@ -126,15 +118,20 @@ $typeIcons = [
                 <span class="step-number">3</span>
                 <div>
                     <h2>Dados do computador</h2>
-                    <p>Campos tecnicos para notebook e CPU / desktop.</p>
+                    <p>Campos técnicos para notebook e CPU / desktop.</p>
                 </div>
             </header>
 
             <div class="fields-grid three-cols">
-                <label class="<?= $fieldClass($errors, 'computer_model') ?>">
-                    <span>Modelo do computador</span>
-                    <input type="text" name="computer_model" value="<?= $value('computer_model') ?>" placeholder="Latitude 5420">
-                    <?php if (isset($errors['computer_model'])): ?><small><?= e($errors['computer_model']) ?></small><?php endif; ?>
+                <label class="<?= $fieldClass($errors, 'old_hostname') ?>">
+                    <span>Hostname antigo</span>
+                    <input type="text" name="old_hostname" value="<?= $value('old_hostname') ?>">
+                    <?php if (isset($errors['old_hostname'])): ?><small><?= e($errors['old_hostname']) ?></small><?php endif; ?>
+                </label>
+                <label class="<?= $fieldClass($errors, 'new_hostname') ?>">
+                    <span>Hostname novo</span>
+                    <input type="text" name="new_hostname" value="<?= $value('new_hostname') ?>">
+                    <?php if (isset($errors['new_hostname'])): ?><small><?= e($errors['new_hostname']) ?></small><?php endif; ?>
                 </label>
                 <label class="<?= $fieldClass($errors, 'employee_name') ?>">
                     <span>Colaborador que usa a maquina</span>
@@ -146,17 +143,23 @@ $typeIcons = [
                     <input type="text" name="department" value="<?= $value('department') ?>">
                     <?php if (isset($errors['department'])): ?><small><?= e($errors['department']) ?></small><?php endif; ?>
                 </label>
+                <label class="<?= $fieldClass($errors, 'computer_model') ?>">
+                    <span>Modelo</span>
+                    <input type="text" name="computer_model" value="<?= $value('computer_model') ?>" placeholder="Opcional">
+                    <?php if (isset($errors['computer_model'])): ?><small><?= e($errors['computer_model']) ?></small><?php endif; ?>
+                </label>
                 <label class="<?= $fieldClass($errors, 'install_location') ?>">
                     <span>Local</span>
                     <input type="text" name="install_location" value="<?= $value('install_location') ?>" placeholder="Ex.: Sala TI, Recepcao, Financeiro">
                     <?php if (isset($errors['install_location'])): ?><small><?= e($errors['install_location']) ?></small><?php endif; ?>
                 </label>
                 <label class="<?= $fieldClass($errors, 'machine_password') ?>">
-                    <span>Senha da maquina</span>
+                    <span>Senha da máquina</span>
                     <span class="password-wrap">
-                        <input type="password" name="machine_password" value="<?= $value('machine_password') ?>" data-password-input>
+                        <input type="password" name="machine_password" value="" placeholder="<?= $isEdit ? 'Preencha apenas para alterar' : '' ?>" data-password-input>
                         <button type="button" data-password-toggle>Ver</button>
                     </span>
+                    <?php if ($isEdit): ?><small class="field-hint">Deixe em branco para manter a senha cadastrada.</small><?php endif; ?>
                     <?php if (isset($errors['machine_password'])): ?><small><?= e($errors['machine_password']) ?></small><?php endif; ?>
                 </label>
             </div>
@@ -181,8 +184,8 @@ $typeIcons = [
             <header class="asset-section-head">
                 <span class="step-number">3</span>
                 <div>
-                    <h2>Rede e administracao</h2>
-                    <p>Credenciais, acesso e dados da operadora quando aplicavel.</p>
+                    <h2>Rede e administração</h2>
+                    <p>Credenciais, acesso e dados da operadora quando aplicável.</p>
                 </div>
             </header>
 
@@ -193,13 +196,14 @@ $typeIcons = [
                     <?php if (isset($errors['computer_model'])): ?><small><?= e($errors['computer_model']) ?></small><?php endif; ?>
                 </label>
                 <label class="<?= $fieldClass($errors, 'admin_user') ?>">
-                    <span>Usuario admin</span>
+                    <span>Usuário admin</span>
                     <input type="text" name="admin_user" value="<?= $value('admin_user') ?>">
                     <?php if (isset($errors['admin_user'])): ?><small><?= e($errors['admin_user']) ?></small><?php endif; ?>
                 </label>
                 <label class="<?= $fieldClass($errors, 'admin_password') ?>">
                     <span>Senha admin</span>
-                    <input type="text" name="admin_password" value="<?= $value('admin_password') ?>">
+                    <input type="password" name="admin_password" value="" placeholder="<?= $isEdit ? 'Preencha apenas para alterar' : '' ?>">
+                    <?php if ($isEdit): ?><small class="field-hint">Deixe em branco para manter a senha cadastrada.</small><?php endif; ?>
                     <?php if (isset($errors['admin_password'])): ?><small><?= e($errors['admin_password']) ?></small><?php endif; ?>
                 </label>
                 <label class="<?= $fieldClass($errors, 'ip_address') ?>" data-device-section="roteador">
@@ -219,14 +223,14 @@ $typeIcons = [
             <header class="asset-section-head">
                 <span class="step-number">3</span>
                 <div>
-                    <h2>Instalacao</h2>
-                    <p>Localizacao fisica e modelo do Access Point.</p>
+                    <h2>Instalação</h2>
+                    <p>Localização física e modelo do Access Point.</p>
                 </div>
             </header>
 
             <div class="fields-grid">
                 <label class="<?= $fieldClass($errors, 'install_location') ?>">
-                    <span>Local de instalacao</span>
+                    <span>Local de instalação</span>
                     <input type="text" name="install_location" value="<?= $value('install_location') ?>" placeholder="Sala de reuniao, recepcao, estoque">
                     <?php if (isset($errors['install_location'])): ?><small><?= e($errors['install_location']) ?></small><?php endif; ?>
                 </label>
@@ -243,7 +247,7 @@ $typeIcons = [
                 <span class="step-number">3</span>
                 <div>
                     <h2>Dados da impressora</h2>
-                    <p>Conexao, compartilhamento e configuracao de rede.</p>
+                    <p>Conexão, compartilhamento e configuração de rede.</p>
                 </div>
             </header>
 
@@ -281,33 +285,6 @@ $typeIcons = [
                 <input type="checkbox" name="printer_shared" <?= $checked('printer_shared') ?>>
                 <span>Impressora compartilhada</span>
             </label>
-
-            <div data-printer-network>
-                <div class="upload-meta-grid compact">
-                    <label class="field">
-                        <span>Topico da foto de rede</span>
-                        <select name="network_photo_topic[]">
-                            <?php foreach (MachinePhoto::topics() as $topicValue => $topicLabel): ?>
-                                <option value="<?= e($topicValue) ?>" <?= $topicValue === 'equipamento' ? 'selected' : '' ?>><?= e($topicLabel) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
-                </div>
-                <div class="upload-choice-grid compact">
-                    <label class="upload-drop compact">
-                        <input type="file" name="network_photo[]" accept="image/jpeg,image/png,image/webp">
-                        <span class="upload-icon"><?= icon('image') ?></span>
-                        <strong>Escolher da galeria</strong>
-                        <small>Use uma imagem ja salva da configuracao de rede.</small>
-                    </label>
-                    <label class="upload-drop compact">
-                        <input type="file" name="network_photo[]" accept="image/jpeg,image/png,image/webp" capture="environment">
-                        <span class="upload-icon"><?= icon('camera') ?></span>
-                        <strong>Tirar foto agora</strong>
-                        <small>Abra a camera para registrar IP, gateway ou pagina de configuracao.</small>
-                    </label>
-                </div>
-            </div>
         </section>
 
         <section class="asset-form-section device-section" data-device-section="outros">
@@ -315,7 +292,7 @@ $typeIcons = [
                 <span class="step-number">3</span>
                 <div>
                     <h2>Outros dispositivos</h2>
-                    <p>Ficha flexivel para ativos fora das categorias padrao.</p>
+                    <p>Ficha flexível para ativos fora das categorias padrão.</p>
                 </div>
             </header>
 
@@ -340,8 +317,8 @@ $typeIcons = [
             <header class="asset-section-head">
                 <span class="step-number">4</span>
                 <div>
-                    <h2>Fotos e observacoes</h2>
-                    <p>Registre evidencias do ativo usando camera ou galeria.</p>
+                    <h2>Fotos e observações</h2>
+                    <p>Registre evidências do ativo usando câmera ou galeria.</p>
                 </div>
             </header>
 
@@ -358,11 +335,11 @@ $typeIcons = [
                             <input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp" capture="environment" data-photo-input>
                             <span class="upload-icon"><?= icon('camera') ?></span>
                             <strong>Tirar foto agora</strong>
-                            <small>Abra a camera e registre uma nova evidencia.</small>
+                            <small>Abra a câmera e registre uma nova evidência.</small>
                         </label>
                     </div>
                     <label class="<?= $fieldClass($errors, 'notes') ?>">
-                        <span>Observacoes</span>
+                        <span>Observações</span>
                         <textarea name="notes" rows="5"><?= $value('notes') ?></textarea>
                         <?php if (isset($errors['notes'])): ?><small><?= e($errors['notes']) ?></small><?php endif; ?>
                     </label>
@@ -374,7 +351,7 @@ $typeIcons = [
                         <div class="photo-grid existing">
                             <?php foreach ($photos as $photo): ?>
                                 <figure>
-                                    <img src="<?= e(UPLOAD_URL . '/' . $photo['file_name']) ?>" alt="<?= e($photo['original_name']) ?>">
+                                    <img src="<?= e(upload_file_url((string) $photo['file_name'])) ?>" alt="<?= e($photo['original_name']) ?>">
                                     <figcaption>
                                         <span>
                                             <?= e(MachinePhoto::topicLabel($photo['photo_topic'] ?? 'equipamento')) ?>
@@ -398,7 +375,7 @@ $typeIcons = [
 
         <div class="form-actions-bar">
             <a class="btn btn-muted" href="<?= $isEdit ? '/?route=machines.show&id=' . (int) $machine['id'] : '/?company_id=' . (int) ($company['id'] ?? 0) ?>">Cancelar</a>
-            <button class="btn btn-primary" type="submit"><?= icon('save') ?><span><?= $isEdit ? 'Salvar alteracoes' : 'Salvar dispositivo' ?></span></button>
+            <button class="btn btn-primary" type="submit"><?= icon('save') ?><span><?= $isEdit ? 'Salvar alterações' : 'Salvar dispositivo' ?></span></button>
         </div>
     </div>
 </form>

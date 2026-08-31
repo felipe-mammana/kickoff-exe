@@ -36,9 +36,7 @@ spl_autoload_register(static function (string $class): void {
 });
 
 if (PHP_SAPI !== 'cli') {
-    header('X-Content-Type-Options: nosniff');
-    header('X-Frame-Options: SAMEORIGIN');
-    header('Referrer-Policy: strict-origin-when-cross-origin');
+    apply_security_headers();
 
     ini_set('session.use_strict_mode', '1');
     ini_set('session.cookie_httponly', '1');
@@ -51,7 +49,7 @@ if (PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         'httponly' => true,
         'samesite' => 'Lax',
-        'secure' => !empty($_SERVER['HTTPS']),
+        'secure' => is_https_request(),
     ]);
     session_start();
 }

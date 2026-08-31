@@ -1,0 +1,13 @@
+.git/
+.agents/
+node_modules/
+vendor/
+Frontend-prototipo/
+output/
+public/downloads/
+server_upload_clean/
+deploy_infinityfree/
+storage/
+*.zip
+*.pdf
+*.docx

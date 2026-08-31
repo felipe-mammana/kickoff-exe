@@ -25,6 +25,12 @@ try {
         case 'logout':
             AuthController::logout();
             break;
+        case 'login.2fa.cancel':
+            AuthController::cancelTwoFactor();
+            break;
+        case 'login.2fa.email':
+            AuthController::sendTwoFactorEmailCode();
+            break;
         case 'dashboard':
             DashboardController::index();
             break;
@@ -49,6 +55,21 @@ try {
         case 'companies.deactivate':
             CompanyController::deactivate();
             break;
+        case 'companies.reactivate':
+            CompanyController::reactivate();
+            break;
+        case 'companies.destroy':
+            CompanyController::destroy();
+            break;
+        case 'companies.attachments.store':
+            CompanyController::storeAttachment();
+            break;
+        case 'companies.attachments.download':
+            CompanyController::downloadAttachment();
+            break;
+        case 'companies.attachments.delete':
+            CompanyController::deleteAttachment();
+            break;
         case 'machines.create':
             MachineController::create();
             break;
@@ -67,6 +88,12 @@ try {
         case 'machines.deletePhoto':
             MachineController::deletePhoto();
             break;
+        case 'machines.photos.view':
+            MachineController::viewPhoto();
+            break;
+        case 'machines.revealCredential':
+            MachineController::revealCredential();
+            break;
         case 'machines.deactivate':
             MachineController::deactivate();
             break;
@@ -76,8 +103,53 @@ try {
         case 'users.index':
             UserController::index();
             break;
+        case 'users.store':
+            UserController::store();
+            break;
+        case 'users.update':
+            UserController::update();
+            break;
+        case 'users.resetPassword':
+            UserController::resetPassword();
+            break;
+        case 'users.setStatus':
+            UserController::setStatus();
+            break;
+        case 'vault.index':
+            VaultController::index();
+            break;
+        case 'vault.show':
+            VaultController::show();
+            break;
+        case 'vault.store':
+            VaultController::store();
+            break;
+        case 'vault.update':
+            VaultController::update();
+            break;
+        case 'vault.deactivate':
+            VaultController::deactivate();
+            break;
+        case 'vault.reveal':
+            VaultController::reveal();
+            break;
+        case 'vault.categories.store':
+            VaultController::storeCategory();
+            break;
         case 'settings.index':
             SettingsController::index();
+            break;
+        case 'settings.2fa.prepare':
+            SettingsController::prepareTwoFactor();
+            break;
+        case 'settings.2fa.cancel':
+            SettingsController::cancelTwoFactorSetup();
+            break;
+        case 'settings.2fa.enable':
+            SettingsController::enableTwoFactor();
+            break;
+        case 'settings.2fa.disable':
+            SettingsController::disableTwoFactor();
             break;
         case 'export.download':
             ExportController::download();
@@ -89,5 +161,8 @@ try {
 } catch (Throwable $exception) {
     error_log($exception->getMessage());
     http_response_code(500);
-    view('errors/500');
+    view('errors/500', [
+        'title' => 'Erro interno',
+        'exception' => $exception,
+    ]);
 }

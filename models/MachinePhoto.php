@@ -79,6 +79,15 @@ class MachinePhoto
         return $photo ?: null;
     }
 
+    public static function findByFileName(string $fileName): ?array
+    {
+        $stmt = db()->prepare('SELECT * FROM machine_photos WHERE file_name = :file_name LIMIT 1');
+        $stmt->execute(['file_name' => $fileName]);
+        $photo = $stmt->fetch();
+
+        return $photo ?: null;
+    }
+
     public static function delete(int $id): void
     {
         $stmt = db()->prepare('DELETE FROM machine_photos WHERE id = :id');

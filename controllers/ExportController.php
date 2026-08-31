@@ -16,13 +16,13 @@ class ExportController
 
         if (!in_array($type, self::TYPES, true) || !in_array($format, self::FORMATS, true)) {
             http_response_code(404);
-            view('errors/404', ['title' => 'Exportacao nao encontrada']);
+            view('errors/404', ['title' => 'Exportação não encontrada']);
             return;
         }
 
         if ($format === 'docx' && $type !== 'devices') {
             http_response_code(404);
-            view('errors/404', ['title' => 'Exportacao nao encontrada']);
+            view('errors/404', ['title' => 'Exportação não encontrada']);
             return;
         }
 
@@ -96,11 +96,11 @@ class ExportController
             return [
                 'ID' => (int) $row['id'],
                 'Nome da empresa' => $row['name'],
-                'Padrao etiqueta' => $row['tag_pattern'] ?: '-',
+                'Padrão etiqueta' => $row['tag_pattern'] ?: '-',
                 'Status' => !empty($row['is_active']) ? 'Ativa' : 'Inativa',
                 'Cadastrada por' => $row['created_by_name'] ?: '-',
                 'Criada em' => $row['created_at'],
-                'Ultima alteracao' => $row['updated_at'],
+                'Última alteração' => $row['updated_at'],
             ];
         }, $stmt->fetchAll());
 
@@ -167,18 +167,16 @@ class ExportController
                 'Etiqueta' => $row['tag'] ?: '-',
                 'Hostname antigo' => $row['old_hostname'] ?: '-',
                 'Hostname novo' => $row['new_hostname'] ?: '-',
-                'Responsavel' => $row['employee_name'] ?: '-',
+                'Responsável' => $row['employee_name'] ?: '-',
                 'Departamento' => $row['department'] ?: '-',
-                'Marca' => ($row['brand'] ?: $row['printer_brand']) ?: '-',
-                'Modelo' => $row['computer_model'] ?: '-',
                 'Sistema operacional' => $row['operating_system'] ?: '-',
-                'Local de instalacao' => $row['install_location'] ?: '-',
+                'Local de instalação' => $row['install_location'] ?: '-',
                 'IP' => $row['ip_address'] ?: '-',
                 'Gateway' => $row['gateway'] ?: '-',
                 'Operadora' => $row['carrier'] ?: '-',
-                'TFlux instalado' => !empty($row['tflux_installed']) ? 'Sim' : 'Nao',
-                'Antivirus instalado' => !empty($row['antivirus_installed']) ? 'Sim' : 'Nao',
-                'Solicitante no TFlux' => !empty($row['requester_in_tflux']) ? 'Sim' : 'Nao',
+                'TFlux instalado' => !empty($row['tflux_installed']) ? 'Sim' : 'Não',
+                'Antivírus instalado' => !empty($row['antivirus_installed']) ? 'Sim' : 'Não',
+                'Solicitante no TFlux' => !empty($row['requester_in_tflux']) ? 'Sim' : 'Não',
                 'Status' => !empty($row['is_active']) ? 'Ativo' : 'Inativo',
                 'Criado em' => $row['created_at'],
                 'Atualizado em' => $row['updated_at'],
@@ -195,7 +193,7 @@ class ExportController
             'profile' => trim((string) ($_GET['profile'] ?? '')),
         ];
 
-        $sql = 'SELECT id, name, email, is_admin, created_at FROM users WHERE 1 = 1';
+        $sql = 'SELECT id, name, email, is_admin, is_active, created_at FROM users WHERE 1 = 1';
         $params = [];
 
         if ($filters['query'] !== '') {
@@ -216,10 +214,10 @@ class ExportController
         $rows = array_map(static function (array $row): array {
             return [
                 'ID' => (int) $row['id'],
-                'Usuario' => $row['name'],
+                'Usuário' => $row['name'],
                 'E-mail' => $row['email'],
-                'Perfil' => !empty($row['is_admin']) ? 'Administrador' : 'Usuario padrao',
-                'Status' => 'Ativo',
+                'Perfil' => !empty($row['is_admin']) ? 'Administrador' : 'Usuário padrão',
+                'Status' => !empty($row['is_active']) ? 'Ativo' : 'Inativo',
                 'Criado em' => $row['created_at'] ?? '-',
             ];
         }, $stmt->fetchAll());
@@ -241,10 +239,11 @@ class ExportController
             return [
                 'ID' => (int) $row['id'],
                 'Evento' => $row['action_type'],
-                'Descricao' => $row['description'],
-                'Usuario' => $row['user_name'] ?: '-',
+                'Descrição' => $row['description'],
+                'Usuário' => $row['user_name'] ?: '-',
                 'E-mail' => $row['user_email'] ?: '-',
                 'IP' => $row['ip_address'] ?: '-',
+                'User-agent' => $row['user_agent'] ?: '-',
                 'Empresa' => $row['company_name'] ?: '-',
                 'Tabela afetada' => $row['affected_table'] ?: '-',
                 'Registro afetado' => $row['affected_record_id'] ?: '-',
@@ -264,7 +263,7 @@ class ExportController
 
         if (!$company) {
             http_response_code(404);
-            view('errors/404', ['title' => 'Empresa nao encontrada']);
+            view('errors/404', ['title' => 'Empresa não encontrada']);
             exit;
         }
 
@@ -290,6 +289,7 @@ class ExportController
 
     private static function sendCsv(string $filename, array $columns, array $rows): void
     {
+        $filename = safe_download_filename($filename);
         header('Content-Type: text/csv; charset=UTF-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Pragma: no-cache');
@@ -309,6 +309,7 @@ class ExportController
 
     private static function sendJson(string $filename, array $payload): void
     {
+        $filename = safe_download_filename($filename);
         header('Content-Type: application/json; charset=UTF-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Pragma: no-cache');
@@ -320,8 +321,14 @@ class ExportController
 
     private static function sendDocx(string $filename, array $payload): void
     {
+        $filename = safe_download_filename($filename);
         $exporter = new CompanyEquipmentDocxExporter();
-        $docx = $exporter->build($payload['company'], $payload['machines'], $payload['photos_by_machine']);
+        $docx = $exporter->build(
+            $payload['company'],
+            $payload['machines'],
+            $payload['photos_by_machine'],
+            $payload['filters']
+        );
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -335,10 +342,13 @@ class ExportController
 
     private static function recordAudit(string $type, string $format, array $filters, int $total): void
     {
+        $companyId = isset($filters['company_id']) && (int) $filters['company_id'] > 0 ? (int) $filters['company_id'] : null;
+
         AuditLog::record([
             'action_type' => 'export_performed',
             'affected_table' => self::tableName($type),
-            'description' => sprintf('Exportacao de %s em %s realizada.', self::label($type), strtoupper($format)),
+            'company_id' => $companyId,
+            'description' => sprintf('Exportação de %s em %s realizada.', self::label($type), strtoupper($format)),
             'new_data' => [
                 'Formato' => strtoupper($format),
                 'Tela' => self::label($type),
@@ -362,7 +372,7 @@ class ExportController
         return match ($type) {
             'companies' => 'empresas',
             'devices' => 'dispositivos',
-            'users' => 'usuarios',
+            'users' => 'usuários',
             'audit' => 'logs_auditoria',
         };
     }
@@ -372,7 +382,7 @@ class ExportController
         return match ($type) {
             'companies' => 'empresas',
             'devices' => 'dispositivos',
-            'users' => 'usuarios',
+            'users' => 'usuários',
             'audit' => 'logs de auditoria',
         };
     }

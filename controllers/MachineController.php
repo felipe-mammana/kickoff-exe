@@ -10,8 +10,8 @@ class MachineController
         $companyId = (int) ($_GET['company_id'] ?? 0);
         $company = Company::find($companyId);
 
-        if (!$company) {
-            flash('danger', 'Selecione uma empresa valida.');
+        if (!$company || empty($company['is_active'])) {
+            flash('danger', 'Selecione uma empresa válida.');
             redirect('/');
         }
 
@@ -95,7 +95,7 @@ class MachineController
 
     public static function edit(): void
     {
-        require_auth();
+        require_admin();
         $machine = self::requireMachine();
         $photos = MachinePhoto::byMachine((int) $machine['id']);
 
@@ -112,11 +112,11 @@ class MachineController
 
     public static function update(): void
     {
-        require_auth();
+        require_admin();
         verify_csrf();
         $machine = self::requireMachine();
 
-        [$data, $errors] = self::validatedData((int) $machine['id']);
+        [$data, $errors] = self::validatedData((int) $machine['id'], $machine);
 
         if ($errors) {
             view('machines/form', [
@@ -167,7 +167,7 @@ class MachineController
 
     public static function deactivate(): void
     {
-        require_auth();
+        require_admin();
         verify_csrf();
         $machine = self::requireMachine();
 
@@ -189,17 +189,17 @@ class MachineController
 
     public static function deletePhoto(): void
     {
-        require_auth();
+        require_admin();
         verify_csrf();
         $photo = MachinePhoto::find((int) ($_POST['photo_id'] ?? 0));
 
         if (!$photo) {
-            flash('danger', 'Foto nao encontrada.');
+            flash('danger', 'Foto não encontrada.');
             redirect('/');
         }
 
-        $path = UPLOAD_PATH . '/' . $photo['file_name'];
-        if (is_file($path)) {
+        $path = upload_file_path((string) $photo['file_name']);
+        if ($path !== null && is_file($path)) {
             unlink($path);
         }
 
@@ -225,13 +225,105 @@ class MachineController
         redirect('/?route=machines.edit&id=' . (int) $photo['machine_id']);
     }
 
+    public static function viewPhoto(): void
+    {
+        if (!current_user() && !ApiAuth::authenticate()) {
+            http_response_code(403);
+            view('errors/403', ['title' => 'Acesso negado']);
+            exit;
+        }
+
+        $fileName = (string) ($_GET['file'] ?? '');
+        $path = upload_file_path($fileName);
+        $photo = $path !== null ? MachinePhoto::findByFileName($fileName) : null;
+
+        if (!$photo || !is_file((string) $path)) {
+            http_response_code(404);
+            view('errors/404', ['title' => 'Foto não encontrada']);
+            exit;
+        }
+
+        $mimeType = (string) ($photo['mime_type'] ?: 'application/octet-stream');
+        if (!in_array($mimeType, ALLOWED_IMAGE_MIMES, true)) {
+            http_response_code(404);
+            view('errors/404', ['title' => 'Foto não encontrada']);
+            exit;
+        }
+
+        header('Content-Type: ' . $mimeType);
+        header('Content-Length: ' . (string) filesize((string) $path));
+        header('Content-Disposition: inline; filename="' . safe_download_filename((string) $photo['original_name']) . '"');
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: private, no-store, max-age=0');
+        readfile((string) $path);
+        exit;
+    }
+
+    public static function revealCredential(): void
+    {
+        require_admin();
+
+        if (!is_post()) {
+            ApiResponse::error('method_not_allowed', 'Método não permitido.', 405);
+        }
+
+        $token = $_POST['csrf_token'] ?? '';
+        if (!is_string($token) || !csrf_token_is_valid($token)) {
+            ApiResponse::error('csrf_required', 'Sessão expirada. Atualize a página e tente novamente.', 419);
+        }
+
+        $machineId = (int) ($_POST['machine_id'] ?? 0);
+        $field = (string) ($_POST['field'] ?? '');
+        $allowedFields = [
+            'machine_password' => 'Senha da máquina',
+            'admin_password' => 'Senha administrador',
+        ];
+
+        if (!array_key_exists($field, $allowedFields)) {
+            ApiResponse::error('invalid_credential_field', 'Credencial inválida.', 422);
+        }
+
+        $machine = Machine::find($machineId, true);
+        if (!$machine) {
+            ApiResponse::error('machine_not_found', 'Dispositivo não encontrado.', 404);
+        }
+
+        $value = (string) ($machine[$field] ?? '');
+        if ($value === '') {
+            ApiResponse::error('credential_not_found', 'Credencial não cadastrada para este dispositivo.', 404);
+        }
+
+        AuditLog::record([
+            'action_type' => 'credential_viewed',
+            'affected_table' => 'machines',
+            'affected_record_id' => $machineId,
+            'company_id' => (int) $machine['company_id'],
+            'machine_id' => $machineId,
+            'description' => 'Administrador visualizou credencial do dispositivo.',
+            'new_data' => [
+                'field' => $field,
+                'field_label' => $allowedFields[$field],
+                'machine_id' => $machineId,
+                'tag' => $machine['tag'] ?? null,
+                'hostname' => $machine['new_hostname'] ?? $machine['old_hostname'] ?? null,
+                'secret_value' => '[protegido]',
+            ],
+        ]);
+
+        ApiResponse::ok([
+            'field' => $field,
+            'label' => $allowedFields[$field],
+            'value' => $value,
+        ]);
+    }
+
     private static function requireMachine(): array
     {
         $machine = Machine::find((int) ($_GET['id'] ?? 0));
 
         if (!$machine) {
             http_response_code(404);
-            view('errors/404', ['title' => 'Dispositivo nao encontrado']);
+            view('errors/404', ['title' => 'Dispositivo não encontrado']);
             exit;
         }
 
@@ -249,7 +341,7 @@ class MachineController
         return 'Dispositivo';
     }
 
-    private static function validatedData(?int $ignoreId = null): array
+    private static function validatedData(?int $ignoreId = null, ?array $current = null): array
     {
         $companyId = (int) ($_POST['company_id'] ?? 0);
         $deviceType = trim((string) ($_POST['device_type'] ?? 'notebook'));
@@ -257,11 +349,24 @@ class MachineController
             $deviceType = 'notebook';
         }
 
+        $company = Company::find($companyId);
+        $rawTag = self::nullable('tag');
+        $tagNumber = trim((string) ($_POST['tag_number'] ?? ''));
+        if (($rawTag === null || $rawTag === '') && $tagNumber !== '') {
+            $rawTag = $tagNumber;
+        }
+
+        $tag = Machine::normalizeTag($rawTag, $deviceType, $company);
+        $tagPrefix = Machine::tagPrefix($deviceType, $company);
+        if ($tagPrefix !== null && $tag === $tagPrefix) {
+            $tag = null;
+        }
+
         $data = [
             'company_id' => $companyId,
             'device_type' => $deviceType,
             'equipment_name' => null,
-            'tag' => self::nullable('tag'),
+            'tag' => $tag,
             'old_hostname' => self::nullable('old_hostname'),
             'new_hostname' => self::nullable('new_hostname'),
             'employee_name' => self::nullable('employee_name'),
@@ -269,9 +374,9 @@ class MachineController
             'brand' => self::nullable('brand'),
             'computer_model' => self::nullable('computer_model'),
             'operating_system' => self::nullable('operating_system'),
-            'machine_password' => self::nullable('machine_password'),
+            'machine_password' => self::secretValue('machine_password', $current),
             'admin_user' => self::nullable('admin_user'),
-            'admin_password' => self::nullable('admin_password'),
+            'admin_password' => self::secretValue('admin_password', $current),
             'install_location' => self::nullable('install_location'),
             'modem_name' => self::nullable('modem_name'),
             'ip_address' => self::nullable('ip_address'),
@@ -289,12 +394,14 @@ class MachineController
         $errors = [];
         foreach (self::requiredFieldsForType($deviceType) as $field) {
             if (($data[$field] ?? null) === null || $data[$field] === '') {
-                $errors[$field] = 'Campo obrigatorio.';
+                $errors[$field] = $field === 'tag' && $tagPrefix !== null
+                    ? 'Informe o número da etiqueta.'
+                    : 'Campo obrigatório.';
             }
         }
 
-        if (!Company::find($companyId)) {
-            $errors['company_id'] = 'Empresa invalida.';
+        if (!$company || empty($company['is_active'])) {
+            $errors['company_id'] = 'Empresa inválida ou inativa.';
         }
 
         if (($data['tag'] ?? '') !== '' && Machine::duplicateExists($companyId, 'tag', (string) $data['tag'], $ignoreId)) {
@@ -303,6 +410,12 @@ class MachineController
 
         if (($data['new_hostname'] ?? '') !== '' && Machine::duplicateExists($companyId, 'new_hostname', (string) $data['new_hostname'], $ignoreId)) {
             $errors['new_hostname'] = 'Este hostname novo ja existe nesta empresa.';
+        }
+
+        foreach (self::fieldMaxLengths() as $field => $maxLength) {
+            if (($data[$field] ?? null) !== null && strlen((string) $data[$field]) > $maxLength) {
+                $errors[$field] = 'Deve ter no máximo ' . $maxLength . ' caracteres.';
+            }
         }
 
         return [$data, $errors];
@@ -325,7 +438,7 @@ class MachineController
             }
 
             if ($_FILES[$inputName]['error'][$i] !== UPLOAD_ERR_OK) {
-                flash('danger', 'Uma das fotos nao pode ser enviada.');
+                flash('danger', 'Uma das fotos não pôde ser enviada.');
                 continue;
             }
 
@@ -338,7 +451,12 @@ class MachineController
             $mime = $finfo->file($tmpName);
 
             if (!in_array($mime, ALLOWED_IMAGE_MIMES, true)) {
-                flash('danger', 'Formato de imagem invalido. Use JPG, PNG ou WEBP.');
+                flash('danger', 'Formato de imagem inválido. Use JPG, PNG ou WEBP.');
+                continue;
+            }
+
+            if (@getimagesize($tmpName) === false) {
+                flash('danger', 'Uma foto enviada não pôde ser lida como imagem válida.');
                 continue;
             }
 
@@ -358,7 +476,7 @@ class MachineController
                     'photo_topic' => self::photoTopicForUpload($inputName, $i),
                     'location_name' => null,
                     'file_name' => $fileName,
-                    'original_name' => basename((string) $_FILES[$inputName]['name'][$i]),
+                    'original_name' => safe_original_filename((string) $_FILES[$inputName]['name'][$i]),
                     'mime_type' => $mime,
                     'file_size' => (int) $_FILES[$inputName]['size'][$i],
                 ];
@@ -400,19 +518,19 @@ class MachineController
             'computer_model' => 'Modelo do computador',
             'operating_system' => 'Sistema operacional',
             'machine_password' => 'Senha do equipamento',
-            'admin_user' => 'Usuario administrador',
+            'admin_user' => 'Usuário administrador',
             'admin_password' => 'Senha administrador',
-            'install_location' => 'Local de instalacao',
+            'install_location' => 'Local de instalação',
             'modem_name' => 'Nome do modem',
             'ip_address' => 'IP de acesso',
             'gateway' => 'Gateway',
             'carrier' => 'Operadora',
             'printer_brand' => 'Marca',
-            'printer_connection_type' => 'Tipo de conexao',
+            'printer_connection_type' => 'Tipo de conexão',
             'printer_shared' => 'Impressora compartilhada',
-            'notes' => 'Observacoes',
+            'notes' => 'Observações',
             'tflux_installed' => 'TFlux instalado',
-            'antivirus_installed' => 'Antivirus instalado',
+            'antivirus_installed' => 'Antivírus instalado',
             'requester_in_tflux' => 'Solicitante cadastrado no TFlux',
         ];
 
@@ -450,18 +568,55 @@ class MachineController
         return $value === '' ? null : $value;
     }
 
+    private static function secretValue(string $field, ?array $current): ?string
+    {
+        $value = trim((string) ($_POST[$field] ?? ''));
+        if ($value !== '') {
+            return $value;
+        }
+
+        return $current[$field] ?? null;
+    }
+
     private static function requiredFieldsForType(string $type): array
     {
         $map = [
-            'notebook' => ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'computer_model', 'machine_password'],
-            'cpu' => ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'computer_model', 'machine_password'],
-            'roteador' => ['tag', 'computer_model', 'admin_user', 'admin_password', 'ip_address'],
-            'access_point' => ['install_location', 'tag', 'computer_model'],
-            'modem' => ['tag', 'computer_model', 'admin_user', 'admin_password', 'carrier'],
-            'impressora' => ['tag', 'brand', 'computer_model', 'printer_connection_type'],
-            'outros' => ['tag', 'computer_model'],
+            'notebook' => ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'machine_password'],
+            'cpu' => ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'machine_password'],
+            'roteador' => ['tag', 'admin_user', 'admin_password', 'ip_address'],
+            'access_point' => ['install_location', 'tag'],
+            'modem' => ['tag', 'admin_user', 'admin_password', 'carrier'],
+            'impressora' => ['tag', 'brand', 'printer_connection_type'],
+            'outros' => ['tag'],
         ];
 
         return $map[$type] ?? $map['notebook'];
+    }
+
+    private static function fieldMaxLengths(): array
+    {
+        return [
+            'device_type' => 40,
+            'equipment_name' => 160,
+            'tag' => 80,
+            'old_hostname' => 120,
+            'new_hostname' => 120,
+            'employee_name' => 160,
+            'department' => 120,
+            'brand' => 160,
+            'computer_model' => 160,
+            'operating_system' => 160,
+            'machine_password' => 160,
+            'admin_user' => 160,
+            'admin_password' => 160,
+            'install_location' => 160,
+            'modem_name' => 160,
+            'ip_address' => 80,
+            'gateway' => 80,
+            'carrier' => 160,
+            'printer_brand' => 160,
+            'printer_connection_type' => 40,
+            'notes' => 5000,
+        ];
     }
 }

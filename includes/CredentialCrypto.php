@@ -34,7 +34,7 @@ class CredentialCrypto
         );
 
         if ($encrypted === false || strlen($tag) !== self::TAG_BYTES) {
-            throw new RuntimeException('Nao foi possivel criptografar a credencial.');
+            throw new RuntimeException('Não foi possível criptografar a credencial.');
         }
 
         return self::PREFIX . base64_encode($iv . $tag . $encrypted);
@@ -48,7 +48,7 @@ class CredentialCrypto
 
         $payload = base64_decode(substr($value, strlen(self::PREFIX)), true);
         if ($payload === false || strlen($payload) <= self::IV_BYTES + self::TAG_BYTES) {
-            return '[credencial invalida]';
+            return '[credencial inválida]';
         }
 
         $iv = substr($payload, 0, self::IV_BYTES);
@@ -64,7 +64,7 @@ class CredentialCrypto
             self::AAD
         );
 
-        return $decrypted === false ? '[credencial invalida]' : $decrypted;
+        return $decrypted === false ? '[credencial inválida]' : $decrypted;
     }
 
     public static function isEncrypted(?string $value): bool
@@ -75,7 +75,7 @@ class CredentialCrypto
     private static function key(): string
     {
         if (!defined('APP_KEY') || APP_KEY === '') {
-            throw new RuntimeException('APP_KEY nao configurada. Gere uma chave antes de salvar credenciais.');
+            throw new RuntimeException('APP_KEY não configurada. Gere uma chave antes de salvar credenciais.');
         }
 
         return hash('sha256', APP_KEY, true);

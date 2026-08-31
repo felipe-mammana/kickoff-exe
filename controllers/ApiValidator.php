@@ -19,7 +19,7 @@ class ApiValidator
                 }
 
                 if ($rule === 'required' && (!$valueExists || self::blank($value))) {
-                    $errors[$field][] = 'Campo obrigatorio.';
+                    $errors[$field][] = 'Campo obrigatório.';
                     continue 2;
                 }
 
@@ -36,7 +36,7 @@ class ApiValidator
                 }
 
                 if ($rule === 'max' && is_string($value) && strlen($value) > (int) $option) {
-                    $errors[$field][] = 'Deve ter no maximo ' . (int) $option . ' caracteres.';
+                    $errors[$field][] = 'Deve ter no máximo ' . (int) $option . ' caracteres.';
                 }
             }
         }

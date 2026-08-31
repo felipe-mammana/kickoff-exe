@@ -4,6 +4,11 @@
 @machineId = 1
 @photoId = 1
 
+# Chamadas com Authorization: Bearer nao precisam CSRF.
+# Se usar a sessao web do navegador em POST/PUT/PATCH/DELETE, envie X-CSRF-Token.
+# A API retorna X-RateLimit-Limit, X-RateLimit-Remaining e X-RateLimit-Reset.
+# Ao exceder o limite, retorna 429 com Retry-After.
+
 ### API index
 GET {{baseUrl}}/api/v1
 
@@ -70,7 +75,7 @@ Content-Type: application/json
 GET {{baseUrl}}/api/v1/machines/{{machineId}}
 Authorization: Bearer {{token}}
 
-### Update machine
+### Update machine (admin)
 PATCH {{baseUrl}}/api/v1/machines/{{machineId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -80,7 +85,7 @@ Content-Type: application/json
   "notes": "Atualizado via API"
 }
 
-### Deactivate machine
+### Deactivate machine (admin)
 DELETE {{baseUrl}}/api/v1/machines/{{machineId}}
 Authorization: Bearer {{token}}
 
@@ -106,6 +111,6 @@ Content-Type: image/png
 < ./configuracao-rede.png
 --boundary--
 
-### Delete machine photo
+### Delete machine photo (admin)
 DELETE {{baseUrl}}/api/v1/machine-photos/{{photoId}}
 Authorization: Bearer {{token}}

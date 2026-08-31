@@ -15,13 +15,13 @@ if ($adminEmail === '') {
 
 if ($adminPassword === '') {
     $adminPassword = bin2hex(random_bytes(12));
-    echo 'ADMIN_PASSWORD nao definido; senha temporaria gerada para o primeiro acesso.' . PHP_EOL;
+    echo 'ADMIN_PASSWORD não definido; senha temporária gerada para o primeiro acesso.' . PHP_EOL;
 }
 
 $stmt = db()->prepare(
-    'INSERT INTO users (name, email, password_hash, is_admin)
-     VALUES (:name, :email, :password_hash, 1)
-     ON DUPLICATE KEY UPDATE name = VALUES(name), password_hash = VALUES(password_hash), is_admin = 1'
+    'INSERT INTO users (name, email, password_hash, is_admin, is_active)
+     VALUES (:name, :email, :password_hash, 1, 1)
+     ON DUPLICATE KEY UPDATE name = VALUES(name), password_hash = VALUES(password_hash), is_admin = 1, is_active = 1'
 );
 
 $stmt->execute([
@@ -30,6 +30,6 @@ $stmt->execute([
     'password_hash' => password_hash($adminPassword, PASSWORD_DEFAULT),
 ]);
 
-echo 'Usuario administrador pronto: ' . $adminEmail . PHP_EOL;
+echo 'Usuário administrador pronto: ' . $adminEmail . PHP_EOL;
 echo 'Senha inicial: ' . $adminPassword . PHP_EOL;
 echo 'Troque esta senha depois do primeiro acesso.' . PHP_EOL;

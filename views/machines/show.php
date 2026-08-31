@@ -2,6 +2,11 @@
 $type = (string) ($machine['device_type'] ?? 'notebook');
 $typeLabel = Machine::typeLabel($type);
 $value = static fn (string $field, string $default = ''): string => (string) (($machine[$field] ?? '') ?: $default);
+$protectedValue = static fn (string $field): string => !empty($machine[$field]) ? '[protegido]' : '-';
+$credentialLabels = [
+    'Senha da máquina' => 'machine_password',
+    'Senha administrador' => 'admin_password',
+];
 $firstValue = static function (array $fields, string $default = '-') use ($machine): string {
     foreach ($fields as $field) {
         if (!empty($machine[$field])) {
@@ -11,7 +16,7 @@ $firstValue = static function (array $fields, string $default = '-') use ($machi
 
     return $default;
 };
-$photoSrc = static fn (array $photo): string => UPLOAD_URL . '/' . (string) ($photo['file_name'] ?? '');
+$photoSrc = static fn (array $photo): string => upload_file_url((string) ($photo['file_name'] ?? ''));
 $photoName = static fn (array $photo): string => (string) (($photo['original_name'] ?? '') ?: 'Foto do dispositivo');
 $photoCaption = static function (array $photo) use ($photoName): string {
     $parts = [MachinePhoto::topicLabel($photo['photo_topic'] ?? 'equipamento')];
@@ -46,29 +51,29 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
         'Colaborador' => $value('employee_name', '-'),
         'Departamento' => $value('department', '-'),
         'Modelo' => $value('computer_model', '-'),
-        'Senha da maquina' => $value('machine_password', '-'),
-        'TFlux instalado' => !empty($machine['tflux_installed']) ? 'Sim' : 'Nao',
-        'Antivirus instalado' => !empty($machine['antivirus_installed']) ? 'Sim' : 'Nao',
-        'Solicitante cadastrado no TFlux' => !empty($machine['requester_in_tflux']) ? 'Sim' : 'Nao',
+        'Senha da máquina' => $protectedValue('machine_password'),
+        'TFlux instalado' => !empty($machine['tflux_installed']) ? 'Sim' : 'Não',
+        'Antivírus instalado' => !empty($machine['antivirus_installed']) ? 'Sim' : 'Não',
+        'Solicitante cadastrado no TFlux' => !empty($machine['requester_in_tflux']) ? 'Sim' : 'Não',
     ];
 } elseif ($type === 'roteador') {
     $details += [
         'Modelo' => $value('computer_model', '-'),
-        'Usuario administrador' => $value('admin_user', '-'),
-        'Senha administrador' => $value('admin_password', '-'),
+        'Usuário administrador' => $value('admin_user', '-'),
+        'Senha administrador' => $protectedValue('admin_password'),
         'IP de acesso' => $value('ip_address', '-'),
     ];
 } elseif ($type === 'access_point') {
     $details += [
-        'Local de instalacao' => $value('install_location', '-'),
+        'Local de instalação' => $value('install_location', '-'),
         'Modelo' => $value('computer_model', '-'),
     ];
 } elseif ($type === 'modem') {
     $details += [
         'Operadora' => $value('carrier', '-'),
         'Modelo' => $value('computer_model', '-'),
-        'Usuario administrador' => $value('admin_user', '-'),
-        'Senha administrador' => $value('admin_password', '-'),
+        'Usuário administrador' => $value('admin_user', '-'),
+        'Senha administrador' => $protectedValue('admin_password'),
     ];
 } elseif ($type === 'impressora') {
     $details += [
@@ -77,7 +82,7 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
         'Tipo de conexao' => ($machine['printer_connection_type'] ?? '') === 'rede' ? 'Rede' : (($machine['printer_connection_type'] ?? '') === 'usb' ? 'USB' : '-'),
         'IP' => $value('ip_address', '-'),
         'Gateway' => $value('gateway', '-'),
-        'Compartilhada' => !empty($machine['printer_shared']) ? 'Sim' : 'Nao',
+        'Compartilhada' => !empty($machine['printer_shared']) ? 'Sim' : 'Não',
     ];
 } else {
     $details += [
@@ -108,8 +113,10 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
 
     <div class="heading-actions">
         <a class="btn btn-muted" href="/?company_id=<?= (int) ($machine['company_id'] ?? 0) ?>"><?= icon('eye') ?><span>Voltar</span></a>
-        <a class="btn btn-primary" href="/?route=machines.edit&id=<?= (int) ($machine['id'] ?? 0) ?>"><?= icon('edit-3') ?><span>Editar</span></a>
-        <?php if (!empty($machine['is_active'])): ?>
+        <?php if (is_admin()): ?>
+            <a class="btn btn-primary" href="/?route=machines.edit&id=<?= (int) ($machine['id'] ?? 0) ?>"><?= icon('edit-3') ?><span>Editar</span></a>
+        <?php endif; ?>
+        <?php if (is_admin() && !empty($machine['is_active'])): ?>
             <form action="/?route=machines.deactivate&id=<?= (int) ($machine['id'] ?? 0) ?>" method="post">
                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                 <button class="btn btn-danger" type="submit"><?= icon('trash-2') ?><span>Desativar</span></button>
@@ -148,7 +155,7 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
             <header class="asset-panel-head">
                 <div>
                     <?= icon('file-text') ?>
-                    <h2>Dados tecnicos</h2>
+                    <h2>Dados técnicos</h2>
                 </div>
                 <span>Atualizado em <?= e($value('updated_at', '-')) ?></span>
             </header>
@@ -157,14 +164,29 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
                 <?php foreach ($details as $label => $detailValue): ?>
                     <div>
                         <dt><?= e($label) ?></dt>
-                        <dd class="<?= in_array($label, ['Etiqueta', 'IP', 'Gateway', 'IP de acesso'], true) ? 'mono' : '' ?>"><?= e((string) $detailValue) ?></dd>
+                        <?php $credentialField = $credentialLabels[$label] ?? null; ?>
+                        <dd class="<?= in_array($label, ['Etiqueta', 'IP', 'Gateway', 'IP de acesso'], true) ? 'mono' : '' ?>">
+                            <span><?= e((string) $detailValue) ?></span>
+                            <?php if ($credentialField && is_admin() && !empty($machine[$credentialField])): ?>
+                                <button
+                                    class="credential-reveal-btn"
+                                    type="button"
+                                    data-credential-open
+                                    data-machine-id="<?= (int) ($machine['id'] ?? 0) ?>"
+                                    data-credential-field="<?= e($credentialField) ?>"
+                                    data-credential-label="<?= e($label) ?>"
+                                >
+                                    <?= icon('eye') ?><span>Revelar</span>
+                                </button>
+                            <?php endif; ?>
+                        </dd>
                     </div>
                 <?php endforeach; ?>
             </dl>
 
             <div class="asset-notes">
-                <strong>Observacoes</strong>
-                <p><?= nl2br(e($value('notes', 'Sem observacoes.'))) ?></p>
+                <strong>Observações</strong>
+                <p><?= nl2br(e($value('notes', 'Sem observações.'))) ?></p>
             </div>
         </article>
 
@@ -173,14 +195,14 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
                 <header class="asset-panel-head">
                     <div>
                         <?= icon('router') ?>
-                        <h2>Configuracao de rede</h2>
+                        <h2>Configuração de rede</h2>
                     </div>
                     <span><?= count($networkPhotos) ?> imagem(ns)</span>
                 </header>
                 <div class="asset-gallery">
                     <?php foreach ($networkPhotos as $photo): ?>
                         <figure>
-                            <button class="photo-button" type="button" data-lightbox-src="<?= e($photoSrc($photo)) ?>" data-lightbox-alt="<?= e($photoName($photo)) ?>">
+                            <button class="photo-button" type="button" data-lightbox-src="<?= e($photoSrc($photo)) ?>" data-lightbox-alt="<?= e($photoName($photo)) ?>" data-lightbox-meta="<?= e($photoCaption($photo)) ?>">
                                 <img src="<?= e($photoSrc($photo)) ?>" alt="<?= e($photoName($photo)) ?>">
                             </button>
                             <figcaption><?= e($photoCaption($photo)) ?></figcaption>
@@ -208,7 +230,7 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
                 <div class="asset-gallery">
                     <?php foreach ($generalPhotos as $photo): ?>
                         <figure>
-                            <button class="photo-button" type="button" data-lightbox-src="<?= e($photoSrc($photo)) ?>" data-lightbox-alt="<?= e($photoName($photo)) ?>">
+                            <button class="photo-button" type="button" data-lightbox-src="<?= e($photoSrc($photo)) ?>" data-lightbox-alt="<?= e($photoName($photo)) ?>" data-lightbox-meta="<?= e($photoCaption($photo)) ?>">
                                 <img src="<?= e($photoSrc($photo)) ?>" alt="<?= e($photoName($photo)) ?>">
                             </button>
                             <figcaption><?= e($photoCaption($photo)) ?></figcaption>
@@ -249,10 +271,10 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
             </article>
         <?php endif; ?>
 
-        <?php if (!empty($machine['is_active'])): ?>
+        <?php if (is_admin() && !empty($machine['is_active'])): ?>
             <article class="danger-panel">
                 <h2><?= icon('warning') ?> Zona de risco</h2>
-                <p>A desativacao remove o dispositivo da listagem principal sem apagar o historico.</p>
+                <p>A desativação remove o dispositivo da listagem principal sem apagar seu histórico.</p>
                 <form action="/?route=machines.deactivate&id=<?= (int) ($machine['id'] ?? 0) ?>" method="post">
                     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                     <button class="btn btn-danger btn-full" type="submit"><?= icon('trash-2') ?><span>Desativar dispositivo</span></button>
@@ -264,14 +286,14 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
             <header class="asset-panel-head">
                 <div>
                     <?= icon('history') ?>
-                    <h2>Historico recente</h2>
+                    <h2>Histórico recente</h2>
                 </div>
             </header>
 
             <?php if (!$history): ?>
                 <div class="empty-state compact">
                     <h3>Nenhum historico encontrado</h3>
-                    <p>As proximas alteracoes aparecerao aqui.</p>
+                    <p>As próximas alterações aparecerão aqui.</p>
                 </div>
             <?php else: ?>
                 <div class="asset-timeline">
@@ -280,7 +302,7 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
                             <span></span>
                             <div>
                                 <strong><?= e($event['description'] ?? '') ?></strong>
-                                <small><?= e($event['created_at'] ?? '') ?> - <?= e(($event['user_name'] ?? '') ?: 'Sem usuario') ?></small>
+                                <small><?= e($event['created_at'] ?? '') ?> - <?= e(($event['user_name'] ?? '') ?: 'Sem usuário') ?></small>
                                 <?php if (!empty($event['old_data']) || !empty($event['new_data'])): ?>
                                     <details>
                                         <summary>Ver dados</summary>
@@ -307,13 +329,42 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
         </div>
         <div class="lightbox-actions">
             <a class="lightbox-action" href="#" download data-lightbox-download><?= icon('download') ?><span>Download</span></a>
-            <button class="lightbox-close" type="button" data-lightbox-close aria-label="Fechar"><?= icon('chevron-right') ?></button>
+            <button class="lightbox-close" type="button" data-lightbox-close aria-label="Fechar"><?= icon('x') ?></button>
         </div>
     </div>
     <button class="lightbox-nav prev" type="button" data-lightbox-prev aria-label="Foto anterior"><?= icon('chevron-left') ?></button>
     <figure class="lightbox-stage">
         <img src="" alt="" data-lightbox-img>
     </figure>
-    <button class="lightbox-nav next" type="button" data-lightbox-next aria-label="Proxima foto"><?= icon('chevron-right') ?></button>
+    <button class="lightbox-nav next" type="button" data-lightbox-next aria-label="Próxima foto"><?= icon('chevron-right') ?></button>
     <div class="lightbox-thumbs" data-lightbox-thumbs></div>
 </div>
+
+<?php if (is_admin()): ?>
+    <div class="credential-modal" data-credential-modal hidden>
+        <div class="credential-dialog" role="dialog" aria-modal="true" aria-labelledby="credential-modal-title">
+            <header class="credential-head">
+                <div>
+                    <h2 id="credential-modal-title">Revelar credencial</h2>
+                    <p data-credential-description>Essa ação será registrada na auditoria.</p>
+                </div>
+                <button class="icon-btn" type="button" data-credential-close aria-label="Fechar"><?= icon('x') ?></button>
+            </header>
+            <div class="credential-body">
+                <input type="hidden" data-credential-csrf value="<?= e(csrf_token()) ?>">
+                <input type="hidden" data-credential-machine-id value="<?= (int) ($machine['id'] ?? 0) ?>">
+                <input type="hidden" data-credential-field value="">
+                <div class="credential-warning">
+                    <?= icon('warning') ?>
+                    <p>Revele somente quando for necessário para suporte ou manutenção. O valor não será gravado nos logs.</p>
+                </div>
+                <div class="credential-value" data-credential-value hidden></div>
+                <div class="credential-error" data-credential-error hidden></div>
+            </div>
+            <footer class="credential-actions">
+                <button class="btn btn-muted" type="button" data-credential-close>Cancelar</button>
+                <button class="btn btn-primary" type="button" data-credential-confirm><?= icon('eye') ?><span>Revelar agora</span></button>
+            </footer>
+        </div>
+    </div>
+<?php endif; ?>

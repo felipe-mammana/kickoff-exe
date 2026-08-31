@@ -11,6 +11,11 @@ class DashboardController
         $companies = Company::all(true);
         $companyId = (int) ($_GET['company_id'] ?? ($companies[0]['id'] ?? 0));
         $company = $companyId ? Company::find($companyId) : null;
+        if ($company && empty($company['is_active'])) {
+            flash('danger', 'Empresa inativa não permite cadastro ou gestão de dispositivos pelo dashboard.');
+            redirect('/');
+        }
+
         $filters = [
             'device_type' => trim((string) ($_GET['device_type'] ?? '')),
             'tag' => trim((string) ($_GET['tag'] ?? '')),
@@ -39,6 +44,6 @@ class DashboardController
     public static function notFound(): void
     {
         http_response_code(404);
-        view('errors/404', ['title' => 'Pagina nao encontrada']);
+        view('errors/404', ['title' => 'Página não encontrada']);
     }
 }

@@ -3,31 +3,87 @@ $actionLabels = [
     'company_created' => 'Empresa cadastrada',
     'company_updated' => 'Empresa editada',
     'company_deactivated' => 'Empresa desativada',
+    'company_reactivated' => 'Empresa reativada',
+    'company_deleted' => 'Empresa excluída',
+    'company_attachment_added' => 'Anexo adicionado',
+    'company_attachment_downloaded' => 'Anexo baixado',
+    'company_attachment_deleted' => 'Anexo removido',
     'machine_created' => 'Dispositivo cadastrado',
     'machine_updated' => 'Dispositivo editado',
     'machine_deactivated' => 'Dispositivo desativado',
     'machine_photos_added' => 'Fotos adicionadas',
     'machine_photo_removed' => 'Foto removida',
+    'credential_viewed' => 'Credencial visualizada',
+    'vault_credential_created' => 'Credencial cadastrada',
+    'vault_credential_updated' => 'Credencial editada',
+    'vault_credential_deactivated' => 'Credencial desativada',
+    'vault_credential_revealed' => 'Credencial revelada',
+    'vault_category_created' => 'Categoria cadastrada',
     'login_success' => 'Login aprovado',
     'login_failed' => 'Falha de login',
+    'login_2fa_failed' => 'Falha no 2FA',
+    'login_2fa_email_sent' => 'Código 2FA enviado',
+    'login_inactive_user' => 'Login bloqueado',
     'logout' => 'Logout',
-    'export_performed' => 'Exportacao realizada',
+    'export_performed' => 'Exportação realizada',
+    'user_created' => 'Usuário cadastrado',
+    'user_updated' => 'Usuário editado',
+    'user_password_reset' => 'Senha redefinida',
+    'user_2fa_enabled' => '2FA ativado',
+    'user_2fa_disabled' => '2FA desativado',
+    'user_activated' => 'Usuário ativado',
+    'user_deactivated' => 'Usuário desativado',
 ];
 
 $actionClasses = [
     'login_failed' => 'danger',
+    'login_2fa_failed' => 'danger',
+    'login_2fa_email_sent' => 'info',
+    'login_inactive_user' => 'danger',
     'machine_deactivated' => 'danger',
     'company_deactivated' => 'danger',
+    'company_deleted' => 'danger',
+    'company_attachment_deleted' => 'danger',
+    'vault_credential_deactivated' => 'danger',
+    'user_deactivated' => 'danger',
     'login_success' => 'success',
     'company_created' => 'success',
+    'company_reactivated' => 'success',
+    'company_attachment_added' => 'success',
     'machine_created' => 'success',
+    'vault_credential_created' => 'success',
+    'vault_category_created' => 'success',
+    'user_created' => 'success',
+    'user_activated' => 'success',
     'company_updated' => 'info',
     'machine_updated' => 'info',
+    'vault_credential_updated' => 'info',
+    'user_updated' => 'info',
+    'user_password_reset' => 'warning',
+    'user_2fa_enabled' => 'success',
+    'user_2fa_disabled' => 'warning',
     'machine_photos_added' => 'info',
     'machine_photo_removed' => 'warning',
+    'company_attachment_downloaded' => 'warning',
+    'credential_viewed' => 'warning',
+    'vault_credential_revealed' => 'warning',
     'export_performed' => 'info',
     'logout' => 'muted',
 ];
+
+$shortText = static function ($value, int $maxLength = 80): string {
+    $value = trim((string) $value);
+    if ($value === '') {
+        return 'Não informado';
+    }
+
+    $length = function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value);
+    if ($length <= $maxLength) {
+        return $value;
+    }
+
+    return (function_exists('mb_substr') ? mb_substr($value, 0, $maxLength, 'UTF-8') : substr($value, 0, $maxLength)) . '...';
+};
 
 $activeFilters = 0;
 foreach ($filters as $filterValue) {
@@ -47,7 +103,7 @@ foreach ($filters as $filterValue) {
     <div>
         <span class="eyebrow">Auditoria</span>
         <h1>Logs do sistema</h1>
-        <p>Historico centralizado de acessos, cadastros, edicoes e remocoes feitas no sistema EXE.</p>
+        <p>Histórico centralizado de acessos, cadastros, edições e remoções feitas no sistema EXE.</p>
     </div>
     <div class="header-actions">
         <a class="btn btn-muted" href="/?route=audit.index"><?= icon('history') ?><span>Atualizar</span></a>
@@ -74,7 +130,7 @@ foreach ($filters as $filterValue) {
         <span class="summary-icon"><?= icon('users') ?></span>
         <div>
             <strong><?= count($users) ?></strong>
-            <span>usuarios monitorados</span>
+            <span>usuários monitorados</span>
         </div>
     </article>
 </section>
@@ -85,7 +141,7 @@ foreach ($filters as $filterValue) {
             <span><?= icon('filter') ?></span>
             <div>
                 <h2>Filtros de auditoria</h2>
-                <p>Refine por usuario, empresa, tipo de acao ou periodo.</p>
+                <p>Refine por usuário, empresa, tipo de ação ou período.</p>
             </div>
         </div>
         <?php if ($activeFilters > 0): ?>
@@ -97,9 +153,9 @@ foreach ($filters as $filterValue) {
         <input type="hidden" name="route" value="audit.index">
 
         <label class="field">
-            <span>Usuario</span>
+            <span>Usuário</span>
             <select name="user_id">
-                <option value="">Todos os usuarios</option>
+                <option value="">Todos os usuários</option>
                 <?php foreach ($users as $user): ?>
                     <option value="<?= (int) $user['id'] ?>" <?= (string) $user['id'] === (string) $filters['user_id'] ? 'selected' : '' ?>>
                         <?= e($user['name']) ?> - <?= e($user['email']) ?>
@@ -121,9 +177,9 @@ foreach ($filters as $filterValue) {
         </label>
 
         <label class="field">
-            <span>Tipo de acao</span>
+            <span>Tipo de ação</span>
             <select name="action_type">
-                <option value="">Todas as acoes</option>
+                <option value="">Todas as ações</option>
                 <?php foreach ($actionTypes as $actionType): ?>
                     <option value="<?= e($actionType) ?>" <?= $actionType === $filters['action_type'] ? 'selected' : '' ?>>
                         <?= e($actionLabels[$actionType] ?? $actionType) ?>
@@ -155,7 +211,7 @@ foreach ($filters as $filterValue) {
             <span><?= icon('file-clock') ?></span>
             <div>
                 <h2>Registros recentes</h2>
-                <p>Ordem cronologica conforme retorno da auditoria.</p>
+                <p>Ordem cronológica conforme retorno da auditoria.</p>
             </div>
         </div>
         <div class="export-actions" data-export-actions>
@@ -173,15 +229,77 @@ foreach ($filters as $filterValue) {
         <div class="empty-state compact audit-empty">
             <span class="empty-icon"><?= icon('file-clock') ?></span>
             <h3>Nenhum log encontrado</h3>
-            <p>Ajuste os filtros ou execute novas acoes no sistema para alimentar a auditoria.</p>
+            <p>Ajuste os filtros ou execute novas ações no sistema para alimentar a auditoria.</p>
         </div>
     <?php else: ?>
+        <div class="audit-card-list">
+            <?php foreach ($logs as $log): ?>
+                <?php
+                $actionType = (string) $log['action_type'];
+                $badgeClass = $actionClasses[$actionType] ?? 'neutral';
+                $userName = (string) ($log['user_name'] ?: 'Sem usuário');
+                $userAgent = trim((string) ($log['user_agent'] ?? ''));
+                $hasChanges = (bool) ($log['old_data'] || $log['new_data']);
+                ?>
+                <article class="audit-card">
+                    <header>
+                        <span class="audit-action-badge <?= e($badgeClass) ?>">
+                            <?= icon($badgeClass === 'danger' ? 'warning' : 'check-circle') ?>
+                            <?= e($actionLabels[$actionType] ?? $actionType) ?>
+                        </span>
+                        <time><?= e($log['created_at']) ?></time>
+                    </header>
+
+                    <strong><?= e($log['description']) ?></strong>
+
+                    <dl class="audit-card-meta">
+                        <div>
+                            <dt>Usuário</dt>
+                            <dd><?= e($userName) ?></dd>
+                        </div>
+                        <div>
+                            <dt>Empresa</dt>
+                            <dd><?= e($log['company_name'] ?: '-') ?></dd>
+                        </div>
+                        <div>
+                            <dt>Dispositivo</dt>
+                            <dd><?= e($log['machine_tag'] ?: '-') ?></dd>
+                        </div>
+                        <div>
+                            <dt>IP</dt>
+                            <dd><?= e($log['ip_address'] ?: '-') ?></dd>
+                        </div>
+                        <div>
+                            <dt>Origem</dt>
+                            <dd title="<?= e($userAgent) ?>"><?= e($userAgent !== '' ? $shortText($userAgent, 72) : 'User-agent não informado') ?></dd>
+                        </div>
+                    </dl>
+
+                    <?php if ($hasChanges): ?>
+                        <button
+                            class="audit-change-trigger"
+                            type="button"
+                            data-audit-change-open
+                            data-audit-title="<?= e($actionLabels[$actionType] ?? $actionType) ?>"
+                            data-audit-description="<?= e($log['description']) ?>"
+                            data-audit-before="<?= e(pretty_json($log['old_data'])) ?>"
+                            data-audit-after="<?= e(pretty_json($log['new_data'])) ?>"
+                        >
+                            <?= icon('eye') ?><span>Ver alterações</span>
+                        </button>
+                    <?php else: ?>
+                        <span class="status-chip neutral">Sem alterações</span>
+                    <?php endif; ?>
+                </article>
+            <?php endforeach; ?>
+        </div>
+
         <div class="inventory-table-wrap audit-table-wrap">
             <table class="inventory-table audit-table">
                 <thead>
                     <tr>
                         <th>Evento</th>
-                        <th>Usuario</th>
+                        <th>Usuário</th>
                         <th>Origem</th>
                         <th>Registro relacionado</th>
                         <th>Dados</th>
@@ -192,9 +310,10 @@ foreach ($filters as $filterValue) {
                         <?php
                         $actionType = (string) $log['action_type'];
                         $badgeClass = $actionClasses[$actionType] ?? 'neutral';
-                        $userName = (string) ($log['user_name'] ?: 'Sem usuario');
+                        $userName = (string) ($log['user_name'] ?: 'Sem usuário');
                         $initial = strtoupper(substr(trim($userName) !== '' ? trim($userName) : 'S', 0, 1));
                         $hasChanges = (bool) ($log['old_data'] || $log['new_data']);
+                        $userAgent = trim((string) ($log['user_agent'] ?? ''));
                         ?>
                         <tr>
                             <td data-label="Evento">
@@ -207,7 +326,7 @@ foreach ($filters as $filterValue) {
                                     <small><?= e($log['created_at']) ?></small>
                                 </div>
                             </td>
-                            <td data-label="Usuario">
+                            <td data-label="Usuário">
                                 <div class="audit-user-cell">
                                     <span class="audit-avatar"><?= e($initial) ?></span>
                                     <div>
@@ -219,7 +338,7 @@ foreach ($filters as $filterValue) {
                             <td data-label="Origem">
                                 <div class="audit-muted-cell">
                                     <strong><?= e($log['ip_address'] ?: '-') ?></strong>
-                                    <small>Endereco IP</small>
+                                    <small title="<?= e($userAgent) ?>"><?= e($userAgent !== '' ? $shortText($userAgent) : 'User-agent não informado') ?></small>
                                 </div>
                             </td>
                             <td data-label="Registro relacionado">
@@ -227,6 +346,10 @@ foreach ($filters as $filterValue) {
                                     <div>
                                         <dt>Empresa</dt>
                                         <dd><?= e($log['company_name'] ?: '-') ?></dd>
+                                    </div>
+                                    <div>
+                                        <dt>Dispositivo</dt>
+                                        <dd><?= e($log['machine_tag'] ?: '-') ?></dd>
                                     </div>
                                 </dl>
                             </td>
@@ -241,10 +364,10 @@ foreach ($filters as $filterValue) {
                                         data-audit-before="<?= e(pretty_json($log['old_data'])) ?>"
                                         data-audit-after="<?= e(pretty_json($log['new_data'])) ?>"
                                     >
-                                        <?= icon('eye') ?><span>Ver alteracoes</span>
+                                        <?= icon('eye') ?><span>Ver alterações</span>
                                     </button>
                                 <?php else: ?>
-                                    <span class="status-chip neutral">Sem alteracoes</span>
+                                    <span class="status-chip neutral">Sem alterações</span>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -259,8 +382,8 @@ foreach ($filters as $filterValue) {
     <div class="audit-change-dialog" role="dialog" aria-modal="true" aria-labelledby="audit-change-title">
         <header class="audit-change-head">
             <div>
-                <span class="eyebrow">Alteracoes registradas</span>
-                <h2 id="audit-change-title" data-audit-change-title>Alteracoes</h2>
+                <span class="eyebrow">Alterações registradas</span>
+                <h2 id="audit-change-title" data-audit-change-title>Alterações</h2>
                 <p data-audit-change-description></p>
             </div>
             <button class="icon-btn" type="button" data-audit-change-close aria-label="Fechar" title="Fechar"><?= icon('x') ?></button>

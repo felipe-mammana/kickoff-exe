@@ -8,33 +8,50 @@ class AuditLog
     {
         try {
             $user = current_user();
-            $stmt = db()->prepare(
-                'INSERT INTO audit_logs (
-                    user_id, user_name, user_email, action_type, affected_table,
-                    affected_record_id, company_id, machine_id, description,
-                    old_data, new_data, ip_address, session_identifier
-                ) VALUES (
-                    :user_id, :user_name, :user_email, :action_type, :affected_table,
-                    :affected_record_id, :company_id, :machine_id, :description,
-                    :old_data, :new_data, :ip_address, :session_identifier
-                )'
-            );
+            $columns = [
+                'user_id',
+                'user_name',
+                'user_email',
+                'action_type',
+                'affected_table',
+                'affected_record_id',
+                'company_id',
+                'machine_id',
+                'description',
+                'old_data',
+                'new_data',
+                'ip_address',
+                'session_identifier',
+            ];
 
-            $stmt->execute([
+            $values = [
                 'user_id' => $data['user_id'] ?? ($user['id'] ?? null),
-                'user_name' => $data['user_name'] ?? ($user['name'] ?? null),
-                'user_email' => $data['user_email'] ?? ($user['email'] ?? null),
-                'action_type' => $data['action_type'],
-                'affected_table' => $data['affected_table'] ?? null,
+                'user_name' => self::limitString($data['user_name'] ?? ($user['name'] ?? null), 120),
+                'user_email' => self::limitString($data['user_email'] ?? ($user['email'] ?? null), 160),
+                'action_type' => self::limitString($data['action_type'], 80),
+                'affected_table' => self::limitString($data['affected_table'] ?? null, 80),
                 'affected_record_id' => $data['affected_record_id'] ?? null,
                 'company_id' => $data['company_id'] ?? null,
                 'machine_id' => $data['machine_id'] ?? null,
-                'description' => $data['description'],
+                'description' => self::limitString($data['description'], 255) ?? 'Evento registrado.',
                 'old_data' => self::encode($data['old_data'] ?? null),
                 'new_data' => self::encode($data['new_data'] ?? null),
-                'ip_address' => client_ip(),
-                'session_identifier' => session_id(),
-            ]);
+                'ip_address' => self::limitString(client_ip(), 45),
+                'session_identifier' => self::limitString(session_id(), 128),
+            ];
+
+            if (self::hasUserAgentColumn()) {
+                $columns[] = 'user_agent';
+                $values['user_agent'] = self::limitString($_SERVER['HTTP_USER_AGENT'] ?? null, 255);
+            }
+
+            $placeholders = array_map(static fn (string $column): string => ':' . $column, $columns);
+            $stmt = db()->prepare(
+                'INSERT INTO audit_logs (' . implode(', ', $columns) . ')
+                 VALUES (' . implode(', ', $placeholders) . ')'
+            );
+
+            $stmt->execute($values);
         } catch (Throwable $exception) {
             error_log('Audit log failed: ' . $exception->getMessage());
         }
@@ -128,5 +145,44 @@ class AuditLog
         }
 
         return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private static function limitString($value, int $maxLength): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        return function_exists('mb_substr') ? mb_substr($value, 0, $maxLength, 'UTF-8') : substr($value, 0, $maxLength);
+    }
+
+    private static function hasUserAgentColumn(): bool
+    {
+        static $hasColumn = null;
+
+        if ($hasColumn !== null) {
+            return $hasColumn;
+        }
+
+        try {
+            $stmt = db()->prepare(
+                'SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table_name AND COLUMN_NAME = :column_name'
+            );
+            $stmt->execute([
+                'table_name' => 'audit_logs',
+                'column_name' => 'user_agent',
+            ]);
+            $hasColumn = (int) $stmt->fetchColumn() > 0;
+        } catch (Throwable $exception) {
+            $hasColumn = false;
+        }
+
+        return $hasColumn;
     }
 }

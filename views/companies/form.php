@@ -14,7 +14,7 @@ $value = static fn (string $field): string => e((string) ($company[$field] ?? ''
 <section class="asset-page-head">
     <div>
         <h1><?= $isEdit ? 'Editar empresa' : 'Cadastrar empresa' ?></h1>
-        <p>Defina a organizacao e o padrao de etiqueta usado nos dispositivos.</p>
+        <p>Defina a organização e o padrão de etiqueta usado nos dispositivos.</p>
     </div>
     <a class="btn btn-muted" href="<?= $isEdit ? '/?route=companies.show&id=' . (int) $company['id'] : '/?route=companies.index' ?>">
         <?= icon('chevron-left') ?><span>Voltar</span>
@@ -32,7 +32,7 @@ $value = static fn (string $field): string => e((string) ($company[$field] ?? ''
         <header class="asset-section-head">
             <span class="step-number">1</span>
             <div>
-                <h2>Identificacao</h2>
+                <h2>Identificação</h2>
                 <p>Dados principais da empresa no inventario.</p>
             </div>
         </header>
@@ -47,8 +47,8 @@ $value = static fn (string $field): string => e((string) ($company[$field] ?? ''
             </label>
 
             <label class="field">
-                <span>Padrao de etiqueta</span>
-                <input type="text" name="tag_pattern" value="<?= $value('tag_pattern') ?>" placeholder="NOTE-0001, CPU-0001, IMP-0001">
+                <span>Codigo da empresa para etiqueta</span>
+                <input type="text" name="tag_pattern" value="<?= $value('tag_pattern') ?>" placeholder="EXE">
             </label>
         </div>
     </section>
@@ -70,6 +70,6 @@ $value = static fn (string $field): string => e((string) ($company[$field] ?? ''
 
     <div class="form-actions-bar company-actions">
         <a class="btn btn-muted" href="<?= $isEdit ? '/?route=companies.show&id=' . (int) $company['id'] : '/?route=companies.index' ?>">Cancelar</a>
-        <button class="btn btn-primary" type="submit"><?= icon('save') ?><span><?= $isEdit ? 'Salvar alteracoes' : 'Cadastrar empresa' ?></span></button>
+        <button class="btn btn-primary" type="submit"><?= icon('save') ?><span><?= $isEdit ? 'Salvar alterações' : 'Cadastrar empresa' ?></span></button>
     </div>
 </form>

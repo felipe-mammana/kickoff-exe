@@ -4,13 +4,9 @@
             <span class="sidebar-toggle-open"><?= icon('menu') ?></span>
             <span class="sidebar-toggle-close"><?= icon('x') ?></span>
         </button>
-        <div class="topbar-search" role="search">
-            <?= icon('search') ?>
-            <input type="search" placeholder="Pesquisar dispositivos..." aria-label="Pesquisar dispositivos">
-        </div>
     </div>
 
-    <nav class="top-actions" aria-label="Acoes da conta">
+    <nav class="top-actions" aria-label="Ações da conta">
         <button class="icon-btn theme-toggle" type="button" data-theme-toggle aria-label="Alternar tema" title="Alternar tema">
             <span class="theme-glyph" aria-hidden="true"></span>
         </button>

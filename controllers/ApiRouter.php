@@ -29,7 +29,20 @@ class ApiRouter
             }
 
             if ($requiresAuth && !ApiAuth::authenticate()) {
-                ApiResponse::error('unauthenticated', 'Autenticacao obrigatoria.', 401);
+                self::enforceRateLimit(self::publicRateLimitScope($method, $path), API_RATE_LIMIT_PUBLIC_MAX_REQUESTS);
+                ApiResponse::error('unauthenticated', 'Autenticação obrigatória.', 401);
+            }
+
+            self::enforceRateLimit(
+                $requiresAuth ? self::authenticatedRateLimitScope($method, $path) : self::publicRateLimitScope($method, $path),
+                $requiresAuth ? API_RATE_LIMIT_AUTH_MAX_REQUESTS : API_RATE_LIMIT_PUBLIC_MAX_REQUESTS
+            );
+
+            if ($requiresAuth && self::requiresCsrf($method) && ApiAuth::usesSession()) {
+                $token = ApiRequest::csrfToken();
+                if (!csrf_token_is_valid($token)) {
+                    ApiResponse::error('csrf_required', 'Token CSRF obrigatório para mutações autenticadas por sessão.', 419);
+                }
             }
 
             if ($requiresAdmin && !ApiAuth::isAdmin()) {
@@ -49,10 +62,10 @@ class ApiRouter
 
         if ($allowedMethods) {
             header('Allow: ' . implode(', ', array_unique($allowedMethods)));
-            ApiResponse::error('method_not_allowed', 'Metodo HTTP nao permitido para este endpoint.', 405);
+            ApiResponse::error('method_not_allowed', 'Método HTTP não permitido para este endpoint.', 405);
         }
 
-        ApiResponse::error('not_found', 'Endpoint da API nao encontrado.', 404);
+        ApiResponse::error('not_found', 'Endpoint da API não encontrado.', 404);
     }
 
     private static function requestPath(): string
@@ -61,5 +74,56 @@ class ApiRouter
         $path = parse_url($uri, PHP_URL_PATH);
 
         return '/' . trim((string) $path, '/');
+    }
+
+    private static function requiresCsrf(string $method): bool
+    {
+        return in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true);
+    }
+
+    private static function enforceRateLimit(string $scope, int $maxRequests): void
+    {
+        $result = ApiRateLimit::hit($scope, $maxRequests, API_RATE_LIMIT_WINDOW_SECONDS);
+
+        header('X-RateLimit-Limit: ' . $result['limit']);
+        header('X-RateLimit-Remaining: ' . $result['remaining']);
+        header('X-RateLimit-Reset: ' . $result['retry_after']);
+
+        if ($result['allowed']) {
+            return;
+        }
+
+        header('Retry-After: ' . $result['retry_after']);
+        ApiResponse::error(
+            'rate_limited',
+            'Muitas requisicoes para a API. Aguarde antes de tentar novamente.',
+            429,
+            ['retry_after_seconds' => $result['retry_after']]
+        );
+    }
+
+    private static function authenticatedRateLimitScope(string $method, string $path): string
+    {
+        $token = ApiAuth::token();
+        if ($token) {
+            return 'api:token:' . (int) $token['id'];
+        }
+
+        $user = ApiAuth::user();
+        if ($user) {
+            return 'api:user:' . (int) $user['id'];
+        }
+
+        return self::publicRateLimitScope($method, $path);
+    }
+
+    private static function publicRateLimitScope(string $method, string $path): string
+    {
+        return 'api:public:' . self::clientIp() . ':' . $method . ':' . $path;
+    }
+
+    private static function clientIp(): string
+    {
+        return (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
     }
 }

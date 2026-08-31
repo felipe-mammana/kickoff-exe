@@ -15,7 +15,7 @@ if ($email === '') {
 
 $user = User::findByEmail($email);
 if (!$user) {
-    fwrite(STDERR, "Usuario nao encontrado: {$email}" . PHP_EOL);
+    fwrite(STDERR, "Usuário não encontrado: {$email}" . PHP_EOL);
     exit(1);
 }
 
@@ -25,8 +25,8 @@ $tokenId = ApiToken::create((int) $user['id'], $name !== '' ? $name : 'API token
 
 echo 'Token de API criado.' . PHP_EOL;
 echo 'ID: ' . $tokenId . PHP_EOL;
-echo 'Usuario: ' . $email . PHP_EOL;
+echo 'Usuário: ' . $email . PHP_EOL;
 echo 'Nome: ' . ($name !== '' ? $name : 'API token') . PHP_EOL;
 echo 'Expira em: ' . ($expiresAt ?: 'Nunca') . PHP_EOL;
 echo 'Token: ' . $plainToken . PHP_EOL;
-echo 'Guarde este token agora. Ele nao sera exibido novamente.' . PHP_EOL;
+echo 'Guarde este token agora. Ele não será exibido novamente.' . PHP_EOL;

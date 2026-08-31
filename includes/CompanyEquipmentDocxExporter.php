@@ -11,9 +11,9 @@ class CompanyEquipmentDocxExporter
     /** @var array<int, array{path: string, name: string, extension: string, content_type: string, rid: string, width: int, height: int}> */
     private array $images = [];
 
-    public function build(array $company, array $machines, array $photosByMachine): string
+    public function build(array $company, array $machines, array $photosByMachine, array $filters = []): string
     {
-        $document = $this->documentXml($company, $machines, $photosByMachine);
+        $document = $this->documentXml($company, $machines, $photosByMachine, $filters);
         $zip = new SimpleZipWriter();
         $zip->addFile('[Content_Types].xml', $this->contentTypesXml());
         $zip->addFile('_rels/.rels', $this->rootRelsXml());
@@ -30,7 +30,7 @@ class CompanyEquipmentDocxExporter
         return $zip->output();
     }
 
-    private function documentXml(array $company, array $machines, array $photosByMachine): string
+    private function documentXml(array $company, array $machines, array $photosByMachine, array $filters): string
     {
         $this->images = [];
         $companyName = (string) ($company['name'] ?? 'Empresa');
@@ -41,22 +41,22 @@ class CompanyEquipmentDocxExporter
             $type = (string) ($machine['device_type'] ?? 'outros');
             $grouped[$type][] = $machine;
         }
+        $grouped = $this->orderedGroups($grouped);
 
         $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             . '<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:w10="urn:schemas-microsoft-com:office:word" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" mc:Ignorable="w14 wp14"><w:body>';
 
         $xml .= $this->paragraph($companyName . ' - Equipamentos de Rede', 'Title');
-        $xml .= $this->paragraph('Relatorio gerado em ' . date('d/m/Y H:i') . '.', 'Subtitle');
-        $xml .= $this->paragraph('O documento organiza os equipamentos por categoria e inclui os principais dados tecnicos, checklist operacional e fotos cadastradas. Senhas de equipamentos nao sao exportadas por seguranca.', 'Normal');
-        $xml .= $this->summaryTable([
-            ['Empresa', $companyName],
-            ['Total de equipamentos', (string) count($machines)],
-            ['Categorias no relatorio', (string) count($grouped)],
-        ]);
+        $xml .= $this->paragraph('Relatório gerado em ' . date('d/m/Y H:i') . '.', 'Subtitle');
+        $xml .= $this->paragraph('O documento organiza os equipamentos por tipo e inclui os principais dados técnicos e checklist operacional. Senhas de equipamentos não são exportadas por segurança.', 'Normal');
+        $xml .= $this->heading('Resumo', 1);
+        $xml .= $this->summaryTable($this->summaryRows($companyName, $machines, $photosByMachine, $grouped));
+        $xml .= $this->heading('Filtros aplicados', 1);
+        $xml .= $this->summaryTable($this->filterRows($filters, $deviceTypes));
 
         if (!$machines) {
             $xml .= $this->heading('Nenhum equipamento encontrado', 1);
-            $xml .= $this->paragraph('Nao existem equipamentos cadastrados para os filtros selecionados.', 'Normal');
+            $xml .= $this->paragraph('Não existem equipamentos cadastrados para os filtros selecionados.', 'Normal');
         }
 
         foreach ($grouped as $type => $items) {
@@ -80,52 +80,58 @@ class CompanyEquipmentDocxExporter
         $type = (string) ($machine['device_type'] ?? 'outros');
         $base = [
             ['Etiqueta', $this->value($machine, 'tag')],
+            ['Status', !empty($machine['is_active']) ? 'Ativo' : 'Inativo'],
             ['Hostname novo', $this->value($machine, 'new_hostname')],
             ['Hostname antigo', $this->value($machine, 'old_hostname')],
-            ['Modelo', $this->value($machine, 'computer_model')],
         ];
 
         if (in_array($type, ['notebook', 'cpu'], true)) {
             return array_merge($base, [
                 ['Colaborador', $this->value($machine, 'employee_name')],
                 ['Departamento', $this->value($machine, 'department')],
+                ['Local', $this->value($machine, 'install_location')],
                 ['Sistema operacional', $this->value($machine, 'operating_system')],
-                ['TFlux instalado', !empty($machine['tflux_installed']) ? 'Sim' : 'Nao'],
-                ['Antivirus instalado', !empty($machine['antivirus_installed']) ? 'Sim' : 'Nao'],
-                ['Solicitante no TFlux', !empty($machine['requester_in_tflux']) ? 'Sim' : 'Nao'],
+                ['TFlux instalado', !empty($machine['tflux_installed']) ? 'Sim' : 'Não'],
+                ['Antivírus instalado', !empty($machine['antivirus_installed']) ? 'Sim' : 'Não'],
+                ['Solicitante no TFlux', !empty($machine['requester_in_tflux']) ? 'Sim' : 'Não'],
+                ['Atualizado em', $this->value($machine, 'updated_at')],
             ]);
         }
 
         if (in_array($type, ['roteador', 'modem'], true)) {
             return array_merge($base, [
-                ['Usuario administrador', $this->value($machine, 'admin_user')],
+                ['Usuário administrador', $this->value($machine, 'admin_user')],
                 ['IP de acesso', $this->value($machine, 'ip_address')],
                 ['Gateway', $this->value($machine, 'gateway')],
                 ['Operadora', $this->value($machine, 'carrier')],
+                ['Local', $this->value($machine, 'install_location')],
+                ['Atualizado em', $this->value($machine, 'updated_at')],
             ]);
         }
 
         if ($type === 'access_point') {
             return array_merge($base, [
-                ['Local de instalacao', $this->value($machine, 'install_location')],
+                ['Local de instalação', $this->value($machine, 'install_location')],
                 ['IP de acesso', $this->value($machine, 'ip_address')],
+                ['Atualizado em', $this->value($machine, 'updated_at')],
             ]);
         }
 
         if ($type === 'impressora') {
             return array_merge($base, [
-                ['Marca', $this->value($machine, 'brand') !== '-' ? $this->value($machine, 'brand') : $this->value($machine, 'printer_brand')],
                 ['Tipo de conexao', $this->value($machine, 'printer_connection_type')],
                 ['IP', $this->value($machine, 'ip_address')],
                 ['Gateway', $this->value($machine, 'gateway')],
-                ['Compartilhada', !empty($machine['printer_shared']) ? 'Sim' : 'Nao'],
+                ['Local', $this->value($machine, 'install_location')],
+                ['Compartilhada', !empty($machine['printer_shared']) ? 'Sim' : 'Não'],
+                ['Atualizado em', $this->value($machine, 'updated_at')],
             ]);
         }
 
         return array_merge($base, [
-            ['Marca', $this->value($machine, 'brand') !== '-' ? $this->value($machine, 'brand') : $this->value($machine, 'printer_brand')],
             ['Local / responsavel', $this->value($machine, 'install_location')],
-            ['Observacoes', $this->value($machine, 'notes')],
+            ['Observações', $this->value($machine, 'notes')],
+            ['Atualizado em', $this->value($machine, 'updated_at')],
         ]);
     }
 
@@ -136,31 +142,134 @@ class CompanyEquipmentDocxExporter
         }
 
         $xml = $this->paragraph('Fotos cadastradas', 'Heading3');
-        foreach ($photos as $photo) {
-            $path = UPLOAD_PATH . '/' . (string) ($photo['file_name'] ?? '');
-            $labelParts = [MachinePhoto::topicLabel($photo['photo_topic'] ?? 'equipamento')];
-            if (($photo['photo_type'] ?? 'general') === 'network_config') {
-                $labelParts[] = 'Rede';
-            }
-            $labelParts[] = (string) (($photo['original_name'] ?? '') ?: ($photo['file_name'] ?? 'foto'));
-            $label = implode(' - ', $labelParts);
+        foreach ($this->groupPhotosByTopic($photos) as $topic => $topicPhotos) {
+            $xml .= $this->paragraph(MachinePhoto::topicLabel($topic), 'TableLabel');
+            foreach ($topicPhotos as $photo) {
+                $path = upload_file_path((string) ($photo['file_name'] ?? ''));
+                $labelParts = [];
+                if (($photo['photo_type'] ?? 'general') === 'network_config') {
+                    $labelParts[] = 'Configuração de rede';
+                }
+                $labelParts[] = (string) (($photo['original_name'] ?? '') ?: ($photo['file_name'] ?? 'foto'));
+                $label = implode(' - ', $labelParts);
 
-            if (!is_file($path)) {
-                $xml .= $this->paragraph($label . ' (arquivo nao encontrado)', 'Caption');
-                continue;
-            }
+                if ($path === null || !is_file($path)) {
+                    $xml .= $this->paragraph($label . ' (arquivo não encontrado)', 'Caption');
+                    continue;
+                }
 
-            $image = $this->registerImage($path, (string) ($photo['mime_type'] ?? ''));
-            if (!$image) {
-                $xml .= $this->paragraph($label . ' (formato nao suportado no DOCX)', 'Caption');
-                continue;
-            }
+                $image = $this->registerImage($path, (string) ($photo['mime_type'] ?? ''));
+                if (!$image) {
+                    $xml .= $this->paragraph($label . ' (formato não suportado no DOCX)', 'Caption');
+                    continue;
+                }
 
-            $xml .= $this->paragraph($label, 'Caption');
-            $xml .= $this->imageParagraph($image);
+                $xml .= $this->paragraph($label, 'Caption');
+                $xml .= $this->imageParagraph($image);
+            }
         }
 
         return $xml;
+    }
+
+    private function orderedGroups(array $grouped): array
+    {
+        $ordered = [];
+        foreach (array_keys(Machine::deviceTypes()) as $type) {
+            if (!empty($grouped[$type])) {
+                $ordered[$type] = $grouped[$type];
+            }
+        }
+
+        foreach ($grouped as $type => $items) {
+            if (!isset($ordered[$type])) {
+                $ordered[$type] = $items;
+            }
+        }
+
+        return $ordered;
+    }
+
+    private function summaryRows(string $companyName, array $machines, array $photosByMachine, array $grouped): array
+    {
+        $active = 0;
+        $inactive = 0;
+        $deviceTypes = Machine::deviceTypes();
+
+        foreach ($machines as $machine) {
+            if (!empty($machine['is_active'])) {
+                $active++;
+            } else {
+                $inactive++;
+            }
+        }
+
+        $rows = [
+            ['Empresa', $companyName],
+            ['Total de equipamentos', (string) count($machines)],
+            ['Equipamentos ativos', (string) $active],
+            ['Equipamentos inativos', (string) $inactive],
+        ];
+
+        foreach ($deviceTypes as $type => $label) {
+            $rows[] = [$label, (string) count($grouped[$type] ?? [])];
+        }
+
+        return $rows;
+    }
+
+    private function filterRows(array $filters, array $deviceTypes): array
+    {
+        $labels = [
+            'company_id' => 'Empresa ID',
+            'device_type' => 'Tipo',
+            'tag' => 'Etiqueta',
+            'employee_name' => 'Responsável',
+            'department' => 'Departamento',
+            'status' => 'Status',
+            'created_at' => 'Data de cadastro',
+        ];
+        $rows = [];
+
+        foreach ($labels as $key => $label) {
+            if (!array_key_exists($key, $filters) || (string) $filters[$key] === '') {
+                continue;
+            }
+
+            $value = (string) $filters[$key];
+            if ($key === 'device_type') {
+                $value = $deviceTypes[$value] ?? $value;
+            } elseif ($key === 'status') {
+                $value = match ($value) {
+                    'active' => 'Ativos',
+                    'inactive' => 'Inativos',
+                    'all' => 'Todos',
+                    default => $value,
+                };
+            }
+
+            $rows[] = [$label, $value];
+        }
+
+        return $rows ?: [['Filtros', 'Nenhum filtro adicional aplicado']];
+    }
+
+    private function groupPhotosByTopic(array $photos): array
+    {
+        $grouped = [];
+        foreach (array_keys(MachinePhoto::topics()) as $topic) {
+            $grouped[$topic] = [];
+        }
+
+        foreach ($photos as $photo) {
+            $topic = (string) ($photo['photo_topic'] ?? 'equipamento');
+            if (!array_key_exists($topic, $grouped)) {
+                $topic = 'equipamento';
+            }
+            $grouped[$topic][] = $photo;
+        }
+
+        return array_filter($grouped);
     }
 
     private function registerImage(string $path, string $mime): ?array
@@ -337,7 +446,7 @@ class CompanyEquipmentDocxExporter
     {
         $now = date('c');
 
-        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Relatorio de equipamentos</dc:title><dc:creator>EXE Inventario TI</dc:creator><cp:lastModifiedBy>EXE Inventario TI</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">' . $now . '</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">' . $now . '</dcterms:modified></cp:coreProperties>';
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Relatório de equipamentos</dc:title><dc:creator>EXE Inventário TI</dc:creator><cp:lastModifiedBy>EXE Inventário TI</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">' . $now . '</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">' . $now . '</dcterms:modified></cp:coreProperties>';
     }
 
     private function appXml(): string

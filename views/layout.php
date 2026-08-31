@@ -5,6 +5,7 @@ $isMachine = strpos($route, 'machines.') === 0;
 $isCompany = strpos($route, 'companies.') === 0;
 $isUsers = strpos($route, 'users.') === 0;
 $isSettings = strpos($route, 'settings.') === 0;
+$isVault = strpos($route, 'vault.') === 0;
 $companyIdForNav = (int) ($_GET['company_id'] ?? ($company['id'] ?? ($machine['company_id'] ?? 0)));
 $assetVersion = static function (string $path): string {
     $file = BASE_PATH . '/public' . $path;
@@ -19,7 +20,7 @@ $assetVersion = static function (string $path): string {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e(($title ?? 'Dashboard') . ' - ' . APP_NAME) ?></title>
     <link rel="icon" type="image/webp" href="/assets/brand/exe-icon.webp">
-    <script>
+    <script nonce="<?= e(csp_nonce()) ?>">
         (function () {
             var theme = 'light';
             try {
@@ -32,7 +33,7 @@ $assetVersion = static function (string $path): string {
     </script>
     <link rel="stylesheet" href="/assets/css/app.css?v=<?= e($assetVersion('/assets/css/app.css')) ?>">
 </head>
-<body>
+<body class="<?= $isVault ? 'route-vault' : '' ?>">
     <?php if (current_user()): ?>
         <div class="app-frame">
             <?php require BASE_PATH . '/views/partials/sidebar.php'; ?>
@@ -51,6 +52,28 @@ $assetVersion = static function (string $path): string {
             </div>
 
             <?php require BASE_PATH . '/views/partials/mobile-nav.php'; ?>
+
+            <div class="company-modal confirm-modal" data-confirm-modal hidden>
+                <div class="company-modal-dialog confirm-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+                    <header class="modal-head">
+                        <div>
+                            <span class="eyebrow">Confirmação</span>
+                            <h2 id="confirm-modal-title">Confirmar ação</h2>
+                        </div>
+                        <button class="icon-btn" type="button" data-confirm-cancel aria-label="Fechar"><?= icon('x') ?></button>
+                    </header>
+                    <div class="confirm-modal-body">
+                        <p data-confirm-message>Deseja continuar?</p>
+                    </div>
+                    <footer class="form-actions confirm-modal-actions">
+                        <button class="btn btn-muted" type="button" data-confirm-cancel>Cancelar</button>
+                        <button class="btn btn-danger" type="button" data-confirm-submit>
+                            <span data-confirm-icon><?= icon('trash-2') ?></span>
+                            <span>Confirmar</span>
+                        </button>
+                    </footer>
+                </div>
+            </div>
         </div>
     <?php else: ?>
         <main class="auth-shell">

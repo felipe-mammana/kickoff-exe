@@ -7,7 +7,7 @@
 <section class="asset-page-head">
     <div>
         <h1>Empresas cadastradas</h1>
-        <p>Gerencie organizacoes, padroes de etiqueta e inventarios vinculados.</p>
+        <p>Gerencie organizações, padrões de etiqueta e inventários vinculados.</p>
     </div>
     <button class="btn btn-primary" type="button" data-company-modal-open><?= icon('plus') ?><span>Cadastrar nova empresa</span></button>
 </section>
@@ -63,8 +63,8 @@
                         <th>Padrao etiqueta</th>
                         <th>Status</th>
                         <th>Cadastrada por</th>
-                        <th>Ultima alteracao</th>
-                        <th>Acoes</th>
+                        <th>Última alteração</th>
+                        <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -89,8 +89,8 @@
                                 </span>
                             </td>
                             <td data-label="Cadastrada por"><?= e($company['created_by_name'] ?: '-') ?></td>
-                            <td data-label="Ultima alteracao"><?= e($company['updated_at'] ?: '-') ?></td>
-                            <td data-label="Acoes">
+                            <td data-label="Última alteração"><?= e($company['updated_at'] ?: '-') ?></td>
+                            <td data-label="Ações">
                                 <div class="table-actions">
                                     <a class="icon-btn" href="/?route=companies.show&id=<?= (int) $company['id'] ?>" aria-label="Ver empresa"><?= icon('eye') ?></a>
                                     <a class="icon-btn" href="/?route=companies.edit&id=<?= (int) $company['id'] ?>" aria-label="Editar empresa"><?= icon('edit-3') ?></a>
@@ -125,8 +125,8 @@
                 </label>
 
                 <label class="field">
-                    <span>Padrao de etiqueta</span>
-                    <input type="text" name="tag_pattern" placeholder="NOTE-0001, CPU-0001, IMP-0001">
+                    <span>Código da empresa para etiqueta</span>
+                    <input type="text" name="tag_pattern" placeholder="EXE">
                 </label>
             </div>
 

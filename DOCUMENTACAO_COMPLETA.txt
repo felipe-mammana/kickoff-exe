@@ -1,0 +1,1974 @@
+DOCUMENTAÇÃO TÉCNICA COMPLETA — EXE INVENTÁRIO TI / KICKOFF-EXE
+================================================================
+
+Repositório:
+felipe-mammana/kickoff-exe
+
+Objetivo deste documento
+------------------------
+Este documento consolida a análise técnica realizada sobre o projeto EXE Inventário TI / kickoff-exe, cobrindo:
+- visão geral;
+- arquitetura;
+- estrutura de diretórios;
+- banco de dados;
+- autenticação;
+- sessões;
+- CSRF;
+- empresas;
+- dispositivos;
+- regras por tipo de equipamento;
+- upload de fotos;
+- auditoria;
+- criptografia;
+- API REST;
+- Bearer Tokens;
+- dashboard;
+- helpers;
+- exportações;
+- segurança;
+- riscos identificados;
+- recomendações de melhoria.
+
+================================================================
+1. VISÃO GERAL
+================================================================
+
+O EXE Inventário TI é uma aplicação web desenvolvida em PHP e MySQL para cadastro, organização, consulta e documentação de ativos de tecnologia da informação.
+
+Principais objetivos:
+- cadastrar empresas;
+- cadastrar dispositivos;
+- relacionar equipamentos a empresas;
+- controlar etiquetas e hostnames;
+- registrar colaborador e departamento;
+- armazenar informações técnicas;
+- armazenar credenciais protegidas;
+- anexar fotos;
+- aplicar filtros;
+- registrar auditoria;
+- autenticar usuários;
+- fornecer API REST;
+- exportar dados e documentos.
+
+Tecnologias principais:
+- PHP;
+- MySQL / MariaDB;
+- HTML;
+- CSS;
+- JavaScript.
+
+A aplicação não depende de um framework PHP completo. Ela utiliza uma arquitetura MVC própria.
+
+================================================================
+2. TIPOS DE EQUIPAMENTOS
+================================================================
+
+Tipos reconhecidos pelo sistema:
+- Notebook;
+- CPU / Desktop;
+- Roteador;
+- Access Point;
+- Modem;
+- Impressora;
+- Outros dispositivos.
+
+Valores internos:
+- notebook
+- cpu
+- roteador
+- access_point
+- modem
+- impressora
+- outros
+
+================================================================
+3. ARQUITETURA
+================================================================
+
+O projeto utiliza uma estrutura semelhante a MVC:
+
+Model
+View
+Controller
+
+Estrutura principal:
+
+kickoff-exe/
+|
++-- config/
++-- controllers/
++-- database/
++-- docs/
++-- includes/
++-- models/
++-- public/
++-- scripts/
++-- storage/
++-- views/
++-- Frontend-prototipo/
++-- README.md
++-- .gitignore
+
+Responsabilidades:
+
+public/
+- ponto público da aplicação;
+- contém index.php;
+- assets;
+- uploads;
+- .htaccess.
+
+config/
+- configuração;
+- banco;
+- rotas da API;
+- configuração local.
+
+controllers/
+- fluxo das requisições;
+- regras de apresentação;
+- ações web;
+- ações da API.
+
+models/
+- acesso ao banco;
+- persistência;
+- consultas.
+
+views/
+- templates PHP;
+- layout;
+- telas de empresas, dispositivos, usuários, auditoria, autenticação etc.
+
+database/
+- schema;
+- migrations;
+- seeds;
+- geração de APP_KEY;
+- criação de token de API.
+
+includes/
+- bootstrap;
+- helpers;
+- criptografia;
+- exportadores;
+- utilitários.
+
+Frontend-prototipo/
+- referências visuais e telas de protótipo.
+
+================================================================
+4. FRONT CONTROLLER E FLUXO DE REQUISIÇÃO
+================================================================
+
+Arquivo principal:
+public/index.php
+
+Fluxo simplificado:
+
+REQUISIÇÃO HTTP
+       |
+       v
+public/index.php
+       |
+       v
+includes/bootstrap.php
+       |
+       +--> É API?
+       |      |
+       |      +--> ApiRouter
+       |             |
+       |             +--> ApiV1Controller
+       |                    |
+       |                    +--> Models
+       |                    |
+       |                    +--> ApiResponse JSON
+       |
+       +--> WEB
+              |
+              +--> roteamento por ?route=
+                     |
+                     +--> Controller
+                            |
+                            +--> Model
+                            |
+                            +--> View
+
+================================================================
+5. ROTAS WEB
+================================================================
+
+Rota padrão:
+dashboard
+
+Rotas principais:
+
+login
+logout
+dashboard
+
+companies.index
+companies.create
+companies.store
+companies.show
+companies.edit
+companies.update
+companies.deactivate
+
+machines.create
+machines.store
+machines.show
+machines.edit
+machines.update
+machines.deletePhoto
+machines.deactivate
+
+audit.index
+users.index
+settings.index
+export.download
+
+Rotas desconhecidas levam para tela 404.
+
+================================================================
+6. AUTENTICAÇÃO WEB
+================================================================
+
+Controller:
+controllers/AuthController.php
+
+Entrada:
+- email;
+- password.
+
+Fluxo:
+1. localiza usuário por e-mail;
+2. valida senha com password_verify();
+3. regenera o ID da sessão;
+4. salva os dados do usuário em $_SESSION['user'];
+5. grava auditoria;
+6. redireciona.
+
+Dados salvos na sessão:
+- id;
+- name;
+- email;
+- is_admin.
+
+Eventos auditados:
+- login_success;
+- login_failed;
+- logout.
+
+================================================================
+7. SESSÕES
+================================================================
+
+Nome da sessão:
+exe_session
+
+Configurações:
+- session.use_strict_mode = 1
+- session.cookie_httponly = 1
+- session.cookie_samesite = Lax
+- secure = true quando HTTPS está ativo
+
+Armazenamento:
+storage/sessions
+
+Após login:
+session_regenerate_id(true)
+
+================================================================
+8. CSRF
+================================================================
+
+A interface web utiliza tokens CSRF.
+
+Geração:
+- 32 bytes aleatórios;
+- convertidos para hexadecimal.
+
+Validação:
+hash_equals()
+
+Falha:
+HTTP 419
+"Sessao expirada. Volte e tente novamente."
+
+================================================================
+9. CONFIGURAÇÃO DA APLICAÇÃO
+================================================================
+
+Arquivo central:
+config/config.php
+
+Ordem de prioridade:
+1. variáveis de ambiente;
+2. config/local.php;
+3. valores padrão.
+
+Principais constantes:
+- APP_NAME
+- APP_ENV
+- APP_DEBUG
+- APP_URL
+- APP_KEY
+- BASE_PATH
+- STORAGE_PATH
+- UPLOAD_PATH
+- UPLOAD_URL
+- DB_HOST
+- DB_NAME
+- DB_USER
+- DB_PASS
+- DB_CHARSET
+- MAX_UPLOAD_BYTES
+- ALLOWED_IMAGE_MIMES
+
+Arquivo local:
+config/local.php
+
+Exemplo:
+config/local.example.php
+
+O arquivo local é ignorado pelo Git.
+
+================================================================
+10. APP_KEY
+================================================================
+
+A APP_KEY é usada para criptografia de credenciais de equipamentos.
+
+Gerador:
+database/generate_app_key.php
+
+Importante:
+- cada ambiente deve ter chave própria;
+- perda da APP_KEY pode tornar credenciais criptografadas irrecuperáveis.
+
+================================================================
+11. BANCO DE DADOS
+================================================================
+
+Banco:
+MySQL / MariaDB
+
+Engine:
+InnoDB
+
+Tabelas principais:
+- users
+- companies
+- machines
+- audit_logs
+- machine_photos
+- api_tokens
+
+================================================================
+12. TABELA USERS
+================================================================
+
+Campos:
+- id
+- name
+- email
+- password_hash
+- is_admin
+- created_at
+
+Regras:
+- email único;
+- senha armazenada em hash.
+
+================================================================
+13. TABELA COMPANIES
+================================================================
+
+Campos:
+- id
+- name
+- tag_pattern
+- is_active
+- created_by
+- updated_by
+- updated_at
+- created_at
+
+Regras:
+- nome da empresa único;
+- status ativo/inativo;
+- padrão de etiqueta opcional.
+
+================================================================
+14. TABELA MACHINES
+================================================================
+
+Principais campos:
+- id
+- company_id
+- device_type
+- equipment_name
+- tag
+- old_hostname
+- new_hostname
+- employee_name
+- department
+- brand
+- computer_model
+- operating_system
+- machine_password
+- admin_user
+- admin_password
+- install_location
+- modem_name
+- ip_address
+- gateway
+- carrier
+- printer_brand
+- printer_connection_type
+- printer_shared
+- notes
+- tflux_installed
+- antivirus_installed
+- requester_in_tflux
+- is_active
+- created_by
+- updated_by
+- updated_at
+- created_at
+
+Relacionamento:
+companies 1:N machines
+
+Restrições:
+- company_id + tag = único;
+- company_id + new_hostname = único.
+
+================================================================
+15. TABELA MACHINE_PHOTOS
+================================================================
+
+Campos:
+- id
+- machine_id
+- photo_type
+- photo_topic
+- location_name
+- file_name
+- original_name
+- mime_type
+- file_size
+- created_at
+
+Relacionamento:
+machines 1:N machine_photos
+
+ON DELETE CASCADE.
+
+Tipos:
+- general
+- network_config
+
+Tópicos:
+- local
+- ambiente
+- equipamento
+- outras
+
+================================================================
+16. TABELA AUDIT_LOGS
+================================================================
+
+Campos:
+- id
+- user_id
+- user_name
+- user_email
+- action_type
+- affected_table
+- affected_record_id
+- company_id
+- machine_id
+- description
+- old_data
+- new_data
+- ip_address
+- session_identifier
+- created_at
+
+Índices:
+- user_id
+- action_type
+- company_id
+- machine_id
+- created_at
+
+================================================================
+17. TABELA API_TOKENS
+================================================================
+
+Campos:
+- id
+- user_id
+- name
+- token_hash
+- last_used_at
+- expires_at
+- revoked_at
+- created_at
+
+O token completo não é armazenado no banco.
+É salvo apenas hash SHA-256.
+
+================================================================
+18. MÓDULO DE EMPRESAS
+================================================================
+
+Controller:
+CompanyController
+
+Operações:
+- listar;
+- criar;
+- visualizar;
+- editar;
+- atualizar;
+- desativar.
+
+Permissão:
+require_admin()
+
+Validação:
+- nome obrigatório;
+- nome único.
+
+Eventos:
+- company_created
+- company_updated
+- company_deactivated
+
+Soft delete:
+is_active = 0
+
+================================================================
+19. MÓDULO DE DISPOSITIVOS
+================================================================
+
+Controller:
+MachineController
+
+Operações:
+- criar;
+- salvar;
+- visualizar;
+- editar;
+- atualizar;
+- desativar;
+- adicionar fotos;
+- remover fotos.
+
+Permissão:
+require_auth()
+
+Autoria:
+created_by
+updated_by
+
+Eventos:
+- machine_created
+- machine_updated
+- machine_deactivated
+- machine_photos_added
+- machine_photo_removed
+
+================================================================
+20. CAMPOS OBRIGATÓRIOS POR TIPO
+================================================================
+
+Notebook:
+- tag
+- old_hostname
+- new_hostname
+- employee_name
+- department
+- computer_model
+- machine_password
+
+CPU / Desktop:
+- tag
+- old_hostname
+- new_hostname
+- employee_name
+- department
+- computer_model
+- machine_password
+
+Roteador:
+- tag
+- computer_model
+- admin_user
+- admin_password
+- ip_address
+
+Access Point:
+- install_location
+- tag
+- computer_model
+
+Modem:
+- tag
+- computer_model
+- admin_user
+- admin_password
+- carrier
+
+Impressora:
+- tag
+- brand
+- computer_model
+- printer_connection_type
+
+Outros:
+- tag
+- computer_model
+
+================================================================
+21. VALIDAÇÕES DE DISPOSITIVO
+================================================================
+
+São validados:
+- existência da empresa;
+- tipo do dispositivo;
+- obrigatoriedade por tipo;
+- etiqueta duplicada;
+- hostname duplicado.
+
+A validação de duplicidade existe:
+- no Controller;
+- no banco de dados.
+
+================================================================
+22. EDIÇÃO DE DISPOSITIVO
+================================================================
+
+Na edição:
+- o próprio ID é ignorado na validação de duplicidade;
+- company_id é removido antes do update;
+- a máquina não é transferida de empresa pelo fluxo normal.
+
+O sistema compara alterações com changedFields().
+
+Senhas em auditoria:
+[protegido]
+
+================================================================
+23. SOFT DELETE
+================================================================
+
+Empresas:
+is_active = 0
+
+Máquinas:
+is_active = 0
+
+Objetivo:
+- preservar histórico;
+- preservar auditoria;
+- preservar relacionamentos.
+
+================================================================
+24. TÍTULO AUTOMÁTICO DO DISPOSITIVO
+================================================================
+
+Ordem de prioridade:
+1. tag
+2. new_hostname
+3. old_hostname
+4. modem_name
+5. install_location
+6. computer_model
+7. "Dispositivo"
+
+================================================================
+25. UPLOAD DE FOTOS
+================================================================
+
+Inputs:
+- photos
+- network_photo
+
+Tipos:
+photos -> general
+network_photo -> network_config
+
+Formatos permitidos:
+- JPG
+- PNG
+- WEBP
+
+Limite:
+5 MB por arquivo
+
+Validação:
+finfo(FILEINFO_MIME_TYPE)
+
+Nomes físicos:
+ID da máquina + random_bytes(12) + extensão
+
+Nome original:
+preservado em original_name
+
+================================================================
+26. REMOÇÃO DE FOTO
+================================================================
+
+Fluxo:
+1. autenticação;
+2. CSRF;
+3. busca da foto;
+4. remoção do arquivo físico;
+5. exclusão do registro;
+6. gravação em auditoria.
+
+Auditoria preserva:
+- file_name
+- original_name
+- photo_topic
+- location_name
+- mime_type
+- file_size
+
+================================================================
+27. MODEL MACHINE
+================================================================
+
+Responsabilidades:
+- tipos de dispositivo;
+- listagem;
+- filtros;
+- paginação;
+- estatísticas;
+- busca;
+- criação;
+- atualização;
+- desativação;
+- duplicidade;
+- criptografia;
+- descriptografia.
+
+================================================================
+28. ESTATÍSTICAS
+================================================================
+
+Por empresa:
+- total
+- tflux
+- antivirus
+- requesters
+- notebooks
+- cpus
+- printers
+
+Somente máquinas ativas.
+
+================================================================
+29. FILTROS
+================================================================
+
+Filtros:
+- status
+- device_type
+- tag
+- employee_name
+- department
+- computer_model
+- created_at
+
+Status:
+- active
+- inactive
+- all
+
+Busca textual:
+LIKE '%valor%'
+
+Ordenação:
+updated_at DESC
+
+================================================================
+30. CRIPTOGRAFIA DE CREDENCIAIS
+================================================================
+
+Campos protegidos:
+- machine_password
+- admin_password
+
+Classe:
+CredentialCrypto
+
+Algoritmo:
+AES-256-GCM
+
+IV:
+12 bytes
+
+Authentication Tag:
+16 bytes
+
+AAD:
+exe-kickoff:credential:v1
+
+Prefixo:
+enc:v1:
+
+Formato:
+enc:v1: + Base64(IV + TAG + CIPHERTEXT)
+
+Derivação da chave:
+hash('sha256', APP_KEY, true)
+
+Comportamento:
+- não criptografa novamente valor que já começa com enc:v1:;
+- credencial inválida retorna [credencial invalida];
+- APP_KEY ausente gera exceção.
+
+================================================================
+31. AUDITORIA
+================================================================
+
+Classe:
+AuditLog
+
+Dados automáticos:
+- usuário;
+- nome;
+- e-mail;
+- IP;
+- ID da sessão;
+- data/hora.
+
+old_data e new_data:
+JSON
+
+Filtros:
+- user_id
+- company_id
+- machine_id
+- action_type
+- date_from
+- date_to
+
+Limites:
+- busca geral: até 300 eventos;
+- histórico de máquina: 30;
+- histórico de empresa: 40.
+
+Falha de auditoria:
+- é capturada;
+- registrada em error_log();
+- não interrompe a operação principal.
+
+================================================================
+32. BOOTSTRAP
+================================================================
+
+Arquivo:
+includes/bootstrap.php
+
+Carrega:
+- config/config.php
+- config/database.php
+- includes/helpers.php
+
+Cria automaticamente:
+- storage/
+- storage/sessions/
+- uploads/
+
+Autoload:
+spl_autoload_register()
+
+Pastas pesquisadas:
+- models/
+- controllers/
+- includes/
+
+================================================================
+33. HEADERS DE SEGURANÇA
+================================================================
+
+Configurados:
+- X-Content-Type-Options: nosniff
+- X-Frame-Options: SAMEORIGIN
+- Referrer-Policy: strict-origin-when-cross-origin
+
+================================================================
+34. HELPERS
+================================================================
+
+Principais helpers:
+- e()
+- redirect()
+- current_user()
+- require_auth()
+- is_admin()
+- require_admin()
+- client_ip()
+- csrf_token()
+- verify_csrf()
+- flash()
+- consume_flash()
+- view()
+- is_post()
+- pretty_json()
+- brand_logo()
+- export_url()
+- icon()
+
+e():
+htmlspecialchars(..., ENT_QUOTES, 'UTF-8')
+
+require_admin():
+retorna 403 para não-admin.
+
+flash:
+usa sessão e consome depois.
+
+view():
+carrega layout principal e view específica.
+
+================================================================
+35. API REST
+================================================================
+
+Base:
+ /api/v1
+
+Componentes:
+- ApiRouter
+- ApiAuth
+- ApiRequest
+- ApiResponse
+- ApiValidator
+- ApiV1Controller
+
+================================================================
+36. ROTEADOR DA API
+================================================================
+
+Detecta requisição:
+caminho começa com /api/
+
+Métodos:
+- GET
+- POST
+- PUT
+- PATCH
+- DELETE
+
+Permissões por rota:
+- requiresAuth
+- requiresAdmin
+
+Erros:
+401 unauthenticated
+403 forbidden
+404 not_found
+405 method_not_allowed
+
+Quando 405:
+envia header Allow.
+
+================================================================
+37. AUTENTICAÇÃO DA API
+================================================================
+
+Métodos:
+1. sessão web;
+2. Bearer Token.
+
+Header:
+Authorization: Bearer TOKEN
+
+Compatibilidade:
+- HTTP_AUTHORIZATION
+- apache_request_headers()
+
+Token:
+- validado;
+- associado a usuário;
+- markUsed() atualiza último uso.
+
+================================================================
+38. REQUEST DA API
+================================================================
+
+Classe:
+ApiRequest
+
+JSON:
+php://input
+
+JSON inválido:
+HTTP 400
+code: invalid_json
+
+Paginação:
+default per_page = 25
+máximo = 100
+
+Metadata:
+- page
+- per_page
+- total
+- last_page
+- has_more
+
+================================================================
+39. RESPONSE DA API
+================================================================
+
+Sucesso:
+
+{
+  "ok": true,
+  "data": {},
+  "meta": {}
+}
+
+Erro:
+
+{
+  "ok": false,
+  "error": {
+    "code": "...",
+    "message": "...",
+    "details": {}
+  }
+}
+
+Content-Type:
+application/json; charset=UTF-8
+
+================================================================
+40. VALIDAÇÃO DA API
+================================================================
+
+Regras:
+- required
+- string
+- bool
+- max
+
+Booleanos aceitos:
+true
+false
+1
+0
+"1"
+"0"
+"true"
+"false"
+
+Erro de validação:
+HTTP 422
+code: validation_failed
+
+================================================================
+41. ENDPOINTS PRINCIPAIS
+================================================================
+
+Públicos:
+GET /api/v1
+GET /api/v1/health
+
+Autenticados:
+GET /api/v1/me
+GET /api/v1/device-types
+GET /api/v1/companies
+GET /api/v1/companies/{id}
+GET /api/v1/companies/{id}/machines
+POST /api/v1/companies/{id}/machines
+GET /api/v1/machines/{id}
+PUT /api/v1/machines/{id}
+PATCH /api/v1/machines/{id}
+DELETE /api/v1/machines/{id}
+GET /api/v1/machines/{id}/photos
+POST /api/v1/machines/{id}/photos
+DELETE /api/v1/machine-photos/{id}
+
+Admin:
+POST /api/v1/companies
+PUT /api/v1/companies/{id}
+PATCH /api/v1/companies/{id}
+DELETE /api/v1/companies/{id}
+
+================================================================
+42. HEALTH CHECK
+================================================================
+
+GET /api/v1/health
+
+Retorna:
+- app
+- version
+- environment
+- time
+
+================================================================
+43. ENDPOINT /ME
+================================================================
+
+GET /api/v1/me
+
+Retorna:
+- id
+- name
+- email
+- is_admin
+- auth.type
+- auth.token_name
+
+auth.type:
+- session
+- bearer_token
+
+================================================================
+44. CRIAÇÃO VIA API
+================================================================
+
+Empresa:
+POST /api/v1/companies
+- HTTP 201;
+- header Location;
+- auditoria específica "via API".
+
+Máquina:
+POST /api/v1/companies/{id}/machines
+- HTTP 201;
+- aplica mesmas regras de negócio da interface;
+- credenciais são protegidas;
+- senhas não retornam na resposta.
+
+================================================================
+45. ATUALIZAÇÃO PARCIAL
+================================================================
+
+PATCH preserva campos omitidos.
+
+Exemplo:
+enviar apenas "notes" mantém os demais campos atuais.
+
+================================================================
+46. CAMPOS NÃO EXPOSTOS PELA API
+================================================================
+
+Não fazem parte de MACHINE_PUBLIC_FIELDS:
+- machine_password
+- admin_password
+
+admin_user pode ser retornado.
+
+================================================================
+47. UPLOAD DE FOTOS PELA API
+================================================================
+
+multipart/form-data
+
+Suporta:
+- photos[]
+- network_photo[]
+
+Pode salvar parcialmente:
+- imagens válidas são mantidas;
+- erros individuais aparecem em meta.errors.
+
+Sem fotos:
+HTTP 422
+
+Nenhuma válida:
+HTTP 422
+
+================================================================
+48. DASHBOARD
+================================================================
+
+Exige autenticação.
+
+Carrega:
+- empresas ativas;
+- empresa selecionada;
+- equipamentos;
+- fotos agrupadas;
+- estatísticas;
+- filtros;
+- tipos de dispositivo.
+
+Empresa padrão:
+primeira empresa ativa quando company_id não é informado.
+
+================================================================
+49. EXPORTAÇÃO
+================================================================
+
+Controller:
+ExportController
+
+Tipos:
+- companies
+- devices
+- users
+- audit
+
+Formatos:
+- csv
+- json
+- docx
+
+DOCX:
+somente devices
+
+Permissões:
+- devices: qualquer usuário autenticado;
+- companies: admin;
+- users: admin;
+- audit: admin.
+
+Exportações são auditadas.
+
+================================================================
+50. EXPORTAÇÃO DE EMPRESAS
+================================================================
+
+Filtros:
+- name
+- status
+
+Colunas:
+- ID
+- Nome da empresa
+- Padrao etiqueta
+- Status
+- Cadastrada por
+- Criada em
+- Ultima alteracao
+
+================================================================
+51. EXPORTAÇÃO DE DISPOSITIVOS
+================================================================
+
+Filtros:
+- company_id
+- device_type
+- tag
+- employee_name
+- department
+- computer_model
+- status
+- created_at
+
+Colunas:
+- ID
+- Empresa
+- Tipo
+- Etiqueta
+- Hostname antigo
+- Hostname novo
+- Responsavel
+- Departamento
+- Marca
+- Modelo
+- Sistema operacional
+- Local de instalacao
+- IP
+- Gateway
+- Operadora
+- TFlux instalado
+- Antivirus instalado
+- Solicitante no TFlux
+- Status
+- Criado em
+- Atualizado em
+
+Senhas não são incluídas nas exportações CSV/JSON comuns.
+
+================================================================
+52. EXPORTAÇÃO DE USUÁRIOS
+================================================================
+
+Filtros:
+- query
+- profile
+
+Perfis:
+- admin
+- standard
+
+Campos:
+- ID
+- Usuario
+- E-mail
+- Perfil
+- Status
+- Criado em
+
+================================================================
+53. EXPORTAÇÃO DE AUDITORIA
+================================================================
+
+Filtros:
+- user_id
+- company_id
+- action_type
+- date_from
+- date_to
+
+Campos:
+- ID
+- Evento
+- Descricao
+- Usuario
+- E-mail
+- IP
+- Empresa
+- Tabela afetada
+- Registro afetado
+- Antes
+- Depois
+- Criado em
+
+================================================================
+54. MEDIDAS DE SEGURANÇA JÁ EXISTENTES
+================================================================
+
+Pontos positivos confirmados:
+- password_hash / password_verify;
+- prepared statements PDO;
+- CSRF na interface web;
+- session_regenerate_id;
+- session.use_strict_mode;
+- cookies HttpOnly;
+- SameSite=Lax;
+- Secure em HTTPS;
+- AES-256-GCM para credenciais;
+- APP_KEY separada;
+- senhas mascaradas em auditoria;
+- senhas não expostas na API;
+- tokens armazenados como hash;
+- validação real de MIME com finfo;
+- limite de 5 MB;
+- nomes aleatórios para uploads;
+- bloqueio de execução PHP em uploads;
+- .htaccess em diretórios internos;
+- headers básicos de segurança;
+- soft delete;
+- auditoria de alterações;
+- logs de login.
+
+================================================================
+55. POSSÍVEIS VULNERABILIDADES E RISCOS
+================================================================
+
+A análise abaixo é estática. Alguns itens são riscos arquiteturais e não necessariamente vulnerabilidades exploráveis sem teste prático.
+
+------------------------------------------------------------
+55.1. CONTROLE DE ACESSO A DISPOSITIVOS E EMPRESAS
+PRIORIDADE: ALTA
+------------------------------------------------------------
+
+Problema:
+qualquer usuário autenticado pode criar, editar, desativar equipamentos e remover fotos.
+
+Somente o módulo de empresas exige admin.
+
+Risco:
+um usuário comum pode potencialmente alterar ou desativar equipamentos pertencentes a qualquer empresa existente.
+
+Também não existe, no modelo atual, isolamento por empresa/tenant.
+
+Impacto:
+- Broken Access Control;
+- risco de IDOR;
+- alteração indevida de ativos;
+- possível acesso a informações sensíveis.
+
+Recomendação:
+implementar permissões granulares.
+
+Exemplo de modelo:
+roles:
+- admin
+- technician
+- viewer
+
+E/ou:
+user_company_permissions
+- user_id
+- company_id
+- can_view
+- can_edit
+- can_delete
+- can_export
+
+Em todos os controllers e endpoints:
+validar se o usuário possui acesso à empresa do equipamento.
+
+------------------------------------------------------------
+55.2. API COM SESSÃO SEM CSRF
+PRIORIDADE: MÉDIA / ALTA
+------------------------------------------------------------
+
+Problema:
+a API aceita autenticação por sessão web, mas as rotas POST/PUT/PATCH/DELETE não executam verify_csrf().
+
+O cookie SameSite=Lax reduz o risco, mas não substitui uma política explícita.
+
+Recomendação preferencial:
+API deve aceitar apenas Bearer Token.
+
+Alternativa:
+se ApiAuth detectar autenticação por sessão:
+- exigir X-CSRF-Token;
+- validar o token da sessão.
+
+------------------------------------------------------------
+55.3. AUSÊNCIA DE RATE LIMITING
+PRIORIDADE: ALTA
+------------------------------------------------------------
+
+Não foi identificado rate limiting:
+- no login;
+- na API;
+- no uso de tokens.
+
+Riscos:
+- brute force;
+- credential stuffing;
+- abuso da API;
+- DoS de aplicação.
+
+Recomendação:
+implementar limitação por:
+- IP;
+- usuário/e-mail;
+- token;
+- endpoint.
+
+Exemplo:
+login:
+5 tentativas por 10 minutos por IP/e-mail.
+
+API:
+limites diferenciados por token.
+
+------------------------------------------------------------
+55.4. PHP 7.4 AINDA É ACEITO
+PRIORIDADE: MÉDIA
+------------------------------------------------------------
+
+O README permite PHP 7.4+.
+
+Problema:
+PHP 7.4 está fora de suporte.
+
+Recomendação:
+exigir uma versão suportada.
+
+Sugestão:
+PHP 8.2+.
+
+Também revisar compatibilidade com:
+- OpenSSL;
+- PDO;
+- fileinfo.
+
+------------------------------------------------------------
+55.5. APP_DEBUG EM PRODUÇÃO
+PRIORIDADE: MÉDIA
+------------------------------------------------------------
+
+Quando APP_DEBUG=true:
+- erros são exibidos;
+- API pode retornar mensagem real da exceção.
+
+Risco:
+vazamento de:
+- caminhos;
+- SQL;
+- detalhes internos;
+- nomes de arquivos;
+- estrutura do sistema.
+
+Recomendação:
+produção:
+APP_ENV=production
+APP_DEBUG=false
+
+Também:
+- registrar erros apenas em logs;
+- retornar mensagens genéricas ao cliente.
+
+------------------------------------------------------------
+55.6. CONFIGURAÇÃO DE EXEMPLO COM CREDENCIAIS FRACAS
+PRIORIDADE: MÉDIA
+------------------------------------------------------------
+
+local.example.php contém:
+- admin@empresa.com;
+- senha "troque-esta-senha";
+- root sem senha;
+- APP_KEY de placeholder.
+
+Não é vazamento real por si só, porém existe risco de implantação incorreta.
+
+Recomendação:
+na inicialização:
+- impedir APP_KEY padrão;
+- impedir ADMIN_PASSWORD padrão;
+- impedir DB_PASS vazio em produção;
+- emitir erro fatal se valores placeholder forem detectados.
+
+------------------------------------------------------------
+55.7. DESCRIPTOGRAFIA AUTOMÁTICA DE CREDENCIAIS
+PRIORIDADE: MÉDIA
+------------------------------------------------------------
+
+Machine::find() e Machine::byCompany() retornam credenciais já descriptografadas.
+
+Risco:
+uma nova View, Controller ou exportação pode acidentalmente expor:
+- machine_password;
+- admin_password.
+
+Recomendação:
+não descriptografar automaticamente.
+
+Criar métodos separados:
+Machine::findPublic()
+Machine::findWithCredentials()
+
+Ou:
+decryptCredentials() apenas quando explicitamente solicitado e autorizado.
+
+Também:
+registrar auditoria específica quando uma credencial for visualizada.
+
+------------------------------------------------------------
+55.8. AUSÊNCIA DE CSP
+PRIORIDADE: BAIXA / MÉDIA
+------------------------------------------------------------
+
+Headers atuais são bons, mas não existe Content-Security-Policy.
+
+Recomendação inicial:
+Content-Security-Policy:
+default-src 'self';
+img-src 'self' data:;
+style-src 'self';
+script-src 'self';
+frame-ancestors 'self';
+
+A política final precisa considerar os assets reais usados pelo frontend.
+
+------------------------------------------------------------
+55.9. AUDITORIA PODE FALHAR SILENCIOSAMENTE
+PRIORIDADE: BAIXA / MÉDIA
+------------------------------------------------------------
+
+AuditLog::record() captura exceção e continua.
+
+Ponto positivo:
+não derruba a operação.
+
+Risco:
+alterações podem ocorrer sem histórico se a auditoria estiver quebrada.
+
+Recomendação:
+- log separado;
+- alertas;
+- monitoramento;
+- health check;
+- fila/retry opcional;
+- métrica de falhas de auditoria.
+
+------------------------------------------------------------
+55.10. ISOLAMENTO MULTIEMPRESA
+PRIORIDADE: ALTA SE O SISTEMA FOR MULTITENANT
+------------------------------------------------------------
+
+Atualmente:
+usuário autenticado vê e atua sobre empresas disponíveis.
+
+Se o sistema for usado por clientes diferentes:
+isso deve ser corrigido antes.
+
+Recomendação:
+associação explícita:
+users <-> companies
+
+E validação em:
+- DashboardController;
+- MachineController;
+- CompanyController;
+- ApiV1Controller;
+- ExportController.
+
+------------------------------------------------------------
+55.11. CONTROLE DE EXPORTAÇÃO
+PRIORIDADE: MÉDIA
+------------------------------------------------------------
+
+Atualmente usuários comuns podem exportar dispositivos.
+
+Se dados de inventário forem sensíveis, isso pode ser excessivo.
+
+Recomendação:
+criar permissão:
+can_export_devices
+
+Também:
+- limitar exportação à empresa autorizada;
+- auditar quem exportou;
+- considerar mascarar IPs/hostnames dependendo do perfil.
+
+------------------------------------------------------------
+55.12. VISUALIZAÇÃO DE CREDENCIAIS
+PRIORIDADE: MÉDIA
+------------------------------------------------------------
+
+O sistema criptografa credenciais corretamente, porém a política de visualização precisa ser endurecida.
+
+Recomendação:
+- botão "Exibir credencial";
+- exigir permissão especial;
+- registrar evento credential_viewed;
+- não carregar senha na página por padrão;
+- opcionalmente exigir reautenticação.
+
+------------------------------------------------------------
+55.13. HEADERS ADICIONAIS
+PRIORIDADE: BAIXA
+------------------------------------------------------------
+
+Recomendações:
+- Content-Security-Policy;
+- Permissions-Policy;
+- Strict-Transport-Security em HTTPS;
+- Cache-Control adequado em páginas sensíveis.
+
+Exemplo:
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+Usar somente depois de confirmar HTTPS permanente.
+
+------------------------------------------------------------
+55.14. POLÍTICA DE SENHA
+PRIORIDADE: MÉDIA
+------------------------------------------------------------
+
+Não foi identificado mecanismo completo de:
+- complexidade;
+- troca obrigatória;
+- expiração opcional;
+- bloqueio por tentativas.
+
+Recomendação:
+- mínimo 12 caracteres;
+- aceitar passphrases;
+- bloquear senhas de exemplo;
+- rate limiting;
+- opcional MFA no futuro.
+
+------------------------------------------------------------
+55.15. LOGS DE AUTENTICAÇÃO
+PRIORIDADE: BAIXA / MÉDIA
+------------------------------------------------------------
+
+O sistema registra login_failed, o que é positivo.
+
+Melhorias:
+- contador de tentativas;
+- detecção de IPs anormais;
+- alerta para muitas tentativas;
+- não armazenar dados sensíveis além do necessário.
+
+================================================================
+56. CLASSIFICAÇÃO DAS MELHORIAS
+================================================================
+
+ALTA:
+- controle granular de acesso;
+- isolamento por empresa;
+- rate limiting de login/API.
+
+MÉDIA / ALTA:
+- separar autenticação por sessão da API ou exigir CSRF.
+
+MÉDIA:
+- atualizar requisito de PHP;
+- APP_DEBUG=false em produção;
+- impedir configurações padrão fracas;
+- descriptografia explícita;
+- política de visualização de credenciais;
+- revisar permissão de exportações;
+- política de senha.
+
+BAIXA / MÉDIA:
+- CSP;
+- auditoria resiliente;
+- monitoramento de segurança.
+
+BAIXA:
+- headers adicionais;
+- melhorias de hardening.
+
+================================================================
+57. ARQUITETURA DE SEGURANÇA RECOMENDADA
+================================================================
+
+REQUISIÇÃO
+    |
+    v
+HTTPS obrigatório
+    |
+    v
+Autenticação
+    |
+    +--> sessão web + CSRF
+    |
+    +--> API somente Bearer Token
+    |
+    v
+Rate Limiting
+    |
+    v
+Controle de papel/permissão
+    |
+    v
+Controle de acesso à empresa
+    |
+    v
+Validação
+    |
+    v
+Prepared Statements
+    |
+    v
+Criptografia
+    |
+    v
+Persistência
+    |
+    v
+Auditoria
+    |
+    v
+Monitoramento
+
+================================================================
+58. MODELO DE PERMISSÕES SUGERIDO
+================================================================
+
+Papéis:
+
+ADMIN
+- tudo.
+
+TECHNICIAN
+- visualizar empresas autorizadas;
+- visualizar dispositivos;
+- criar dispositivos;
+- editar dispositivos;
+- adicionar fotos;
+- visualizar credenciais se autorizado.
+
+VIEWER
+- apenas leitura;
+- sem edição;
+- sem credenciais.
+
+Permissões separadas:
+- companies.view
+- companies.manage
+- devices.view
+- devices.create
+- devices.edit
+- devices.deactivate
+- devices.credentials.view
+- devices.export
+- audit.view
+- users.manage
+- api.manage
+
+================================================================
+59. MELHORIAS RECOMENDADAS NO BANCO
+================================================================
+
+Possíveis novas tabelas:
+
+roles
+- id
+- name
+
+permissions
+- id
+- name
+
+user_roles
+- user_id
+- role_id
+
+role_permissions
+- role_id
+- permission_id
+
+user_companies
+- user_id
+- company_id
+
+Ou versão simples:
+users:
+- role
+
+user_companies:
+- user_id
+- company_id
+- can_view
+- can_edit
+- can_export
+- can_view_credentials
+
+================================================================
+60. MELHORIAS RECOMENDADAS PARA A API
+================================================================
+
+1. Preferir somente Bearer Token.
+2. Se usar sessão, exigir CSRF.
+3. Rate limiting por token.
+4. Log de:
+   - token usado;
+   - endpoint;
+   - IP;
+   - status;
+   - duração.
+5. Escopos de token:
+   - read
+   - write
+   - admin
+6. Tokens com expiração por padrão.
+7. Interface para revogação.
+8. Não permitir token sem expiração, a menos que explicitamente autorizado.
+
+================================================================
+61. MELHORIAS RECOMENDADAS PARA CREDENCIAIS
+================================================================
+
+1. Não descriptografar automaticamente.
+2. Exigir permissão especial.
+3. Carregar senha apenas quando solicitado.
+4. Auditar visualização.
+5. Opcionalmente exigir confirmação de senha do usuário.
+6. Nunca exportar credenciais automaticamente.
+7. Nunca incluir credenciais em logs.
+8. Rotacionar APP_KEY com processo planejado.
+9. Backup seguro da APP_KEY.
+10. Armazenar APP_KEY fora do repositório.
+
+================================================================
+62. MELHORIAS RECOMENDADAS PARA PRODUÇÃO
+================================================================
+
+Configurações mínimas:
+
+APP_ENV=production
+APP_DEBUG=false
+APP_KEY=<chave forte>
+DB_USER=<usuario dedicado>
+DB_PASS=<senha forte>
+DB_HOST=<host necessário>
+
+Não usar root do MySQL.
+
+Usar usuário do banco com privilégios apenas no schema da aplicação.
+
+Ativar HTTPS.
+
+Ativar:
+- HSTS;
+- CSP;
+- logs;
+- backups;
+- monitoramento.
+
+================================================================
+63. CHECKLIST DE SEGURANÇA ANTES DE PRODUÇÃO
+================================================================
+
+[ ] PHP suportado
+[ ] APP_DEBUG=false
+[ ] APP_KEY real
+[ ] ADMIN_PASSWORD forte
+[ ] DB_USER não-root
+[ ] DB_PASS forte
+[ ] HTTPS ativo
+[ ] HSTS configurado
+[ ] CSP configurada
+[ ] rate limiting
+[ ] lockout temporário de login
+[ ] permissões por papel
+[ ] isolamento por empresa
+[ ] credenciais não descriptografadas por padrão
+[ ] auditoria de visualização de credenciais
+[ ] tokens com expiração
+[ ] política de revogação
+[ ] backups testados
+[ ] logs monitorados
+[ ] diretórios sensíveis inacessíveis pelo navegador
+[ ] uploads sem execução de PHP
+[ ] revisão de permissões de exportação
+[ ] testes de autorização
+[ ] testes de API
+[ ] testes de CSRF
+[ ] testes de upload
+[ ] teste de brute force
+[ ] revisão de dependências e extensões PHP
+
+================================================================
+64. RESUMO FINAL
+================================================================
+
+O projeto possui uma base técnica boa para um sistema PHP sem framework.
+
+Pontos fortes:
+- arquitetura organizada;
+- separação de responsabilidades;
+- prepared statements;
+- autenticação com hash;
+- CSRF na web;
+- sessões endurecidas;
+- auditoria;
+- criptografia AES-256-GCM;
+- API versionada;
+- tokens com hash;
+- uploads validados;
+- soft delete;
+- exportações;
+- headers básicos de segurança.
+
+Principais pontos a corrigir antes de um uso corporativo mais amplo:
+1. autorização granular;
+2. isolamento entre empresas;
+3. rate limiting;
+4. política correta de sessão/API;
+5. atualização de PHP;
+6. proteção adicional de credenciais;
+7. hardening de produção;
+8. CSP e monitoramento.
+
+Conclusão:
+a aplicação já possui várias boas práticas de segurança, mas o maior risco atual não está em SQL Injection ou upload de PHP; está principalmente em controle de acesso e autorização entre usuários, empresas e dispositivos.
+
+================================================================
+FIM DA DOCUMENTAÇÃO
+================================================================

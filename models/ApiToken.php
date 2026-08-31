@@ -28,6 +28,7 @@ class ApiToken
                  FROM api_tokens t
                  INNER JOIN users u ON u.id = t.user_id
                  WHERE t.token_hash = :token_hash
+                   AND u.is_active = 1
                    AND t.revoked_at IS NULL
                    AND (t.expires_at IS NULL OR t.expires_at > NOW())
                  LIMIT 1'

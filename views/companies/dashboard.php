@@ -7,14 +7,14 @@
 <section class="asset-page-head">
     <div>
         <h1>Dashboard Geral</h1>
-        <p>Visao consolidada do parque tecnologico e dos dispositivos cadastrados.</p>
+        <p>Visão consolidada do parque tecnológico e dos dispositivos cadastrados.</p>
     </div>
 
     <form class="asset-company-select" method="get" action="/">
         <input type="hidden" name="route" value="dashboard">
         <label class="field">
             <span>Selecionar empresa</span>
-            <select name="company_id" onchange="this.form.submit()">
+            <select name="company_id" data-submit-on-change>
                 <?php foreach ($companies as $item): ?>
                     <option value="<?= (int) $item['id'] ?>" <?= $company && (int) $company['id'] === (int) $item['id'] ? 'selected' : '' ?>>
                         <?= e($item['name']) ?>
@@ -137,7 +137,7 @@
                         <input type="text" name="tag" value="<?= e($filters['tag'] ?? '') ?>">
                     </label>
                     <label class="field">
-                        <span>Responsavel</span>
+                        <span>Responsável</span>
                         <input type="text" name="employee_name" value="<?= e($filters['employee_name'] ?? '') ?>">
                     </label>
                     <label class="field">
@@ -227,9 +227,9 @@
                                     <td data-label="Checklist">
                                         <?php if (in_array($machine['device_type'] ?? '', ['notebook', 'cpu'], true)): ?>
                                             <div class="mini-status-list">
-                                                <span class="status-chip <?= !empty($machine['tflux_installed']) ? 'success' : 'neutral' ?>">TFlux: <?= !empty($machine['tflux_installed']) ? 'Sim' : 'Nao' ?></span>
-                                                <span class="status-chip <?= !empty($machine['antivirus_installed']) ? 'success' : 'neutral' ?>">AV: <?= !empty($machine['antivirus_installed']) ? 'Sim' : 'Nao' ?></span>
-                                                <span class="status-chip <?= !empty($machine['requester_in_tflux']) ? 'success' : 'neutral' ?>">Solic.: <?= !empty($machine['requester_in_tflux']) ? 'Sim' : 'Nao' ?></span>
+                                                <span class="status-chip <?= !empty($machine['tflux_installed']) ? 'success' : 'neutral' ?>">TFlux: <?= !empty($machine['tflux_installed']) ? 'Sim' : 'Não' ?></span>
+                                                <span class="status-chip <?= !empty($machine['antivirus_installed']) ? 'success' : 'neutral' ?>">AV: <?= !empty($machine['antivirus_installed']) ? 'Sim' : 'Não' ?></span>
+                                                <span class="status-chip <?= !empty($machine['requester_in_tflux']) ? 'success' : 'neutral' ?>">Solic.: <?= !empty($machine['requester_in_tflux']) ? 'Sim' : 'Não' ?></span>
                                             </div>
                                         <?php else: ?>
                                             <span class="status-chip neutral">N/A</span>
@@ -246,10 +246,12 @@
                                             <span class="photo-empty">Sem fotos</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td data-label="Acoes">
+                                    <td data-label="Ações">
                                         <div class="table-actions">
                                             <a class="icon-btn" href="/?route=machines.show&id=<?= (int) $machine['id'] ?>" aria-label="Ver"><?= icon('eye') ?></a>
-                                            <a class="icon-btn" href="/?route=machines.edit&id=<?= (int) $machine['id'] ?>" aria-label="Editar"><?= icon('edit-3') ?></a>
+                                            <?php if (is_admin()): ?>
+                                                <a class="icon-btn" href="/?route=machines.edit&id=<?= (int) $machine['id'] ?>" aria-label="Editar"><?= icon('edit-3') ?></a>
+                                            <?php endif; ?>
                                         </div>
                                         <small class="row-tap-hint"><?= icon('chevron-right') ?> Toque no card para ver detalhes</small>
                                     </td>
@@ -265,7 +267,7 @@
             <div class="panel-header compact">
                 <div>
                     <span class="eyebrow">Atividade</span>
-                    <h2>Ultimas alteracoes</h2>
+                    <h2>Últimas alterações</h2>
                 </div>
                 <a class="icon-btn" href="/?route=audit.index" aria-label="Ver logs" title="Ver logs"><?= icon('file-clock') ?></a>
             </div>
@@ -308,8 +310,8 @@
                         <div class="photo-grid">
                             <?php foreach ($machinePhotos as $photo): ?>
                                 <figure>
-                                    <button class="photo-button" type="button" data-lightbox-src="<?= e(UPLOAD_URL . '/' . ($photo['file_name'] ?? '')) ?>" data-lightbox-alt="<?= e($photo['original_name'] ?? 'Foto do dispositivo') ?>">
-                                        <img src="<?= e(UPLOAD_URL . '/' . ($photo['file_name'] ?? '')) ?>" alt="<?= e($photo['original_name'] ?? 'Foto do dispositivo') ?>">
+                                    <button class="photo-button" type="button" data-lightbox-src="<?= e(upload_file_url((string) ($photo['file_name'] ?? ''))) ?>" data-lightbox-alt="<?= e($photo['original_name'] ?? 'Foto do dispositivo') ?>" data-lightbox-meta="<?= e($photoCaption($photo)) ?>">
+                                        <img src="<?= e(upload_file_url((string) ($photo['file_name'] ?? ''))) ?>" alt="<?= e($photo['original_name'] ?? 'Foto do dispositivo') ?>">
                                     </button>
                                     <figcaption><?= e($photoCaption($photo)) ?></figcaption>
                                 </figure>
@@ -334,14 +336,14 @@
             </div>
             <div class="lightbox-actions">
                 <a class="lightbox-action" href="#" download data-lightbox-download><?= icon('download') ?><span>Download</span></a>
-                <button class="lightbox-close" type="button" data-lightbox-close aria-label="Fechar"><?= icon('chevron-right') ?></button>
+                <button class="lightbox-close" type="button" data-lightbox-close aria-label="Fechar"><?= icon('x') ?></button>
             </div>
         </div>
         <button class="lightbox-nav prev" type="button" data-lightbox-prev aria-label="Foto anterior"><?= icon('chevron-left') ?></button>
         <figure class="lightbox-stage">
             <img src="" alt="" data-lightbox-img>
         </figure>
-        <button class="lightbox-nav next" type="button" data-lightbox-next aria-label="Proxima foto"><?= icon('chevron-right') ?></button>
+        <button class="lightbox-nav next" type="button" data-lightbox-next aria-label="Próxima foto"><?= icon('chevron-right') ?></button>
         <div class="lightbox-thumbs" data-lightbox-thumbs></div>
     </div>
 <?php endif; ?>

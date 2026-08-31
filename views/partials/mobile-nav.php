@@ -3,7 +3,7 @@
         <?= icon('layout-dashboard') ?>
         <span>Home</span>
     </a>
-    <?php if ($companyIdForNav): ?>
+    <?php if ($companyIdForNav && (empty($company) || !isset($company['is_active']) || !empty($company['is_active']))): ?>
         <a class="mobile-primary <?= $route === 'machines.create' ? 'active' : '' ?>" href="/?route=machines.create&company_id=<?= (int) $companyIdForNav ?>">
             <?= icon('plus') ?>
             <span>Add</span>
@@ -13,6 +13,10 @@
         <a class="<?= $isAudit ? 'active' : '' ?>" href="/?route=audit.index">
             <?= icon('file-clock') ?>
             <span>Logs</span>
+        </a>
+        <a class="<?= $isVault ? 'active' : '' ?>" href="/?route=vault.index">
+            <?= icon('lock') ?>
+            <span>Cofre</span>
         </a>
         <a class="<?= $isSettings ? 'active' : '' ?>" href="/?route=settings.index">
             <?= icon('settings') ?>

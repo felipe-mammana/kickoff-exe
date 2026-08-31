@@ -98,6 +98,18 @@ class Company
         $stmt->execute(['id' => $id, 'updated_by' => $userId]);
     }
 
+    public static function reactivate(int $id, int $userId): void
+    {
+        $stmt = db()->prepare('UPDATE companies SET is_active = 1, updated_by = :updated_by WHERE id = :id');
+        $stmt->execute(['id' => $id, 'updated_by' => $userId]);
+    }
+
+    public static function delete(int $id): void
+    {
+        $stmt = db()->prepare('DELETE FROM companies WHERE id = :id');
+        $stmt->execute(['id' => $id]);
+    }
+
     public static function duplicateNameExists(string $name, ?int $ignoreId = null): bool
     {
         $sql = 'SELECT id FROM companies WHERE name = :name';
@@ -112,5 +124,33 @@ class Company
         $stmt->execute($params);
 
         return (bool) $stmt->fetch();
+    }
+
+    public static function tagCode(?array $company): string
+    {
+        if (!$company) {
+            return 'EMP';
+        }
+
+        if (!empty($company['tag_pattern'])) {
+            $patternClean = strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', (string) $company['tag_pattern']));
+            if ($patternClean !== '') {
+                return substr($patternClean, 0, 6);
+            }
+        }
+
+        $name = trim((string) ($company['name'] ?? ''));
+        if ($name === '') {
+            return 'EMP';
+        }
+
+        $firstWord = strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', explode(' ', $name)[0] ?? ''));
+        if ($firstWord !== '') {
+            return strlen($firstWord) <= 5 ? $firstWord : substr($firstWord, 0, 3);
+        }
+
+        $allClean = strtoupper((string) preg_replace('/[^A-Za-z0-9]/', '', $name));
+
+        return $allClean !== '' ? substr($allClean, 0, 3) : 'EMP';
     }
 }

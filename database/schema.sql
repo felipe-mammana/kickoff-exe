@@ -10,6 +10,11 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(160) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     is_admin TINYINT(1) NOT NULL DEFAULT 0,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    two_factor_enabled TINYINT(1) NOT NULL DEFAULT 0,
+    two_factor_secret TEXT NULL,
+    active_session_token VARCHAR(128) NULL,
+    active_session_started_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -77,6 +82,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     old_data LONGTEXT NULL,
     new_data LONGTEXT NULL,
     ip_address VARCHAR(45) NULL,
+    user_agent VARCHAR(255) NULL,
     session_identifier VARCHAR(128) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_audit_user (user_id),
@@ -115,6 +121,88 @@ CREATE TABLE IF NOT EXISTS api_tokens (
     INDEX idx_api_tokens_user (user_id),
     INDEX idx_api_tokens_expires_at (expires_at),
     CONSTRAINT fk_api_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(160) NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,
+    attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_login_attempts_lookup (email, ip_address, attempted_at),
+    INDEX idx_login_attempts_attempted_at (attempted_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS api_rate_limits (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    scope_key CHAR(64) NOT NULL UNIQUE,
+    scope_name VARCHAR(190) NOT NULL,
+    request_count INT UNSIGNED NOT NULL DEFAULT 0,
+    window_started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_request_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_api_rate_limits_last_request (last_request_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS vault_categories (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    parent_id INT UNSIGNED NULL,
+    name VARCHAR(120) NOT NULL,
+    slug VARCHAR(140) NOT NULL UNIQUE,
+    description VARCHAR(255) NULL,
+    icon VARCHAR(60) NOT NULL DEFAULT 'lock',
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_by INT UNSIGNED NULL,
+    updated_by INT UNSIGNED NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_vault_categories_parent (parent_id),
+    INDEX idx_vault_categories_active (is_active),
+    CONSTRAINT fk_vault_categories_parent FOREIGN KEY (parent_id) REFERENCES vault_categories(id) ON DELETE SET NULL,
+    CONSTRAINT fk_vault_categories_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_vault_categories_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS company_attachments (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    company_id INT UNSIGNED NOT NULL,
+    category_id INT UNSIGNED NULL,
+    disk_name VARCHAR(255) NOT NULL UNIQUE,
+    original_name VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(120) NOT NULL,
+    file_size INT UNSIGNED NOT NULL,
+    description VARCHAR(255) NULL,
+    uploaded_by INT UNSIGNED NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_company_attachments_company (company_id),
+    INDEX idx_company_attachments_category (category_id),
+    INDEX idx_company_attachments_created_at (created_at),
+    CONSTRAINT fk_company_attachments_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    CONSTRAINT fk_company_attachments_category FOREIGN KEY (category_id) REFERENCES vault_categories(id) ON DELETE SET NULL,
+    CONSTRAINT fk_company_attachments_uploaded_by FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS vault_credentials (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    company_id INT UNSIGNED NOT NULL,
+    category_id INT UNSIGNED NULL,
+    title VARCHAR(160) NOT NULL,
+    service_url VARCHAR(255) NULL,
+    username VARCHAR(190) NULL,
+    secret_value TEXT NOT NULL,
+    notes TEXT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    last_revealed_at TIMESTAMP NULL,
+    created_by INT UNSIGNED NULL,
+    updated_by INT UNSIGNED NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_vault_credentials_company (company_id),
+    INDEX idx_vault_credentials_category (category_id),
+    INDEX idx_vault_credentials_active (is_active),
+    INDEX idx_vault_credentials_updated_at (updated_at),
+    CONSTRAINT fk_vault_credentials_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    CONSTRAINT fk_vault_credentials_category FOREIGN KEY (category_id) REFERENCES vault_categories(id) ON DELETE SET NULL,
+    CONSTRAINT fk_vault_credentials_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_vault_credentials_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 INSERT INTO companies (name)
