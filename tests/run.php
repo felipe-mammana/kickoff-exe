@@ -132,6 +132,14 @@ try {
     $twoFactorCode = TwoFactorAuth::currentCode($twoFactorSecret, 1234567890);
     check('Codigo TOTP valido e aceito', TwoFactorAuth::verify($twoFactorSecret, $twoFactorCode, 0, 1234567890));
     check('Codigo por email possui 6 digitos', preg_match('/^\d{6}$/', EmailCode::generate()) === 1);
+    User::updateProfile($adminId, 'Admin Atualizado', 'admin.atualizado@example.com');
+    $updatedProfile = User::find($adminId);
+    check('Perfil do usuario pode ser atualizado', $updatedProfile !== null && $updatedProfile['name'] === 'Admin Atualizado' && $updatedProfile['email'] === 'admin.atualizado@example.com');
+    User::updateProfile($adminId, 'Admin Teste', 'admin.teste@example.com');
+    User::updatePassword($adminId, 'NovaSenha123');
+    $updatedPasswordUser = User::find($adminId);
+    check('Usuario pode alterar propria senha', $updatedPasswordUser !== null && password_verify('NovaSenha123', (string) $updatedPasswordUser['password_hash']));
+    User::updatePassword($adminId, 'SenhaForte123');
     User::enableTwoFactor($adminId, $twoFactorSecret);
     $adminWithTwoFactor = User::find($adminId);
     check('2FA fica ativo no usuario', $adminWithTwoFactor !== null && (int) $adminWithTwoFactor['two_factor_enabled'] === 1);

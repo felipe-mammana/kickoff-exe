@@ -47,17 +47,14 @@
             <?php endif; ?>
 
             <button class="btn btn-primary btn-full" type="submit"><?= icon('log-out') ?><span><?= !empty($requiresTwoFactor) ? 'Validar código' : 'Entrar' ?></span></button>
+            <?php if (!empty($requiresTwoFactor)): ?>
+                <button class="btn btn-muted btn-full" type="submit" formaction="/?route=login.2fa.email" formnovalidate>
+                    <?= icon('mail') ?><span>Enviar código por e-mail</span>
+                </button>
+                <button class="btn btn-muted btn-full" type="submit" formaction="/?route=login.2fa.cancel" formnovalidate>
+                    <?= icon('x') ?><span>Cancelar e voltar</span>
+                </button>
+            <?php endif; ?>
         </form>
-
-        <?php if (!empty($requiresTwoFactor)): ?>
-            <form class="auth-secondary-actions" action="/?route=login.2fa.email" method="post">
-                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                <button class="btn btn-muted btn-full" type="submit"><?= icon('mail') ?><span>Enviar código por e-mail</span></button>
-            </form>
-            <form class="auth-secondary-actions" action="/?route=login.2fa.cancel" method="post">
-                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                <button class="btn btn-muted btn-full" type="submit"><?= icon('x') ?><span>Cancelar e voltar</span></button>
-            </form>
-        <?php endif; ?>
     </div>
 </section>

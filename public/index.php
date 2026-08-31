@@ -139,6 +139,12 @@ try {
         case 'settings.index':
             SettingsController::index();
             break;
+        case 'settings.profile.update':
+            SettingsController::updateProfile();
+            break;
+        case 'settings.password.update':
+            SettingsController::updatePassword();
+            break;
         case 'settings.2fa.prepare':
             SettingsController::prepareTwoFactor();
             break;

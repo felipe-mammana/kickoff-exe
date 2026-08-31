@@ -59,6 +59,20 @@ class User
         ]);
     }
 
+    public static function updateProfile(int $id, string $name, string $email): void
+    {
+        $stmt = db()->prepare(
+            'UPDATE users
+             SET name = :name, email = :email
+             WHERE id = :id'
+        );
+        $stmt->execute([
+            'id' => $id,
+            'name' => $name,
+            'email' => $email,
+        ]);
+    }
+
     public static function updatePassword(int $id, string $password): void
     {
         $stmt = db()->prepare('UPDATE users SET password_hash = :password_hash WHERE id = :id');

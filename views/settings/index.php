@@ -48,6 +48,58 @@ $sessionStartedAt = $accountUser['active_session_started_at'] ?? null;
 </section>
 
 <section class="settings-grid">
+    <article class="asset-panel">
+        <header class="asset-panel-head">
+            <div>
+                <span><?= icon('user') ?></span>
+                <div>
+                    <h2>Perfil da conta</h2>
+                    <p>Atualize os dados básicos do usuário conectado.</p>
+                </div>
+            </div>
+        </header>
+        <form class="company-form settings-security-form" action="/?route=settings.profile.update" method="post" novalidate>
+            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+            <label class="field">
+                <span>Nome</span>
+                <input type="text" name="name" value="<?= e($accountUser['name']) ?>" maxlength="120" required>
+            </label>
+            <label class="field">
+                <span>E-mail</span>
+                <input type="email" name="email" value="<?= e($accountUser['email']) ?>" maxlength="160" required>
+            </label>
+            <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar perfil</span></button>
+        </form>
+    </article>
+
+    <article class="asset-panel">
+        <header class="asset-panel-head">
+            <div>
+                <span><?= icon('key-round') ?></span>
+                <div>
+                    <h2>Alterar senha</h2>
+                    <p>Troque a senha usada para entrar no sistema.</p>
+                </div>
+            </div>
+        </header>
+        <form class="company-form settings-security-form" action="/?route=settings.password.update" method="post" novalidate>
+            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+            <label class="field">
+                <span>Senha atual</span>
+                <input type="password" name="current_password" autocomplete="current-password" required>
+            </label>
+            <label class="field">
+                <span>Nova senha</span>
+                <input type="password" name="password" autocomplete="new-password" minlength="8" required>
+            </label>
+            <label class="field">
+                <span>Confirmar nova senha</span>
+                <input type="password" name="password_confirmation" autocomplete="new-password" minlength="8" required>
+            </label>
+            <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Alterar senha</span></button>
+        </form>
+    </article>
+
     <article class="asset-panel settings-wide-panel">
         <header class="asset-panel-head">
             <div>

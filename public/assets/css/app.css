@@ -2208,6 +2208,11 @@ body.sidebar-collapsed .sidebar-profile {
     max-width: 620px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: end;
+    padding: var(--space-4);
+}
+
+.settings-security-panel .settings-security-form {
+    padding: 0;
 }
 
 .settings-security-form .btn {
