@@ -474,6 +474,12 @@ body.sidebar-collapsed .sidebar-profile {
     margin: 0;
 }
 
+.two-factor-login-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+}
+
 .login-hero-logo {
     width: clamp(170px, 26vw, 230px);
     margin-bottom: var(--space-1);
@@ -2156,6 +2162,61 @@ body.sidebar-collapsed .sidebar-profile {
     grid-column: 1 / -1;
 }
 
+.settings-topic-panel {
+    overflow: hidden;
+}
+
+.settings-topic-panel .asset-panel-head {
+    align-items: center;
+}
+
+.settings-head-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.settings-topic-body {
+    display: grid;
+    gap: var(--space-4);
+    border-top: 1px solid var(--border);
+    padding: var(--space-4);
+}
+
+.settings-topic-body[hidden] {
+    display: none !important;
+}
+
+.settings-account-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+    align-items: start;
+}
+
+.settings-form-head {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 0.25rem;
+}
+
+.settings-form-head h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.settings-form-head p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.settings-preferences-form {
+    max-width: none;
+}
+
 .settings-check-list {
     display: grid;
     gap: var(--space-3);
@@ -2209,6 +2270,12 @@ body.sidebar-collapsed .sidebar-profile {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: end;
     padding: var(--space-4);
+}
+
+.settings-account-grid .settings-security-form,
+.settings-topic-body > .settings-security-form {
+    max-width: none;
+    padding: 0;
 }
 
 .settings-security-panel .settings-security-form {
@@ -3559,6 +3626,7 @@ body.sidebar-collapsed .sidebar-profile {
     flex: 1 1 auto;
     gap: var(--space-2);
     min-width: 0;
+    max-width: 100%;
     padding: 0.7rem 0.85rem;
     border: 1px solid color-mix(in srgb, var(--success) 34%, var(--border));
     border-radius: var(--radius);
@@ -3577,10 +3645,12 @@ body.sidebar-collapsed .sidebar-profile {
 }
 
 .attachment-selected span {
+    display: block;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
 }
 
 .attachment-selected button {
@@ -4192,7 +4262,9 @@ form[id^="delete-photo-"] {
         grid-template-columns: 1fr;
     }
 
-    .settings-security-form {
+    .settings-security-form,
+    .settings-account-grid,
+    .two-factor-login-actions {
         grid-template-columns: 1fr;
     }
 
@@ -4607,11 +4679,16 @@ form[id^="delete-photo-"] {
     .attachment-form-footer {
         align-items: stretch;
         flex-direction: column;
+        min-width: 0;
     }
 
     .attachment-form-footer .btn {
         width: 100%;
         justify-content: center;
+    }
+
+    .attachment-selected {
+        width: 100%;
     }
 
     .device-type-grid {

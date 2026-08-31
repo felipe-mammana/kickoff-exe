@@ -130,6 +130,66 @@ class SettingsController
         redirect('/?route=settings.index');
     }
 
+    public static function updatePreferences(): void
+    {
+        require_auth();
+        verify_csrf();
+
+        $user = User::find((int) current_user()['id']);
+        if (!$user) {
+            redirect('/?route=login');
+        }
+
+        $theme = (string) ($_POST['preferred_theme'] ?? 'light');
+        $sidebar = (string) ($_POST['sidebar_default'] ?? 'expanded');
+        $pageSize = (int) ($_POST['table_page_size'] ?? 25);
+        $datetimeFormat = (string) ($_POST['datetime_format'] ?? 'd/m/Y H:i');
+
+        $allowedThemes = ['light', 'dark'];
+        $allowedSidebars = ['expanded', 'collapsed'];
+        $allowedPageSizes = [10, 25, 50, 100];
+        $allowedDateFormats = ['d/m/Y H:i', 'd/m/Y', 'Y-m-d H:i', 'Y-m-d'];
+
+        if (!in_array($theme, $allowedThemes, true)
+            || !in_array($sidebar, $allowedSidebars, true)
+            || !in_array($pageSize, $allowedPageSizes, true)
+            || !in_array($datetimeFormat, $allowedDateFormats, true)
+        ) {
+            flash('danger', 'Preferências inválidas.');
+            redirect('/?route=settings.index');
+        }
+
+        $preferences = [
+            'preferred_theme' => $theme,
+            'sidebar_default' => $sidebar,
+            'table_page_size' => $pageSize,
+            'datetime_format' => $datetimeFormat,
+        ];
+
+        User::updatePreferences((int) $user['id'], $preferences);
+
+        foreach ($preferences as $key => $value) {
+            $_SESSION['user'][$key] = $value;
+        }
+
+        AuditLog::record([
+            'action_type' => 'user_preferences_updated',
+            'affected_table' => 'users',
+            'affected_record_id' => (int) $user['id'],
+            'description' => 'Usuário atualizou preferências do sistema.',
+            'old_data' => [
+                'preferred_theme' => $user['preferred_theme'] ?? 'light',
+                'sidebar_default' => $user['sidebar_default'] ?? 'expanded',
+                'table_page_size' => (int) ($user['table_page_size'] ?? 25),
+                'datetime_format' => $user['datetime_format'] ?? 'd/m/Y H:i',
+            ],
+            'new_data' => $preferences,
+        ]);
+
+        flash('success', 'Preferências salvas com sucesso.');
+        redirect('/?route=settings.index');
+    }
+
     public static function cancelTwoFactorSetup(): void
     {
         require_auth();

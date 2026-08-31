@@ -6,6 +6,16 @@ $isCompany = strpos($route, 'companies.') === 0;
 $isUsers = strpos($route, 'users.') === 0;
 $isSettings = strpos($route, 'settings.') === 0;
 $isVault = strpos($route, 'vault.') === 0;
+$layoutUser = current_user();
+$layoutTheme = $layoutUser['preferred_theme'] ?? 'light';
+$layoutSidebar = $layoutUser['sidebar_default'] ?? 'expanded';
+$bodyClasses = [];
+if ($isVault) {
+    $bodyClasses[] = 'route-vault';
+}
+if ($layoutSidebar === 'collapsed') {
+    $bodyClasses[] = 'sidebar-collapsed';
+}
 $companyIdForNav = (int) ($_GET['company_id'] ?? ($company['id'] ?? ($machine['company_id'] ?? 0)));
 $assetVersion = static function (string $path): string {
     $file = BASE_PATH . '/public' . $path;
@@ -22,19 +32,19 @@ $assetVersion = static function (string $path): string {
     <link rel="icon" type="image/webp" href="/assets/brand/exe-icon.webp">
     <script nonce="<?= e(csp_nonce()) ?>">
         (function () {
-            var theme = 'light';
+            var theme = <?= json_encode($layoutTheme === 'dark' ? 'dark' : 'light') ?>;
             try {
                 theme = localStorage.getItem('theme') || theme;
             } catch (error) {
-                theme = 'light';
+                theme = <?= json_encode($layoutTheme === 'dark' ? 'dark' : 'light') ?>;
             }
             document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
         })();
     </script>
     <link rel="stylesheet" href="/assets/css/app.css?v=<?= e($assetVersion('/assets/css/app.css')) ?>">
 </head>
-<body class="<?= $isVault ? 'route-vault' : '' ?>">
-    <?php if (current_user()): ?>
+<body class="<?= e(implode(' ', $bodyClasses)) ?>">
+    <?php if ($layoutUser): ?>
         <div class="app-frame">
             <?php require BASE_PATH . '/views/partials/sidebar.php'; ?>
             <button class="sidebar-backdrop" type="button" data-sidebar-close aria-label="Fechar menu"></button>

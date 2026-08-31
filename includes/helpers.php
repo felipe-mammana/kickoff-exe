@@ -62,6 +62,10 @@ function current_user(): ?array
             'email' => $user['email'],
             'is_admin' => (int) ($user['is_admin'] ?? 0),
             'two_factor_enabled' => (int) ($user['two_factor_enabled'] ?? 0),
+            'preferred_theme' => $user['preferred_theme'] ?? 'light',
+            'sidebar_default' => $user['sidebar_default'] ?? 'expanded',
+            'table_page_size' => (int) ($user['table_page_size'] ?? 25),
+            'datetime_format' => $user['datetime_format'] ?? 'd/m/Y H:i',
         ];
         $checkedUserId = (int) $user['id'];
         $checkedSessionToken = $sessionToken;

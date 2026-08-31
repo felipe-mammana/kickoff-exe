@@ -1,6 +1,10 @@
 <?php
 $twoFactorEnabled = !empty($accountUser['two_factor_enabled']);
 $sessionStartedAt = $accountUser['active_session_started_at'] ?? null;
+$preferredTheme = $accountUser['preferred_theme'] ?? 'light';
+$sidebarDefault = $accountUser['sidebar_default'] ?? 'expanded';
+$tablePageSize = (int) ($accountUser['table_page_size'] ?? 25);
+$datetimeFormat = $accountUser['datetime_format'] ?? 'd/m/Y H:i';
 ?>
 
 <nav class="breadcrumbs" aria-label="Breadcrumb">
@@ -48,114 +52,137 @@ $sessionStartedAt = $accountUser['active_session_started_at'] ?? null;
 </section>
 
 <section class="settings-grid">
-    <article class="asset-panel">
+    <article class="asset-panel settings-topic-panel settings-wide-panel" data-settings-topic>
         <header class="asset-panel-head">
             <div>
                 <span><?= icon('user') ?></span>
                 <div>
-                    <h2>Perfil da conta</h2>
-                    <p>Atualize os dados básicos do usuário conectado.</p>
+                    <h2>Conta</h2>
+                    <p>Dados do perfil e troca da senha de acesso.</p>
                 </div>
             </div>
+            <button class="btn btn-muted" type="button" data-settings-topic-toggle aria-expanded="false">
+                <?= icon('settings') ?><span>Abrir configurações</span>
+            </button>
         </header>
-        <form class="company-form settings-security-form" action="/?route=settings.profile.update" method="post" novalidate>
-            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-            <label class="field">
-                <span>Nome</span>
-                <input type="text" name="name" value="<?= e($accountUser['name']) ?>" maxlength="120" required>
-            </label>
-            <label class="field">
-                <span>E-mail</span>
-                <input type="email" name="email" value="<?= e($accountUser['email']) ?>" maxlength="160" required>
-            </label>
-            <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar perfil</span></button>
-        </form>
+        <div class="settings-topic-body" data-settings-topic-body hidden>
+            <div class="settings-account-grid">
+                <form class="company-form settings-security-form" action="/?route=settings.profile.update" method="post" novalidate>
+                    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                    <div class="settings-form-head">
+                        <h3>Perfil da conta</h3>
+                        <p>Atualize nome e e-mail do usuário conectado.</p>
+                    </div>
+                    <label class="field">
+                        <span>Nome</span>
+                        <input type="text" name="name" value="<?= e($accountUser['name']) ?>" maxlength="120" required>
+                    </label>
+                    <label class="field">
+                        <span>E-mail</span>
+                        <input type="email" name="email" value="<?= e($accountUser['email']) ?>" maxlength="160" required>
+                    </label>
+                    <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar perfil</span></button>
+                </form>
+
+                <form class="company-form settings-security-form" action="/?route=settings.password.update" method="post" novalidate>
+                    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                    <div class="settings-form-head">
+                        <h3>Alterar senha</h3>
+                        <p>Troque a senha usada para entrar no sistema.</p>
+                    </div>
+                    <label class="field">
+                        <span>Senha atual</span>
+                        <input type="password" name="current_password" autocomplete="current-password" required>
+                    </label>
+                    <label class="field">
+                        <span>Nova senha</span>
+                        <input type="password" name="password" autocomplete="new-password" minlength="8" required>
+                    </label>
+                    <label class="field">
+                        <span>Confirmar nova senha</span>
+                        <input type="password" name="password_confirmation" autocomplete="new-password" minlength="8" required>
+                    </label>
+                    <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Alterar senha</span></button>
+                </form>
+            </div>
+        </div>
     </article>
 
-    <article class="asset-panel">
+    <article class="asset-panel settings-topic-panel settings-wide-panel" data-settings-topic>
         <header class="asset-panel-head">
             <div>
-                <span><?= icon('key-round') ?></span>
+                <span><?= icon('settings') ?></span>
                 <div>
-                    <h2>Alterar senha</h2>
-                    <p>Troque a senha usada para entrar no sistema.</p>
+                    <h2>Preferências do sistema</h2>
+                    <p>Tema, menu lateral, tabelas e formato de data.</p>
                 </div>
             </div>
+            <button class="btn btn-muted" type="button" data-settings-topic-toggle aria-expanded="false">
+                <?= icon('settings') ?><span>Abrir configurações</span>
+            </button>
         </header>
-        <form class="company-form settings-security-form" action="/?route=settings.password.update" method="post" novalidate>
-            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-            <label class="field">
-                <span>Senha atual</span>
-                <input type="password" name="current_password" autocomplete="current-password" required>
-            </label>
-            <label class="field">
-                <span>Nova senha</span>
-                <input type="password" name="password" autocomplete="new-password" minlength="8" required>
-            </label>
-            <label class="field">
-                <span>Confirmar nova senha</span>
-                <input type="password" name="password_confirmation" autocomplete="new-password" minlength="8" required>
-            </label>
-            <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Alterar senha</span></button>
-        </form>
+        <div class="settings-topic-body" data-settings-topic-body hidden>
+            <form class="company-form settings-security-form settings-preferences-form" action="/?route=settings.preferences.update" method="post" novalidate>
+                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                <label class="field">
+                    <span>Tema padrão</span>
+                    <select name="preferred_theme" required>
+                        <option value="light" <?= $preferredTheme === 'light' ? 'selected' : '' ?>>Claro</option>
+                        <option value="dark" <?= $preferredTheme === 'dark' ? 'selected' : '' ?>>Escuro</option>
+                    </select>
+                </label>
+                <label class="field">
+                    <span>Menu no computador</span>
+                    <select name="sidebar_default" required>
+                        <option value="expanded" <?= $sidebarDefault === 'expanded' ? 'selected' : '' ?>>Aberto</option>
+                        <option value="collapsed" <?= $sidebarDefault === 'collapsed' ? 'selected' : '' ?>>Recolhido</option>
+                    </select>
+                </label>
+                <label class="field">
+                    <span>Itens por tabela</span>
+                    <select name="table_page_size" required>
+                        <?php foreach ([10, 25, 50, 100] as $size): ?>
+                            <option value="<?= $size ?>" <?= $tablePageSize === $size ? 'selected' : '' ?>><?= $size ?> itens</option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <label class="field">
+                    <span>Formato de data</span>
+                    <select name="datetime_format" required>
+                        <option value="d/m/Y H:i" <?= $datetimeFormat === 'd/m/Y H:i' ? 'selected' : '' ?>>31/08/2026 14:30</option>
+                        <option value="d/m/Y" <?= $datetimeFormat === 'd/m/Y' ? 'selected' : '' ?>>31/08/2026</option>
+                        <option value="Y-m-d H:i" <?= $datetimeFormat === 'Y-m-d H:i' ? 'selected' : '' ?>>2026-08-31 14:30</option>
+                        <option value="Y-m-d" <?= $datetimeFormat === 'Y-m-d' ? 'selected' : '' ?>>2026-08-31</option>
+                    </select>
+                </label>
+                <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar preferências</span></button>
+            </form>
+        </div>
     </article>
 
-    <article class="asset-panel settings-wide-panel">
+    <article class="asset-panel settings-topic-panel settings-wide-panel" data-settings-topic>
         <header class="asset-panel-head">
             <div>
                 <span><?= icon('shield') ?></span>
                 <div>
                     <h2>Autenticação em dois fatores</h2>
-                    <p>Protege sua conta com um código temporário do aplicativo autenticador.</p>
+                    <p>Senha, aplicativo autenticador e código por e-mail no login.</p>
                 </div>
             </div>
-            <span class="status-chip <?= $twoFactorEnabled ? 'success' : 'neutral' ?>"><?= $twoFactorEnabled ? 'Ativo' : 'Inativo' ?></span>
+            <div class="settings-head-actions">
+                <span class="status-chip <?= $twoFactorEnabled ? 'success' : 'neutral' ?>"><?= $twoFactorEnabled ? 'Ativo' : 'Inativo' ?></span>
+                <button class="btn btn-muted" type="button" data-settings-topic-toggle aria-expanded="false">
+                    <?= icon('settings') ?><span>Abrir configurações</span>
+                </button>
+            </div>
         </header>
-
-        <?php if ($twoFactorEnabled): ?>
-            <div class="settings-security-panel">
-                <div class="settings-readonly">
-                    <p>O 2FA está ativo. No próximo login, o sistema exigirá senha e código do aplicativo autenticador.</p>
-                </div>
-                <form class="company-form settings-security-form" action="/?route=settings.2fa.disable" method="post" novalidate>
-                    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                    <label class="field">
-                        <span>Senha atual</span>
-                        <input type="password" name="password" autocomplete="current-password" required>
-                    </label>
-                    <label class="field">
-                        <span>Código 2FA</span>
-                        <input type="text" name="two_factor_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
-                    </label>
-                    <button class="btn btn-danger" type="submit"><?= icon('trash-2') ?><span>Desativar 2FA</span></button>
-                </form>
-            </div>
-        <?php else: ?>
-            <div class="settings-security-panel">
-                <?php if (!$twoFactorSetupSecret): ?>
+        <div class="settings-topic-body" data-settings-topic-body hidden>
+            <?php if ($twoFactorEnabled): ?>
+                <div class="settings-security-panel">
                     <div class="settings-readonly">
-                        <p>Para ativar, gere uma chave, cadastre no Google Authenticator, Microsoft Authenticator, 1Password ou aplicativo compatível e confirme o primeiro código.</p>
+                        <p>O 2FA está ativo. No login, o sistema aceita o código do aplicativo autenticador ou um código enviado por e-mail.</p>
                     </div>
-                    <form action="/?route=settings.2fa.prepare" method="post">
-                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                        <button class="btn btn-primary" type="submit"><?= icon('plus') ?><span>Configurar 2FA</span></button>
-                    </form>
-                <?php else: ?>
-                    <div class="two-factor-setup">
-                        <div>
-                            <span class="eyebrow">Chave manual</span>
-                            <code><?= e($twoFactorSetupSecret) ?></code>
-                            <small>Adicione esta chave no aplicativo autenticador e informe o código gerado.</small>
-                        </div>
-                        <?php if ($twoFactorProvisioningUri): ?>
-                            <div>
-                                <span class="eyebrow">URI de configuração</span>
-                                <code><?= e($twoFactorProvisioningUri) ?></code>
-                                <small>Use apenas se o aplicativo permitir colar uma URI otpauth.</small>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                    <form class="company-form settings-security-form" action="/?route=settings.2fa.enable" method="post" novalidate>
+                    <form class="company-form settings-security-form" action="/?route=settings.2fa.disable" method="post" novalidate>
                         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                         <label class="field">
                             <span>Senha atual</span>
@@ -165,18 +192,57 @@ $sessionStartedAt = $accountUser['active_session_started_at'] ?? null;
                             <span>Código 2FA</span>
                             <input type="text" name="two_factor_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
                         </label>
-                        <button class="btn btn-primary" type="submit"><?= icon('check-circle') ?><span>Ativar 2FA</span></button>
+                        <button class="btn btn-danger" type="submit"><?= icon('trash-2') ?><span>Desativar 2FA</span></button>
                     </form>
-                    <form action="/?route=settings.2fa.cancel" method="post">
-                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                        <button class="btn btn-muted" type="submit"><?= icon('x') ?><span>Cancelar configuração</span></button>
-                    </form>
-                <?php endif; ?>
-            </div>
-        <?php endif; ?>
+                </div>
+            <?php else: ?>
+                <div class="settings-security-panel">
+                    <?php if (!$twoFactorSetupSecret): ?>
+                        <div class="settings-readonly">
+                            <p>Para ativar, gere uma chave, cadastre no aplicativo autenticador e confirme o primeiro código.</p>
+                        </div>
+                        <form action="/?route=settings.2fa.prepare" method="post">
+                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                            <button class="btn btn-primary" type="submit"><?= icon('plus') ?><span>Configurar 2FA</span></button>
+                        </form>
+                    <?php else: ?>
+                        <div class="two-factor-setup">
+                            <div>
+                                <span class="eyebrow">Chave manual</span>
+                                <code><?= e($twoFactorSetupSecret) ?></code>
+                                <small>Adicione esta chave no aplicativo autenticador e informe o código gerado.</small>
+                            </div>
+                            <?php if ($twoFactorProvisioningUri): ?>
+                                <div>
+                                    <span class="eyebrow">URI de configuração</span>
+                                    <code><?= e($twoFactorProvisioningUri) ?></code>
+                                    <small>Use apenas se o aplicativo permitir colar uma URI otpauth.</small>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <form class="company-form settings-security-form" action="/?route=settings.2fa.enable" method="post" novalidate>
+                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                            <label class="field">
+                                <span>Senha atual</span>
+                                <input type="password" name="password" autocomplete="current-password" required>
+                            </label>
+                            <label class="field">
+                                <span>Código 2FA</span>
+                                <input type="text" name="two_factor_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+                            </label>
+                            <button class="btn btn-primary" type="submit"><?= icon('check-circle') ?><span>Ativar 2FA</span></button>
+                        </form>
+                        <form action="/?route=settings.2fa.cancel" method="post">
+                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                            <button class="btn btn-muted" type="submit"><?= icon('x') ?><span>Cancelar configuração</span></button>
+                        </form>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+        </div>
     </article>
 
-    <article class="asset-panel">
+    <article class="asset-panel settings-topic-panel" data-settings-topic>
         <header class="asset-panel-head">
             <div>
                 <span><?= icon('history') ?></span>
@@ -201,7 +267,7 @@ $sessionStartedAt = $accountUser['active_session_started_at'] ?? null;
         </div>
     </article>
 
-    <article class="asset-panel">
+    <article class="asset-panel settings-topic-panel" data-settings-topic>
         <header class="asset-panel-head">
             <div>
                 <span><?= icon('file-clock') ?></span>

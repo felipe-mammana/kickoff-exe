@@ -24,6 +24,14 @@
                 <?php if (!empty($twoFactorUserEmail)): ?>
                     <p class="field-hint">Conta: <strong><?= e($twoFactorUserEmail) ?></strong></p>
                 <?php endif; ?>
+                <div class="two-factor-login-actions" aria-label="Opções de verificação">
+                    <button class="btn btn-muted btn-full" type="submit" formaction="/?route=login.2fa.email" formnovalidate>
+                        <?= icon('mail') ?><span>Enviar código por e-mail</span>
+                    </button>
+                    <button class="btn btn-muted btn-full" type="submit" formaction="/?route=login.2fa.cancel" formnovalidate>
+                        <?= icon('x') ?><span>Cancelar e voltar</span>
+                    </button>
+                </div>
                 <label class="field">
                     <span>Código 2FA</span>
                     <input type="text" name="two_factor_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus>
@@ -47,14 +55,6 @@
             <?php endif; ?>
 
             <button class="btn btn-primary btn-full" type="submit"><?= icon('log-out') ?><span><?= !empty($requiresTwoFactor) ? 'Validar código' : 'Entrar' ?></span></button>
-            <?php if (!empty($requiresTwoFactor)): ?>
-                <button class="btn btn-muted btn-full" type="submit" formaction="/?route=login.2fa.email" formnovalidate>
-                    <?= icon('mail') ?><span>Enviar código por e-mail</span>
-                </button>
-                <button class="btn btn-muted btn-full" type="submit" formaction="/?route=login.2fa.cancel" formnovalidate>
-                    <?= icon('x') ?><span>Cancelar e voltar</span>
-                </button>
-            <?php endif; ?>
         </form>
     </div>
 </section>

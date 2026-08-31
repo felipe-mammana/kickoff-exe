@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS users (
     two_factor_secret TEXT NULL,
     active_session_token VARCHAR(128) NULL,
     active_session_started_at TIMESTAMP NULL,
+    preferred_theme VARCHAR(16) NOT NULL DEFAULT 'light',
+    sidebar_default VARCHAR(16) NOT NULL DEFAULT 'expanded',
+    table_page_size INT UNSIGNED NOT NULL DEFAULT 25,
+    datetime_format VARCHAR(24) NOT NULL DEFAULT 'd/m/Y H:i',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 

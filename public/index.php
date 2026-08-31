@@ -145,6 +145,9 @@ try {
         case 'settings.password.update':
             SettingsController::updatePassword();
             break;
+        case 'settings.preferences.update':
+            SettingsController::updatePreferences();
+            break;
         case 'settings.2fa.prepare':
             SettingsController::prepareTwoFactor();
             break;

@@ -140,6 +140,24 @@ try {
     $updatedPasswordUser = User::find($adminId);
     check('Usuario pode alterar propria senha', $updatedPasswordUser !== null && password_verify('NovaSenha123', (string) $updatedPasswordUser['password_hash']));
     User::updatePassword($adminId, 'SenhaForte123');
+    User::updatePreferences($adminId, [
+        'preferred_theme' => 'dark',
+        'sidebar_default' => 'collapsed',
+        'table_page_size' => 50,
+        'datetime_format' => 'd/m/Y',
+    ]);
+    $updatedPreferencesUser = User::find($adminId);
+    check('Preferencias do usuario podem ser atualizadas', $updatedPreferencesUser !== null
+        && ($updatedPreferencesUser['preferred_theme'] ?? '') === 'dark'
+        && ($updatedPreferencesUser['sidebar_default'] ?? '') === 'collapsed'
+        && (int) ($updatedPreferencesUser['table_page_size'] ?? 0) === 50
+        && ($updatedPreferencesUser['datetime_format'] ?? '') === 'd/m/Y');
+    User::updatePreferences($adminId, [
+        'preferred_theme' => 'light',
+        'sidebar_default' => 'expanded',
+        'table_page_size' => 25,
+        'datetime_format' => 'd/m/Y H:i',
+    ]);
     User::enableTwoFactor($adminId, $twoFactorSecret);
     $adminWithTwoFactor = User::find($adminId);
     check('2FA fica ativo no usuario', $adminWithTwoFactor !== null && (int) $adminWithTwoFactor['two_factor_enabled'] === 1);

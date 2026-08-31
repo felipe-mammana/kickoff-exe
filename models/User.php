@@ -82,6 +82,25 @@ class User
         ]);
     }
 
+    public static function updatePreferences(int $id, array $preferences): void
+    {
+        $stmt = db()->prepare(
+            'UPDATE users
+             SET preferred_theme = :preferred_theme,
+                 sidebar_default = :sidebar_default,
+                 table_page_size = :table_page_size,
+                 datetime_format = :datetime_format
+             WHERE id = :id'
+        );
+        $stmt->execute([
+            'id' => $id,
+            'preferred_theme' => $preferences['preferred_theme'],
+            'sidebar_default' => $preferences['sidebar_default'],
+            'table_page_size' => (int) $preferences['table_page_size'],
+            'datetime_format' => $preferences['datetime_format'],
+        ]);
+    }
+
     public static function setActive(int $id, bool $active): void
     {
         $stmt = db()->prepare('UPDATE users SET is_active = :is_active WHERE id = :id');

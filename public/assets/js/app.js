@@ -44,8 +44,13 @@
         localStorage.setItem('sidebarCollapsed', document.body.classList.contains('sidebar-collapsed') ? '1' : '0');
     });
 
-    if (localStorage.getItem('sidebarCollapsed') === '1' && !window.matchMedia('(max-width: 1080px)').matches) {
-        document.body.classList.add('sidebar-collapsed');
+    try {
+        const storedSidebar = localStorage.getItem('sidebarCollapsed');
+        if (storedSidebar !== null && !window.matchMedia('(max-width: 1080px)').matches) {
+            document.body.classList.toggle('sidebar-collapsed', storedSidebar === '1');
+        }
+    } catch (error) {
+        // Mantem o padrao vindo do servidor quando o navegador bloqueia localStorage.
     }
 
     document.querySelectorAll('[data-sidebar] a').forEach(function (link) {
@@ -58,6 +63,30 @@
         button.addEventListener('click', function () {
             setSidebarOpen(false);
         });
+    });
+
+    document.querySelectorAll('[data-settings-topic-toggle]').forEach(function (toggle) {
+        const panel = toggle.closest('[data-settings-topic]');
+        const body = panel?.querySelector('[data-settings-topic-body]');
+        const label = toggle.querySelector('span');
+
+        if (!body) {
+            return;
+        }
+
+        function setTopicOpen(open) {
+            body.hidden = !open;
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (label) {
+                label.textContent = open ? 'Fechar configurações' : 'Abrir configurações';
+            }
+        }
+
+        toggle.addEventListener('click', function () {
+            setTopicOpen(body.hidden);
+        });
+
+        setTopicOpen(false);
     });
 
     document.querySelectorAll('.company-attachment-form').forEach(function (form) {
