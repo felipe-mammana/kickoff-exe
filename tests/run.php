@@ -113,8 +113,11 @@ try {
     check('Usuario inativo nao permanece autenticado na sessao', current_user() === null);
 
     $plainToken = ApiToken::generatePlainToken();
-    ApiToken::create($adminId, 'Token ativo', $plainToken, date('Y-m-d H:i:s', strtotime('+1 day')));
+    $apiTokenId = ApiToken::create($adminId, 'Token ativo', $plainToken, date('Y-m-d H:i:s', strtotime('+1 day')));
     check('Token de usuario ativo autentica', ApiToken::findActiveByPlainToken($plainToken) !== null);
+    check('Token de API pode ser revogado pelo usuario', ApiToken::revoke($apiTokenId, $adminId) === true && ApiToken::findActiveByPlainToken($plainToken) === null);
+    $plainToken = ApiToken::generatePlainToken();
+    ApiToken::create($adminId, 'Token ativo 2', $plainToken, date('Y-m-d H:i:s', strtotime('+1 day')));
     User::setActive($adminId, false);
     check('Token de usuario inativo e recusado', ApiToken::findActiveByPlainToken($plainToken) === null);
     User::setActive($adminId, true);
@@ -158,6 +161,12 @@ try {
         'table_page_size' => 25,
         'datetime_format' => 'd/m/Y H:i',
     ]);
+    User::updateSecurityPreferences($adminId, 60, true);
+    $securityPreferencesUser = User::find($adminId);
+    check('Preferencias de seguranca podem ser atualizadas', $securityPreferencesUser !== null
+        && (int) ($securityPreferencesUser['session_timeout_minutes'] ?? 0) === 60
+        && (int) ($securityPreferencesUser['vault_require_password_reveal'] ?? 0) === 1);
+    User::updateSecurityPreferences($adminId, 480, false);
     User::enableTwoFactor($adminId, $twoFactorSecret);
     $adminWithTwoFactor = User::find($adminId);
     check('2FA fica ativo no usuario', $adminWithTwoFactor !== null && (int) $adminWithTwoFactor['two_factor_enabled'] === 1);

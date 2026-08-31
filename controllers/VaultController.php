@@ -210,6 +210,28 @@ class VaultController
             ApiResponse::error('csrf_required', 'Sessão expirada. Atualize a página e tente novamente.', 419);
         }
 
+        $currentUser = User::find((int) current_user()['id']);
+        if (!$currentUser) {
+            ApiResponse::error('auth_required', 'Sessão inválida.', 401);
+        }
+
+        if (!empty($currentUser['vault_require_password_reveal'])) {
+            $password = (string) ($_POST['reveal_password'] ?? '');
+            if ($password === '') {
+                ApiResponse::error('password_required', 'Confirme sua senha para revelar esta credencial.', 403);
+            }
+
+            if (!password_verify($password, (string) $currentUser['password_hash'])) {
+                AuditLog::record([
+                    'action_type' => 'vault_credential_reveal_password_failed',
+                    'affected_table' => 'users',
+                    'affected_record_id' => (int) $currentUser['id'],
+                    'description' => 'Senha incorreta ao tentar revelar credencial do cofre.',
+                ]);
+                ApiResponse::error('password_invalid', 'Senha inválida.', 403);
+            }
+        }
+
         $credential = self::requireCredential((int) ($_POST['id'] ?? 0));
         $value = CredentialCrypto::decrypt((string) ($credential['secret_value'] ?? ''));
         if ($value === null || $value === '' || $value === '[credencial inválida]') {

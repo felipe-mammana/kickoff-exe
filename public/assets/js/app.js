@@ -1158,12 +1158,12 @@
         });
     }
 
-    function fetchVaultSecret(cell, id) {
+    function fetchVaultSecret(cell, id, revealPassword) {
         const output = cell?.querySelector('[data-vault-secret-output]');
         if (!cell || !output) {
             return Promise.reject(new Error('Campo de senha inválido.'));
         }
-        if (output.dataset.loaded === '1') {
+        if (output.dataset.loaded === '1' && !revealPassword) {
             return Promise.resolve(output.value);
         }
 
@@ -1175,6 +1175,9 @@
         const payload = new URLSearchParams();
         payload.set('id', id);
         payload.set('csrf_token', csrf);
+        if (revealPassword) {
+            payload.set('reveal_password', revealPassword);
+        }
 
         return fetch('/?route=vault.reveal', {
             method: 'POST',
@@ -1188,12 +1191,25 @@
             });
         }).then(function (result) {
             if (!result.ok) {
-                throw new Error(result.json?.error?.message || 'Não foi possível revelar a credencial.');
+                const error = new Error(result.json?.error?.message || 'Não foi possível revelar a credencial.');
+                error.code = result.json?.error?.code || '';
+                throw error;
             }
 
             output.value = result.json.data.value || '';
             output.dataset.loaded = '1';
             return output.value;
+        }).catch(function (error) {
+            if (error.code !== 'password_required') {
+                throw error;
+            }
+
+            const password = window.prompt('Confirme sua senha para revelar esta credencial:');
+            if (!password) {
+                throw new Error('A senha é obrigatória para revelar esta credencial.');
+            }
+
+            return fetchVaultSecret(cell, id, password);
         });
     }
 

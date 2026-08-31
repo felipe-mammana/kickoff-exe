@@ -148,6 +148,18 @@ try {
         case 'settings.preferences.update':
             SettingsController::updatePreferences();
             break;
+        case 'settings.security.update':
+            SettingsController::updateSecurityPreferences();
+            break;
+        case 'settings.sessions.endOther':
+            SettingsController::endOtherSessions();
+            break;
+        case 'settings.apiTokens.store':
+            SettingsController::createApiToken();
+            break;
+        case 'settings.apiTokens.revoke':
+            SettingsController::revokeApiToken();
+            break;
         case 'settings.2fa.prepare':
             SettingsController::prepareTwoFactor();
             break;

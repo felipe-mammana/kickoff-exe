@@ -114,19 +114,25 @@ class User
     {
         $stmt = db()->prepare(
             'UPDATE users
-             SET active_session_token = :token, active_session_started_at = CURRENT_TIMESTAMP
+             SET active_session_token = :token,
+                 active_session_started_at = CURRENT_TIMESTAMP,
+                 active_session_ip = :ip_address,
+                 active_session_user_agent = :user_agent
              WHERE id = :id'
         );
         $stmt->execute([
             'id' => $id,
             'token' => $token,
+            'ip_address' => client_ip(),
+            'user_agent' => self::limitString($_SERVER['HTTP_USER_AGENT'] ?? null, 255),
         ]);
     }
 
     public static function clearActiveSession(int $id, ?string $token = null): void
     {
         $sql = 'UPDATE users
-                SET active_session_token = NULL, active_session_started_at = NULL
+             SET active_session_token = NULL, active_session_started_at = NULL
+             , active_session_ip = NULL, active_session_user_agent = NULL
                 WHERE id = :id';
         $params = ['id' => $id];
 
@@ -137,6 +143,21 @@ class User
 
         $stmt = db()->prepare($sql);
         $stmt->execute($params);
+    }
+
+    public static function updateSecurityPreferences(int $id, int $sessionTimeoutMinutes, bool $vaultRequirePasswordReveal): void
+    {
+        $stmt = db()->prepare(
+            'UPDATE users
+             SET session_timeout_minutes = :session_timeout_minutes,
+                 vault_require_password_reveal = :vault_require_password_reveal
+             WHERE id = :id'
+        );
+        $stmt->execute([
+            'id' => $id,
+            'session_timeout_minutes' => $sessionTimeoutMinutes,
+            'vault_require_password_reveal' => $vaultRequirePasswordReveal ? 1 : 0,
+        ]);
     }
 
     public static function enableTwoFactor(int $id, string $secret): void
@@ -202,5 +223,19 @@ class User
         $stmt->execute($params);
 
         return (int) $stmt->fetchColumn();
+    }
+
+    private static function limitString($value, int $maxLength): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        return function_exists('mb_substr') ? mb_substr($value, 0, $maxLength, 'UTF-8') : substr($value, 0, $maxLength);
     }
 }

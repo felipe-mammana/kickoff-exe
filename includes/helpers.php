@@ -56,6 +56,18 @@ function current_user(): ?array
             return null;
         }
 
+        $timeoutMinutes = (int) ($user['session_timeout_minutes'] ?? 480);
+        $startedAt = strtotime((string) ($user['active_session_started_at'] ?? ''));
+        if ($timeoutMinutes > 0 && $startedAt !== false && $startedAt + ($timeoutMinutes * 60) < time()) {
+            User::clearActiveSession((int) $user['id'], $sessionToken);
+            $_SESSION = [];
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_destroy();
+            }
+
+            return null;
+        }
+
         $_SESSION['user'] = [
             'id' => (int) $user['id'],
             'name' => $user['name'],
@@ -66,6 +78,8 @@ function current_user(): ?array
             'sidebar_default' => $user['sidebar_default'] ?? 'expanded',
             'table_page_size' => (int) ($user['table_page_size'] ?? 25),
             'datetime_format' => $user['datetime_format'] ?? 'd/m/Y H:i',
+            'session_timeout_minutes' => (int) ($user['session_timeout_minutes'] ?? 480),
+            'vault_require_password_reveal' => (int) ($user['vault_require_password_reveal'] ?? 0),
         ];
         $checkedUserId = (int) $user['id'];
         $checkedSessionToken = $sessionToken;

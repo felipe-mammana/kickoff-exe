@@ -10,10 +10,14 @@ CREATE TABLE IF NOT EXISTS users (
     two_factor_secret TEXT NULL,
     active_session_token VARCHAR(128) NULL,
     active_session_started_at TIMESTAMP NULL,
+    active_session_ip VARCHAR(45) NULL,
+    active_session_user_agent VARCHAR(255) NULL,
     preferred_theme VARCHAR(16) NOT NULL DEFAULT 'light',
     sidebar_default VARCHAR(16) NOT NULL DEFAULT 'expanded',
     table_page_size INT UNSIGNED NOT NULL DEFAULT 25,
     datetime_format VARCHAR(24) NOT NULL DEFAULT 'd/m/Y H:i',
+    session_timeout_minutes INT UNSIGNED NOT NULL DEFAULT 480,
+    vault_require_password_reveal TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 

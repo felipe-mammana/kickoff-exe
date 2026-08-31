@@ -2291,6 +2291,99 @@ body.sidebar-collapsed .sidebar-profile {
     justify-self: start;
 }
 
+.settings-security-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+}
+
+.settings-security-card {
+    display: grid;
+    gap: var(--space-3);
+    min-width: 0;
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--surface-2) 76%, transparent);
+}
+
+.settings-session-list,
+.settings-access-list,
+.settings-token-list {
+    display: grid;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.settings-session-list > div,
+.settings-access-list > div,
+.settings-token-list > div {
+    display: grid;
+    gap: 0.3rem;
+    min-width: 0;
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.settings-session-list > div {
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+}
+
+.settings-session-list .icon {
+    color: var(--success);
+}
+
+.settings-session-list small,
+.settings-access-list span,
+.settings-token-list small {
+    color: var(--muted);
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+}
+
+.settings-session-list small {
+    grid-column: 2;
+}
+
+.settings-token-list > div {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+}
+
+.settings-token-result {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: var(--space-2);
+    min-width: 0;
+    padding: var(--space-3);
+    border: 1px solid color-mix(in srgb, var(--success) 34%, var(--border));
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--success) 8%, var(--surface));
+}
+
+.settings-token-result code {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.toggle-field {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--text);
+    font-weight: 800;
+}
+
+.muted-text {
+    margin: 0;
+    color: var(--muted);
+}
+
 .two-factor-setup {
     display: grid;
     gap: var(--space-3);
@@ -4268,7 +4361,12 @@ form[id^="delete-photo-"] {
 
     .settings-security-form,
     .settings-account-grid,
+    .settings-security-grid,
     .two-factor-login-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-token-list > div {
         grid-template-columns: 1fr;
     }
 

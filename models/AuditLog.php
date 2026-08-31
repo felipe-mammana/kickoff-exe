@@ -138,6 +138,28 @@ class AuditLog
         return $stmt->fetchAll();
     }
 
+    public static function latestAccountAccesses(int $userId, int $limit = 8): array
+    {
+        $limit = max(1, min(20, $limit));
+        $stmt = db()->prepare(
+            'SELECT action_type, description, ip_address, user_agent, created_at
+             FROM audit_logs
+             WHERE user_id = :user_id
+               AND action_type IN (:login_success, :logout, :login_2fa_failed, :login_failed)
+             ORDER BY created_at DESC
+             LIMIT ' . $limit
+        );
+        $stmt->execute([
+            'user_id' => $userId,
+            'login_success' => 'login_success',
+            'logout' => 'logout',
+            'login_2fa_failed' => 'login_2fa_failed',
+            'login_failed' => 'login_failed',
+        ]);
+
+        return $stmt->fetchAll();
+    }
+
     private static function encode($value): ?string
     {
         if ($value === null || $value === []) {

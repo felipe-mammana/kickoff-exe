@@ -25,6 +25,10 @@ class SettingsController
             'twoFactorProvisioningUri' => $setupSecret
                 ? TwoFactorAuth::provisioningUri((string) $user['email'], APP_NAME, $setupSecret)
                 : null,
+            'activeSessions' => self::activeSessions($user),
+            'recentAccesses' => AuditLog::latestAccountAccesses((int) $user['id']),
+            'apiTokens' => ApiToken::byUser((int) $user['id']),
+            'generatedApiToken' => self::consumeGeneratedApiToken(),
         ]);
     }
 
@@ -190,6 +194,145 @@ class SettingsController
         redirect('/?route=settings.index');
     }
 
+    public static function updateSecurityPreferences(): void
+    {
+        require_auth();
+        verify_csrf();
+
+        $user = User::find((int) current_user()['id']);
+        if (!$user) {
+            redirect('/?route=login');
+        }
+
+        $timeout = (int) ($_POST['session_timeout_minutes'] ?? 480);
+        $allowedTimeouts = [30, 60, 120, 240, 480, 720, 1440];
+        if (!in_array($timeout, $allowedTimeouts, true)) {
+            flash('danger', 'Tempo de sessão inválido.');
+            redirect('/?route=settings.index');
+        }
+
+        $requirePassword = !empty($_POST['vault_require_password_reveal']);
+        User::updateSecurityPreferences((int) $user['id'], $timeout, $requirePassword);
+        $_SESSION['user']['session_timeout_minutes'] = $timeout;
+        $_SESSION['user']['vault_require_password_reveal'] = $requirePassword ? 1 : 0;
+
+        AuditLog::record([
+            'action_type' => 'user_security_preferences_updated',
+            'affected_table' => 'users',
+            'affected_record_id' => (int) $user['id'],
+            'description' => 'Usuário atualizou preferências de segurança.',
+            'old_data' => [
+                'session_timeout_minutes' => (int) ($user['session_timeout_minutes'] ?? 480),
+                'vault_require_password_reveal' => (int) ($user['vault_require_password_reveal'] ?? 0),
+            ],
+            'new_data' => [
+                'session_timeout_minutes' => $timeout,
+                'vault_require_password_reveal' => $requirePassword ? 1 : 0,
+            ],
+        ]);
+
+        flash('success', 'Preferências de segurança salvas.');
+        redirect('/?route=settings.index');
+    }
+
+    public static function endOtherSessions(): void
+    {
+        require_auth();
+        verify_csrf();
+
+        $user = User::find((int) current_user()['id']);
+        $token = (string) ($_SESSION['session_token'] ?? '');
+        if (!$user || $token === '') {
+            redirect('/?route=login');
+        }
+
+        User::setActiveSession((int) $user['id'], $token);
+
+        AuditLog::record([
+            'action_type' => 'user_sessions_revoked',
+            'affected_table' => 'users',
+            'affected_record_id' => (int) $user['id'],
+            'description' => 'Usuário manteve a sessão atual e invalidou outras sessões.',
+        ]);
+
+        flash('success', 'Outras sessões foram encerradas. A sessão atual foi mantida.');
+        redirect('/?route=settings.index');
+    }
+
+    public static function createApiToken(): void
+    {
+        require_auth();
+        verify_csrf();
+
+        $user = User::find((int) current_user()['id']);
+        if (!$user) {
+            redirect('/?route=login');
+        }
+
+        $name = trim((string) ($_POST['api_token_name'] ?? ''));
+        $days = (int) ($_POST['api_token_days'] ?? 90);
+
+        if ($name === '' || strlen($name) > 120) {
+            flash('danger', 'Informe um nome válido para o token.');
+            redirect('/?route=settings.index');
+        }
+
+        if (!in_array($days, [7, 30, 90, 180, 365], true)) {
+            flash('danger', 'Validade do token inválida.');
+            redirect('/?route=settings.index');
+        }
+
+        $plainToken = ApiToken::generatePlainToken();
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+' . $days . ' days'));
+        $tokenId = ApiToken::create((int) $user['id'], $name, $plainToken, $expiresAt);
+        $_SESSION['generated_api_token'] = [
+            'name' => $name,
+            'token' => $plainToken,
+            'expires_at' => $expiresAt,
+        ];
+
+        AuditLog::record([
+            'action_type' => 'api_token_created',
+            'affected_table' => 'api_tokens',
+            'affected_record_id' => $tokenId,
+            'description' => 'Usuário gerou token de API.',
+            'new_data' => [
+                'name' => $name,
+                'expires_at' => $expiresAt,
+            ],
+        ]);
+
+        flash('success', 'Token de API criado. Copie o valor exibido agora; ele não será mostrado novamente.');
+        redirect('/?route=settings.index');
+    }
+
+    public static function revokeApiToken(): void
+    {
+        require_auth();
+        verify_csrf();
+
+        $user = User::find((int) current_user()['id']);
+        if (!$user) {
+            redirect('/?route=login');
+        }
+
+        $tokenId = (int) ($_POST['id'] ?? 0);
+        if ($tokenId <= 0 || !ApiToken::revoke($tokenId, (int) $user['id'])) {
+            flash('danger', 'Token não encontrado ou já revogado.');
+            redirect('/?route=settings.index');
+        }
+
+        AuditLog::record([
+            'action_type' => 'api_token_revoked',
+            'affected_table' => 'api_tokens',
+            'affected_record_id' => $tokenId,
+            'description' => 'Usuário revogou token de API.',
+        ]);
+
+        flash('success', 'Token revogado com sucesso.');
+        redirect('/?route=settings.index');
+    }
+
     public static function cancelTwoFactorSetup(): void
     {
         require_auth();
@@ -310,5 +453,27 @@ class SettingsController
 
         flash('success', '2FA desativado com sucesso.');
         redirect('/?route=settings.index');
+    }
+
+    private static function activeSessions(array $user): array
+    {
+        if (empty($user['active_session_token'])) {
+            return [];
+        }
+
+        return [[
+            'started_at' => $user['active_session_started_at'] ?? null,
+            'ip_address' => $user['active_session_ip'] ?? client_ip(),
+            'user_agent' => $user['active_session_user_agent'] ?? ($_SERVER['HTTP_USER_AGENT'] ?? null),
+            'current' => true,
+        ]];
+    }
+
+    private static function consumeGeneratedApiToken(): ?array
+    {
+        $token = $_SESSION['generated_api_token'] ?? null;
+        unset($_SESSION['generated_api_token']);
+
+        return is_array($token) ? $token : null;
     }
 }

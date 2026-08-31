@@ -4,6 +4,20 @@ declare(strict_types=1);
 
 class ApiToken
 {
+    public static function byUser(int $userId): array
+    {
+        $stmt = db()->prepare(
+            'SELECT id, name, last_used_at, expires_at, revoked_at, created_at
+             FROM api_tokens
+             WHERE user_id = :user_id
+             ORDER BY revoked_at IS NULL DESC, created_at DESC
+             LIMIT 100'
+        );
+        $stmt->execute(['user_id' => $userId]);
+
+        return $stmt->fetchAll();
+    }
+
     public static function create(int $userId, string $name, string $plainToken, ?string $expiresAt = null): int
     {
         $stmt = db()->prepare(
@@ -48,6 +62,21 @@ class ApiToken
     {
         $stmt = db()->prepare('UPDATE api_tokens SET last_used_at = NOW() WHERE id = :id');
         $stmt->execute(['id' => $id]);
+    }
+
+    public static function revoke(int $id, int $userId): bool
+    {
+        $stmt = db()->prepare(
+            'UPDATE api_tokens
+             SET revoked_at = NOW()
+             WHERE id = :id AND user_id = :user_id AND revoked_at IS NULL'
+        );
+        $stmt->execute([
+            'id' => $id,
+            'user_id' => $userId,
+        ]);
+
+        return $stmt->rowCount() > 0;
     }
 
     public static function generatePlainToken(): string
