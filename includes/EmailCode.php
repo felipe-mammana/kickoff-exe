@@ -32,6 +32,29 @@ class EmailCode
         return mail($email, $subject, $message, implode("\r\n", $headers));
     }
 
+    public static function sendSettingsTestCode(array $user, string $code): bool
+    {
+        $email = trim((string) ($user['email'] ?? ''));
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        $subject = APP_NAME . ' - teste de código por e-mail';
+        $message = implode("\n", [
+            'Seu código de teste é: ' . $code,
+            '',
+            'Este envio confirma que sua conta consegue receber códigos 2FA por e-mail.',
+            'Para entrar no sistema, use o botão de e-mail na tela de verificação 2FA.',
+        ]);
+        $headers = [
+            'From: ' . self::fromAddress(),
+            'Content-Type: text/plain; charset=UTF-8',
+            'X-Mailer: PHP/' . PHP_VERSION,
+        ];
+
+        return mail($email, $subject, $message, implode("\r\n", $headers));
+    }
+
     private static function fromAddress(): string
     {
         if (defined('MAIL_FROM') && filter_var(MAIL_FROM, FILTER_VALIDATE_EMAIL)) {

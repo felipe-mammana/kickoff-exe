@@ -182,6 +182,10 @@ $datetimeFormat = $accountUser['datetime_format'] ?? 'd/m/Y H:i';
                     <div class="settings-readonly">
                         <p>O 2FA está ativo. No login, o sistema aceita o código do aplicativo autenticador ou um código enviado por e-mail.</p>
                     </div>
+                    <form action="/?route=settings.2fa.email.test" method="post">
+                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                        <button class="btn btn-muted" type="submit"><?= icon('mail') ?><span>Testar código por e-mail</span></button>
+                    </form>
                     <form class="company-form settings-security-form" action="/?route=settings.2fa.disable" method="post" novalidate>
                         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                         <label class="field">
@@ -251,18 +255,25 @@ $datetimeFormat = $accountUser['datetime_format'] ?? 'd/m/Y H:i';
                     <p>Apenas uma sessão ativa por usuário.</p>
                 </div>
             </div>
-            <span class="status-chip success">Ativo</span>
-        </header>
-        <div class="settings-check-list">
-            <div>
-                <?= icon('check-circle') ?>
-                <span>Uma conta, uma sessão</span>
-                <small>Quando este usuário entra em outro dispositivo, a sessão anterior é encerrada automaticamente.</small>
+            <div class="settings-head-actions">
+                <span class="status-chip success">Ativo</span>
+                <button class="btn btn-muted" type="button" data-settings-topic-toggle aria-expanded="false">
+                    <?= icon('settings') ?><span>Abrir configurações</span>
+                </button>
             </div>
-            <div>
-                <?= icon('check-circle') ?>
-                <span>Sessão atual registrada</span>
-                <small><?= $sessionStartedAt ? e((string) $sessionStartedAt) : 'Será registrada no próximo login.' ?></small>
+        </header>
+        <div class="settings-topic-body" data-settings-topic-body hidden>
+            <div class="settings-check-list">
+                <div>
+                    <?= icon('check-circle') ?>
+                    <span>Uma conta, uma sessão</span>
+                    <small>Quando este usuário entra em outro dispositivo, a sessão anterior é encerrada automaticamente.</small>
+                </div>
+                <div>
+                    <?= icon('check-circle') ?>
+                    <span>Sessão atual registrada</span>
+                    <small><?= $sessionStartedAt ? e((string) $sessionStartedAt) : 'Será registrada no próximo login.' ?></small>
+                </div>
             </div>
         </div>
     </article>
@@ -276,25 +287,32 @@ $datetimeFormat = $accountUser['datetime_format'] ?? 'd/m/Y H:i';
                     <p>Recursos ativos para rastreabilidade das ações principais.</p>
                 </div>
             </div>
-            <?php if (is_admin()): ?>
-                <a class="link-primary" href="/?route=audit.index">Ver logs</a>
-            <?php endif; ?>
+            <div class="settings-head-actions">
+                <?php if (is_admin()): ?>
+                    <a class="link-primary" href="/?route=audit.index">Ver logs</a>
+                <?php endif; ?>
+                <button class="btn btn-muted" type="button" data-settings-topic-toggle aria-expanded="false">
+                    <?= icon('settings') ?><span>Abrir configurações</span>
+                </button>
+            </div>
         </header>
-        <div class="settings-check-list">
-            <div>
-                <?= icon('check-circle') ?>
-                <span>Logs do sistema ativos</span>
-                <small>Login, 2FA, empresas, dispositivos, anexos e cofre</small>
-            </div>
-            <div>
-                <?= icon('check-circle') ?>
-                <span>CSRF ativo em formulários</span>
-                <small>Proteção em ações de escrita</small>
-            </div>
-            <div>
-                <?= icon('check-circle') ?>
-                <span>Controle administrativo</span>
-                <small>Usuários comuns continuam sem acesso a rotas restritas.</small>
+        <div class="settings-topic-body" data-settings-topic-body hidden>
+            <div class="settings-check-list">
+                <div>
+                    <?= icon('check-circle') ?>
+                    <span>Logs do sistema ativos</span>
+                    <small>Login, 2FA, empresas, dispositivos, anexos e cofre</small>
+                </div>
+                <div>
+                    <?= icon('check-circle') ?>
+                    <span>CSRF ativo em formulários</span>
+                    <small>Proteção em ações de escrita</small>
+                </div>
+                <div>
+                    <?= icon('check-circle') ?>
+                    <span>Controle administrativo</span>
+                    <small>Usuários comuns continuam sem acesso a rotas restritas.</small>
+                </div>
             </div>
         </div>
     </article>

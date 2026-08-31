@@ -200,6 +200,38 @@ class SettingsController
         redirect('/?route=settings.index');
     }
 
+    public static function sendTwoFactorTestEmail(): void
+    {
+        require_auth();
+        verify_csrf();
+
+        $user = User::find((int) current_user()['id']);
+        if (!$user) {
+            redirect('/?route=login');
+        }
+
+        if (empty($user['two_factor_enabled'])) {
+            flash('danger', 'Ative o 2FA antes de testar o envio por e-mail.');
+            redirect('/?route=settings.index');
+        }
+
+        $code = EmailCode::generate();
+        if (!EmailCode::sendSettingsTestCode($user, $code)) {
+            flash('danger', 'Não foi possível enviar o código por e-mail. Verifique a configuração de e-mail do servidor.');
+            redirect('/?route=settings.index');
+        }
+
+        AuditLog::record([
+            'action_type' => 'user_2fa_email_test_sent',
+            'affected_table' => 'users',
+            'affected_record_id' => (int) $user['id'],
+            'description' => 'Usuário testou envio de código 2FA por e-mail.',
+        ]);
+
+        flash('success', 'Código de teste enviado para seu e-mail.');
+        redirect('/?route=settings.index');
+    }
+
     public static function enableTwoFactor(): void
     {
         require_auth();

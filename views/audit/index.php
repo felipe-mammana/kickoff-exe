@@ -34,6 +34,7 @@ $actionLabels = [
     'user_password_reset' => 'Senha redefinida',
     'user_2fa_enabled' => '2FA ativado',
     'user_2fa_disabled' => '2FA desativado',
+    'user_2fa_email_test_sent' => 'Teste de e-mail 2FA',
     'user_activated' => 'Usuário ativado',
     'user_deactivated' => 'Usuário desativado',
 ];
@@ -68,6 +69,7 @@ $actionClasses = [
     'user_password_reset' => 'warning',
     'user_2fa_enabled' => 'success',
     'user_2fa_disabled' => 'warning',
+    'user_2fa_email_test_sent' => 'info',
     'machine_photos_added' => 'info',
     'machine_photo_removed' => 'warning',
     'company_attachment_downloaded' => 'warning',

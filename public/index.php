@@ -154,6 +154,9 @@ try {
         case 'settings.2fa.cancel':
             SettingsController::cancelTwoFactorSetup();
             break;
+        case 'settings.2fa.email.test':
+            SettingsController::sendTwoFactorTestEmail();
+            break;
         case 'settings.2fa.enable':
             SettingsController::enableTwoFactor();
             break;

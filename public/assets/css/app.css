@@ -2223,6 +2223,10 @@ body.sidebar-collapsed .sidebar-profile {
     padding: var(--space-4);
 }
 
+.settings-topic-body > .settings-check-list {
+    padding: 0;
+}
+
 .settings-check-list > div {
     display: grid;
     grid-template-columns: 1.35rem minmax(0, 1fr);
