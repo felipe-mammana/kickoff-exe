@@ -9,8 +9,6 @@ $sessionTimeoutMinutes = (int) ($accountUser['session_timeout_minutes'] ?? 480);
 $vaultRequirePasswordReveal = !empty($accountUser['vault_require_password_reveal']);
 $activeSessions = $activeSessions ?? [];
 $recentAccesses = $recentAccesses ?? [];
-$apiTokens = $apiTokens ?? [];
-$generatedApiToken = $generatedApiToken ?? null;
 ?>
 
 <nav class="breadcrumbs" aria-label="Breadcrumb">
@@ -290,7 +288,7 @@ $generatedApiToken = $generatedApiToken ?? null;
                 <span><?= icon('file-clock') ?></span>
                 <div>
                     <h2>Segurança</h2>
-                    <p>Sessões, acessos, expiração, tokens e proteção do cofre.</p>
+                    <p>Sessões, acessos, expiração e proteção do cofre.</p>
                 </div>
             </div>
             <div class="settings-head-actions">
@@ -303,43 +301,68 @@ $generatedApiToken = $generatedApiToken ?? null;
             </div>
         </header>
         <div class="settings-topic-body" data-settings-topic-body hidden>
-            <div class="settings-security-grid">
-                <section class="settings-security-card">
-                    <div class="settings-form-head">
-                        <h3>Sessões ativas</h3>
-                        <p>O sistema permite apenas uma sessão ativa por usuário.</p>
-                    </div>
-                    <div class="settings-session-list">
-                        <?php if (!$activeSessions): ?>
-                            <p class="muted-text">Nenhuma sessão ativa registrada.</p>
-                        <?php else: ?>
-                            <?php foreach ($activeSessions as $session): ?>
-                                <div>
-                                    <?= icon('check-circle') ?>
-                                    <span>Sessão atual</span>
-                                    <small>
-                                        Início: <?= e((string) ($session['started_at'] ?? 'Não registrado')) ?>
-                                        · IP: <?= e((string) ($session['ip_address'] ?? 'Não registrado')) ?>
-                                    </small>
-                                    <small title="<?= e((string) ($session['user_agent'] ?? '')) ?>">
-                                        Navegador: <?= e((string) ($session['user_agent'] ?? 'Não registrado')) ?>
-                                    </small>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                    <form action="/?route=settings.sessions.endOther" method="post" data-confirm="Encerrar outras sessões e manter apenas esta?">
-                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                        <button class="btn btn-warning" type="submit"><?= icon('log-out') ?><span>Encerrar outras sessões</span></button>
-                    </form>
-                </section>
+            <div class="settings-security-layout">
+                <div class="settings-security-row">
+                    <section class="settings-security-card">
+                        <div class="settings-form-head">
+                            <h3>Sessões ativas</h3>
+                            <p>O sistema permite apenas uma sessão ativa por usuário.</p>
+                        </div>
+                        <div class="settings-session-list">
+                            <?php if (!$activeSessions): ?>
+                                <p class="muted-text">Nenhuma sessão ativa registrada.</p>
+                            <?php else: ?>
+                                <?php foreach ($activeSessions as $session): ?>
+                                    <div>
+                                        <?= icon('check-circle') ?>
+                                        <span>Sessão atual</span>
+                                        <small>
+                                            Início: <?= e((string) ($session['started_at'] ?? 'Não registrado')) ?>
+                                            · IP: <?= e((string) ($session['ip_address'] ?? 'Não registrado')) ?>
+                                        </small>
+                                        <small class="settings-session-user-agent" title="<?= e((string) ($session['user_agent'] ?? '')) ?>">
+                                            Navegador: <?= e((string) ($session['user_agent'] ?? 'Não registrado')) ?>
+                                        </small>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                        <form action="/?route=settings.sessions.endOther" method="post" data-confirm="Encerrar outras sessões e manter apenas esta?">
+                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                            <button class="btn btn-warning" type="submit"><?= icon('log-out') ?><span>Encerrar outras sessões</span></button>
+                        </form>
+                    </section>
+
+                    <section class="settings-security-card">
+                        <form class="company-form settings-security-form settings-security-form-compact" action="/?route=settings.security.update" method="post" novalidate>
+                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                            <div class="settings-form-head">
+                                <h3>Regras de segurança</h3>
+                                <p>Defina expiração da sessão e reforço para revelar senhas do cofre.</p>
+                            </div>
+                            <label class="field">
+                                <span>Tempo de expiração da sessão</span>
+                                <select name="session_timeout_minutes" required>
+                                    <?php foreach ([30 => '30 minutos', 60 => '1 hora', 120 => '2 horas', 240 => '4 horas', 480 => '8 horas', 720 => '12 horas', 1440 => '24 horas'] as $minutes => $label): ?>
+                                        <option value="<?= $minutes ?>" <?= $sessionTimeoutMinutes === $minutes ? 'selected' : '' ?>><?= e($label) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <label class="toggle-field settings-security-toggle">
+                                <input type="checkbox" name="vault_require_password_reveal" value="1" <?= $vaultRequirePasswordReveal ? 'checked' : '' ?>>
+                                <span>Exigir senha para revelar credenciais do cofre</span>
+                            </label>
+                            <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar segurança</span></button>
+                        </form>
+                    </section>
+                </div>
 
                 <section class="settings-security-card">
                     <div class="settings-form-head">
                         <h3>Últimos acessos</h3>
                         <p>Eventos recentes de entrada e saída da sua conta.</p>
                     </div>
-                    <div class="settings-access-list">
+                    <div class="settings-access-list settings-access-list-compact">
                         <?php if (!$recentAccesses): ?>
                             <p class="muted-text">Nenhum acesso recente registrado.</p>
                         <?php else: ?>
@@ -347,85 +370,6 @@ $generatedApiToken = $generatedApiToken ?? null;
                                 <div>
                                     <strong><?= e((string) ($access['description'] ?? $access['action_type'] ?? 'Acesso')) ?></strong>
                                     <span><?= e((string) ($access['created_at'] ?? '')) ?> · <?= e((string) ($access['ip_address'] ?? 'IP não registrado')) ?></span>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </section>
-
-                <section class="settings-security-card">
-                    <form class="company-form settings-security-form" action="/?route=settings.security.update" method="post" novalidate>
-                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                        <div class="settings-form-head">
-                            <h3>Regras de segurança</h3>
-                            <p>Defina expiração da sessão e reforço para revelar senhas do cofre.</p>
-                        </div>
-                        <label class="field">
-                            <span>Tempo de expiração da sessão</span>
-                            <select name="session_timeout_minutes" required>
-                                <?php foreach ([30 => '30 minutos', 60 => '1 hora', 120 => '2 horas', 240 => '4 horas', 480 => '8 horas', 720 => '12 horas', 1440 => '24 horas'] as $minutes => $label): ?>
-                                    <option value="<?= $minutes ?>" <?= $sessionTimeoutMinutes === $minutes ? 'selected' : '' ?>><?= e($label) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </label>
-                        <label class="toggle-field">
-                            <input type="checkbox" name="vault_require_password_reveal" value="1" <?= $vaultRequirePasswordReveal ? 'checked' : '' ?>>
-                            <span>Exigir senha para revelar credenciais do cofre</span>
-                        </label>
-                        <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar segurança</span></button>
-                    </form>
-                </section>
-
-                <section class="settings-security-card">
-                    <form class="company-form settings-security-form" action="/?route=settings.apiTokens.store" method="post" novalidate>
-                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                        <div class="settings-form-head">
-                            <h3>Tokens de API</h3>
-                            <p>Gere tokens para integrações externas. O valor aparece apenas uma vez.</p>
-                        </div>
-                        <?php if ($generatedApiToken): ?>
-                            <div class="settings-token-result">
-                                <strong><?= e((string) ($generatedApiToken['name'] ?? 'Token criado')) ?></strong>
-                                <code><?= e((string) ($generatedApiToken['token'] ?? '')) ?></code>
-                                <small>Expira em <?= e((string) ($generatedApiToken['expires_at'] ?? '')) ?></small>
-                            </div>
-                        <?php endif; ?>
-                        <label class="field">
-                            <span>Nome do token</span>
-                            <input type="text" name="api_token_name" maxlength="120" placeholder="Ex.: Integração Power BI" required>
-                        </label>
-                        <label class="field">
-                            <span>Validade</span>
-                            <select name="api_token_days" required>
-                                <option value="7">7 dias</option>
-                                <option value="30">30 dias</option>
-                                <option value="90" selected>90 dias</option>
-                                <option value="180">180 dias</option>
-                                <option value="365">365 dias</option>
-                            </select>
-                        </label>
-                        <button class="btn btn-primary" type="submit"><?= icon('plus') ?><span>Gerar token</span></button>
-                    </form>
-
-                    <div class="settings-token-list">
-                        <?php if (!$apiTokens): ?>
-                            <p class="muted-text">Nenhum token criado.</p>
-                        <?php else: ?>
-                            <?php foreach ($apiTokens as $token): ?>
-                                <div>
-                                    <span>
-                                        <strong><?= e($token['name']) ?></strong>
-                                        <small>Criado em <?= e((string) $token['created_at']) ?> · expira em <?= e((string) ($token['expires_at'] ?: 'Nunca')) ?></small>
-                                    </span>
-                                    <?php if (empty($token['revoked_at'])): ?>
-                                        <form action="/?route=settings.apiTokens.revoke" method="post" data-confirm="Revogar este token de API?">
-                                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                                            <input type="hidden" name="id" value="<?= (int) $token['id'] ?>">
-                                            <button class="icon-btn danger" type="submit" aria-label="Revogar token" title="Revogar token"><?= icon('trash-2') ?></button>
-                                        </form>
-                                    <?php else: ?>
-                                        <span class="status-chip neutral">Revogado</span>
-                                    <?php endif; ?>
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>

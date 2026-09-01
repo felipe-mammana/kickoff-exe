@@ -2291,10 +2291,16 @@ body.sidebar-collapsed .sidebar-profile {
     justify-self: start;
 }
 
-.settings-security-grid {
+.settings-security-layout {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-4);
+}
+
+.settings-security-row {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: var(--space-4);
+    align-items: start;
 }
 
 .settings-security-card {
@@ -2307,17 +2313,37 @@ body.sidebar-collapsed .sidebar-profile {
     background: color-mix(in srgb, var(--surface-2) 76%, transparent);
 }
 
+.settings-security-form-compact {
+    max-width: none;
+    grid-template-columns: minmax(13rem, 18rem) minmax(16rem, 1fr) auto;
+    align-items: end;
+    padding: 0;
+}
+
+.settings-security-form-compact .settings-form-head {
+    grid-column: 1 / -1;
+}
+
+.settings-security-form-compact .btn {
+    grid-column: auto;
+    justify-self: end;
+}
+
+.settings-security-toggle {
+    grid-column: auto;
+    align-self: center;
+    padding-bottom: 0.7rem;
+}
+
 .settings-session-list,
-.settings-access-list,
-.settings-token-list {
+.settings-access-list {
     display: grid;
     gap: var(--space-2);
     min-width: 0;
 }
 
 .settings-session-list > div,
-.settings-access-list > div,
-.settings-token-list > div {
+.settings-access-list > div {
     display: grid;
     gap: 0.3rem;
     min-width: 0;
@@ -2336,8 +2362,7 @@ body.sidebar-collapsed .sidebar-profile {
 }
 
 .settings-session-list small,
-.settings-access-list span,
-.settings-token-list small {
+.settings-access-list span {
     color: var(--muted);
     font-size: 0.8rem;
     overflow-wrap: anywhere;
@@ -2347,27 +2372,19 @@ body.sidebar-collapsed .sidebar-profile {
     grid-column: 2;
 }
 
-.settings-token-list > div {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-}
-
-.settings-token-result {
-    grid-column: 1 / -1;
-    display: grid;
-    gap: var(--space-2);
-    min-width: 0;
-    padding: var(--space-3);
-    border: 1px solid color-mix(in srgb, var(--success) 34%, var(--border));
-    border-radius: var(--radius);
-    background: color-mix(in srgb, var(--success) 8%, var(--surface));
-}
-
-.settings-token-result code {
+.settings-session-user-agent {
     display: block;
     max-width: 100%;
-    overflow-wrap: anywhere;
-    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.settings-access-list-compact {
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    max-height: 24rem;
+    overflow: auto;
+    padding-right: 0.15rem;
 }
 
 .toggle-field {
@@ -4504,14 +4521,17 @@ form[id^="delete-photo-"] {
 
     .settings-security-form,
     .settings-account-grid,
-    .settings-security-grid,
+    .settings-security-row,
+    .settings-security-form-compact,
     .vault-detail-list,
     .two-factor-login-actions {
         grid-template-columns: 1fr;
     }
 
-    .settings-token-list > div {
-        grid-template-columns: 1fr;
+    .settings-security-form-compact .btn {
+        grid-column: 1;
+        justify-self: stretch;
+        width: 100%;
     }
 
     .dashboard-activity .activity-list {

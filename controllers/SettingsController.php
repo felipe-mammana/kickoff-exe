@@ -27,8 +27,6 @@ class SettingsController
                 : null,
             'activeSessions' => self::activeSessions($user),
             'recentAccesses' => AuditLog::latestAccountAccesses((int) $user['id']),
-            'apiTokens' => ApiToken::byUser((int) $user['id']),
-            'generatedApiToken' => self::consumeGeneratedApiToken(),
         ]);
     }
 
