@@ -11,7 +11,9 @@ class AuditController
         $filters = [
             'user_id' => trim((string) ($_GET['user_id'] ?? '')),
             'company_id' => trim((string) ($_GET['company_id'] ?? '')),
+            'module' => trim((string) ($_GET['module'] ?? '')),
             'action_type' => trim((string) ($_GET['action_type'] ?? '')),
+            'criticality' => trim((string) ($_GET['criticality'] ?? '')),
             'date_from' => trim((string) ($_GET['date_from'] ?? '')),
             'date_to' => trim((string) ($_GET['date_to'] ?? '')),
         ];
@@ -21,7 +23,9 @@ class AuditController
             'logs' => AuditLog::search($filters),
             'users' => User::all(),
             'companies' => Company::all(),
+            'modules' => AuditLog::modules(),
             'actionTypes' => AuditLog::actionTypes(),
+            'criticalCount' => AuditLog::criticalCount($filters),
             'filters' => $filters,
         ]);
     }

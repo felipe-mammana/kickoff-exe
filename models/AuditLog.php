@@ -4,6 +4,40 @@ declare(strict_types=1);
 
 class AuditLog
 {
+    private const CRITICAL_ACTIONS = [
+        'login_success',
+        'login_failed',
+        'login_rate_limited',
+        'login_2fa_failed',
+        'login_inactive_user',
+        'company_deleted',
+        'company_attachment_deleted',
+        'machine_deactivated',
+        'machine_photo_removed',
+        'vault_credential_deactivated',
+        'vault_credential_revealed',
+        'vault_credential_reveal_password_failed',
+        'user_password_changed',
+        'user_password_reset',
+        'user_2fa_disabled',
+        'audit_retention_updated',
+        'audit_logs_retention_cleaned',
+        'full_backup_exported',
+        'database_imported',
+        'orphan_files_cleaned',
+    ];
+
+    private const MODULES = [
+        'auth' => 'Acesso',
+        'companies' => 'Empresas',
+        'devices' => 'Dispositivos',
+        'vault' => 'Cofre',
+        'users' => 'Usuários',
+        'settings' => 'Configurações',
+        'maintenance' => 'Backup e manutenção',
+        'export' => 'Exportações',
+    ];
+
     public static function record(array $data): void
     {
         try {
@@ -86,6 +120,31 @@ class AuditLog
             $params['action_type'] = $filters['action_type'];
         }
 
+        if (!empty($filters['module'])) {
+            $actions = self::actionsForModule((string) $filters['module']);
+            if ($actions) {
+                $placeholders = [];
+                foreach ($actions as $index => $action) {
+                    $key = 'module_action_' . $index;
+                    $placeholders[] = ':' . $key;
+                    $params[$key] = $action;
+                }
+                $sql .= ' AND a.action_type IN (' . implode(', ', $placeholders) . ')';
+            } else {
+                $sql .= ' AND 1 = 0';
+            }
+        }
+
+        if (($filters['criticality'] ?? '') === 'critical') {
+            $placeholders = [];
+            foreach (self::CRITICAL_ACTIONS as $index => $action) {
+                $key = 'critical_action_' . $index;
+                $placeholders[] = ':' . $key;
+                $params[$key] = $action;
+            }
+            $sql .= ' AND a.action_type IN (' . implode(', ', $placeholders) . ')';
+        }
+
         if (!empty($filters['date_from'])) {
             $sql .= ' AND a.created_at >= :date_from';
             $params['date_from'] = $filters['date_from'] . ' 00:00:00';
@@ -108,6 +167,135 @@ class AuditLog
         $stmt = db()->query('SELECT DISTINCT action_type FROM audit_logs ORDER BY action_type');
 
         return array_column($stmt->fetchAll(), 'action_type');
+    }
+
+    public static function modules(): array
+    {
+        return self::MODULES;
+    }
+
+    public static function moduleForAction(string $actionType): string
+    {
+        if (str_starts_with($actionType, 'login_') || $actionType === 'logout') {
+            return 'auth';
+        }
+
+        if (str_starts_with($actionType, 'company_')) {
+            return 'companies';
+        }
+
+        if (str_starts_with($actionType, 'machine_')) {
+            return 'devices';
+        }
+
+        if (str_starts_with($actionType, 'vault_') || $actionType === 'credential_viewed') {
+            return 'vault';
+        }
+
+        if (str_starts_with($actionType, 'user_')) {
+            return 'users';
+        }
+
+        if (str_starts_with($actionType, 'api_token_')) {
+            return 'settings';
+        }
+
+        if (str_contains($actionType, 'backup') || str_contains($actionType, 'database') || str_contains($actionType, 'orphan')) {
+            return 'maintenance';
+        }
+
+        if (str_starts_with($actionType, 'export_')) {
+            return 'export';
+        }
+
+        return 'settings';
+    }
+
+    public static function moduleLabel(string $module): string
+    {
+        return self::MODULES[$module] ?? 'Sistema';
+    }
+
+    public static function isCritical(string $actionType): bool
+    {
+        return in_array($actionType, self::CRITICAL_ACTIONS, true);
+    }
+
+    public static function criticalCount(array $filters = []): int
+    {
+        $sql = 'SELECT COUNT(*) FROM audit_logs a WHERE 1 = 1';
+        $params = [];
+
+        if (!empty($filters['user_id'])) {
+            $sql .= ' AND a.user_id = :user_id';
+            $params['user_id'] = (int) $filters['user_id'];
+        }
+
+        if (!empty($filters['company_id'])) {
+            $sql .= ' AND a.company_id = :company_id';
+            $params['company_id'] = (int) $filters['company_id'];
+        }
+
+        if (!empty($filters['action_type'])) {
+            $sql .= ' AND a.action_type = :action_type';
+            $params['action_type'] = $filters['action_type'];
+        }
+
+        if (!empty($filters['module'])) {
+            $actions = self::actionsForModule((string) $filters['module']);
+            if ($actions) {
+                $placeholders = [];
+                foreach ($actions as $index => $action) {
+                    $key = 'module_count_action_' . $index;
+                    $placeholders[] = ':' . $key;
+                    $params[$key] = $action;
+                }
+                $sql .= ' AND a.action_type IN (' . implode(', ', $placeholders) . ')';
+            } else {
+                $sql .= ' AND 1 = 0';
+            }
+        }
+
+        if (!empty($filters['date_from'])) {
+            $sql .= ' AND a.created_at >= :date_from';
+            $params['date_from'] = $filters['date_from'] . ' 00:00:00';
+        }
+
+        if (!empty($filters['date_to'])) {
+            $sql .= ' AND a.created_at <= :date_to';
+            $params['date_to'] = $filters['date_to'] . ' 23:59:59';
+        }
+
+        $placeholders = [];
+        foreach (self::CRITICAL_ACTIONS as $index => $action) {
+            $key = 'critical_action_' . $index;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $action;
+        }
+
+        $sql .= ' AND a.action_type IN (' . implode(', ', $placeholders) . ')';
+        $stmt = db()->prepare($sql);
+        $stmt->execute($params);
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    public static function deleteOlderThanDays(int $days): int
+    {
+        $days = max(1, $days);
+        $stmt = db()->prepare('DELETE FROM audit_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL ' . $days . ' DAY)');
+        $stmt->execute();
+
+        return $stmt->rowCount();
+    }
+
+    private static function actionsForModule(string $module): array
+    {
+        if (!isset(self::MODULES[$module])) {
+            return [];
+        }
+
+        return array_values(array_filter(self::actionTypes(), static fn (string $action): bool => self::moduleForAction($action) === $module));
     }
 
     public static function byMachine(int $machineId): array

@@ -64,7 +64,57 @@ class SettingsController
             'activeSessions' => self::activeSessions($user),
             'recentAccesses' => AuditLog::latestAccountAccesses((int) $user['id']),
             'maintenanceStatus' => is_admin() ? DatabaseMaintenance::status() : null,
+            'auditRetentionDays' => is_admin() ? AppSetting::auditRetentionDays() : null,
         ]);
+    }
+
+    public static function audit(): void
+    {
+        self::render('audit');
+    }
+
+    public static function updateAuditSettings(): void
+    {
+        require_admin();
+        verify_csrf();
+
+        $days = (int) ($_POST['audit_retention_days'] ?? 365);
+        if (!in_array($days, [30, 60, 90, 180, 365, 730, 1095], true)) {
+            flash('danger', 'Retenção de logs inválida.');
+            redirect('/?route=settings.audit');
+        }
+
+        AppSetting::set('audit_retention_days', (string) $days);
+        AuditLog::record([
+            'action_type' => 'audit_retention_updated',
+            'affected_table' => 'app_settings',
+            'description' => 'Retenção de logs de auditoria atualizada.',
+            'new_data' => ['Dias' => $days],
+        ]);
+
+        flash('success', 'Retenção de logs salva com sucesso.');
+        redirect('/?route=settings.audit');
+    }
+
+    public static function cleanupAuditLogs(): void
+    {
+        require_admin();
+        verify_csrf();
+
+        $days = AppSetting::auditRetentionDays();
+        $deleted = AuditLog::deleteOlderThanDays($days);
+        AuditLog::record([
+            'action_type' => 'audit_logs_retention_cleaned',
+            'affected_table' => 'audit_logs',
+            'description' => 'Logs antigos removidos pela política de retenção.',
+            'old_data' => [
+                'Retenção em dias' => $days,
+                'Logs removidos' => $deleted,
+            ],
+        ]);
+
+        flash('success', $deleted . ' log(s) antigo(s) removido(s).');
+        redirect('/?route=settings.audit');
     }
 
     public static function prepareTwoFactor(): void

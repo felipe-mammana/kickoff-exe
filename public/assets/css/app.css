@@ -1717,6 +1717,12 @@ body.sidebar-collapsed .sidebar-profile {
     color: var(--success);
 }
 
+.status-chip.danger {
+    border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
+    background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+    color: var(--danger);
+}
+
 .mini-status-list {
     display: flex;
     flex-wrap: wrap;

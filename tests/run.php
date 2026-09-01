@@ -460,6 +460,43 @@ try {
     $automatedLogs = AuditLog::search(['action_type' => 'automated_test']);
     check('Auditoria registra evento com usuario da sessao', count($automatedLogs) === 1);
     check('Auditoria registra user-agent da origem', ($automatedLogs[0]['user_agent'] ?? '') === 'Codex Test Browser/1.0');
+
+    AppSetting::set('audit_retention_days', '90');
+    check('Auditoria permite configurar retencao de logs', AppSetting::auditRetentionDays() === 90);
+
+    AuditLog::record([
+        'action_type' => 'login_success',
+        'description' => 'Usuario entrou no sistema.',
+    ]);
+    $accessLogs = AuditLog::search(['module' => 'auth']);
+    check('Auditoria filtra logs por modulo', count(array_filter($accessLogs, static fn (array $log): bool => ($log['action_type'] ?? '') === 'login_success')) >= 1);
+
+    $criticalLogs = AuditLog::search(['criticality' => 'critical']);
+    check('Auditoria filtra eventos criticos', count(array_filter($criticalLogs, static fn (array $log): bool => ($log['action_type'] ?? '') === 'login_success')) >= 1);
+    check('Auditoria conta criticos respeitando modulo', AuditLog::criticalCount(['module' => 'auth']) >= 1);
+
+    $oldAuditDescription = 'Evento antigo de teste ' . bin2hex(random_bytes(4));
+    $recentAuditDescription = 'Evento recente de teste ' . bin2hex(random_bytes(4));
+    $stmt = db()->prepare(
+        "INSERT INTO audit_logs (action_type, description, created_at)
+         VALUES (:action_type, :description, :created_at)"
+    );
+    $stmt->execute([
+        'action_type' => 'automated_test',
+        'description' => $oldAuditDescription,
+        'created_at' => date('Y-m-d H:i:s', strtotime('-400 days')),
+    ]);
+    $stmt->execute([
+        'action_type' => 'automated_test',
+        'description' => $recentAuditDescription,
+        'created_at' => date('Y-m-d H:i:s'),
+    ]);
+    $deletedAuditLogs = AuditLog::deleteOlderThanDays(365);
+    $oldAuditExists = db()->prepare('SELECT COUNT(*) FROM audit_logs WHERE description = :description');
+    $oldAuditExists->execute(['description' => $oldAuditDescription]);
+    $recentAuditExists = db()->prepare('SELECT COUNT(*) FROM audit_logs WHERE description = :description');
+    $recentAuditExists->execute(['description' => $recentAuditDescription]);
+    check('Retencao de auditoria remove logs antigos', $deletedAuditLogs >= 1 && (int) $oldAuditExists->fetchColumn() === 0 && (int) $recentAuditExists->fetchColumn() === 1);
 } catch (Throwable $exception) {
     $failed++;
     echo "[ERRO] Excecao inesperada: " . $exception->getMessage() . "\n";

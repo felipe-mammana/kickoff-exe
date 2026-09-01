@@ -11,6 +11,7 @@ $vaultRequirePasswordReveal = !empty($accountUser['vault_require_password_reveal
 $activeSessions = $activeSessions ?? [];
 $recentAccesses = $recentAccesses ?? [];
 $maintenanceStatus = $maintenanceStatus ?? null;
+$auditRetentionDays = (int) ($auditRetentionDays ?? 365);
 $nameParts = preg_split('/\s+/', trim((string) $accountUser['name'])) ?: [];
 $initials = strtoupper(substr($nameParts[0] ?? 'E', 0, 1) . substr($nameParts[1] ?? 'X', 0, 1));
 
@@ -23,6 +24,7 @@ $topics = [
 ];
 
 if (is_admin() && is_array($maintenanceStatus)) {
+    $topics['audit'] = ['route' => 'settings.audit', 'icon' => 'file-clock', 'eyebrow' => 'Auditoria', 'title' => 'Auditoria do sistema', 'card_title' => 'Auditoria', 'description' => 'Retenção de logs, exportação por período e eventos críticos.'];
     $topics['maintenance'] = ['route' => 'settings.maintenance', 'icon' => 'database', 'eyebrow' => 'Manutenção', 'title' => 'Backup e manutenção', 'card_title' => 'Backup e manutenção', 'description' => 'Exporte backups, importe SQL e remova arquivos órfãos.'];
 }
 
@@ -208,6 +210,59 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                     <div class="settings-access-list settings-access-list-compact">
                         <?php if (!$recentAccesses): ?><p class="muted-text">Nenhum acesso recente registrado.</p><?php else: ?><?php foreach ($recentAccesses as $access): ?><div><strong><?= e((string) ($access['description'] ?? $access['action_type'] ?? 'Acesso')) ?></strong><span><?= e((string) ($access['created_at'] ?? '')) ?> · <?= e((string) ($access['ip_address'] ?? 'IP não registrado')) ?></span></div><?php endforeach; ?><?php endif; ?>
                     </div>
+                </section>
+            </div>
+        <?php elseif ($settingsTopic === 'audit' && is_admin()): ?>
+            <div class="settings-security-layout">
+                <section class="settings-security-card">
+                    <form class="company-form settings-security-form settings-security-form-compact" action="/?route=settings.audit.update" method="post" novalidate>
+                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                        <div class="settings-form-head">
+                            <h3>Retenção de logs</h3>
+                            <p>Defina por quanto tempo os registros de auditoria devem permanecer no banco.</p>
+                        </div>
+                        <label class="field">
+                            <span>Manter logs por</span>
+                            <select name="audit_retention_days" required>
+                                <?php foreach ([30 => '30 dias', 60 => '60 dias', 90 => '90 dias', 180 => '180 dias', 365 => '1 ano', 730 => '2 anos', 1095 => '3 anos'] as $days => $label): ?>
+                                    <option value="<?= $days ?>" <?= $auditRetentionDays === $days ? 'selected' : '' ?>><?= e($label) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar retenção</span></button>
+                    </form>
+                </section>
+
+                <section class="settings-security-card">
+                    <div class="settings-form-head">
+                        <h3>Exportar logs por período</h3>
+                        <p>Use a tela de auditoria para filtrar por usuário, empresa, módulo, ação, criticidade e data.</p>
+                    </div>
+                    <div class="maintenance-action-list">
+                        <a class="btn btn-muted" href="/?route=audit.index"><?= icon('filter') ?><span>Abrir filtros</span></a>
+                        <a class="btn btn-primary" href="<?= e(export_url('audit', 'csv', ['date_from' => date('Y-m-01'), 'date_to' => date('Y-m-d')])) ?>"><?= icon('file-spreadsheet') ?><span>Exportar mês em CSV</span></a>
+                    </div>
+                </section>
+
+                <section class="settings-security-card">
+                    <div class="settings-form-head">
+                        <h3>Eventos críticos</h3>
+                        <p>Login, exclusões, alteração de senha, revelação de senha, importação de banco e limpeza de arquivos são marcados como críticos.</p>
+                    </div>
+                    <div class="settings-check-list">
+                        <div><?= icon('warning') ?><span>Criticidade visível nos logs</span><small>A tela de auditoria exibe selo crítico e permite filtrar somente esses eventos.</small></div>
+                    </div>
+                </section>
+
+                <section class="settings-security-card">
+                    <div class="settings-form-head">
+                        <h3>Limpeza por retenção</h3>
+                        <p>Remove registros mais antigos que o período configurado. A limpeza também fica registrada nos logs.</p>
+                    </div>
+                    <form action="/?route=settings.audit.cleanup" method="post" data-confirm="Remover logs mais antigos que a retenção configurada?" data-confirm-variant="warning">
+                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                        <button class="btn btn-warning" type="submit"><?= icon('trash-2') ?><span>Limpar logs antigos</span></button>
+                    </form>
                 </section>
             </div>
         <?php elseif ($settingsTopic === 'maintenance' && is_array($maintenanceStatus)): ?>

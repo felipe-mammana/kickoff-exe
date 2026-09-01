@@ -22,6 +22,7 @@ $actionLabels = [
     'vault_category_created' => 'Categoria cadastrada',
     'login_success' => 'Login aprovado',
     'login_failed' => 'Falha de login',
+    'login_rate_limited' => 'Login bloqueado por limite',
     'login_2fa_failed' => 'Falha no 2FA',
     'login_2fa_email_sent' => 'Código 2FA enviado',
     'login_inactive_user' => 'Login bloqueado',
@@ -42,10 +43,17 @@ $actionLabels = [
     'user_2fa_email_test_sent' => 'Teste de e-mail 2FA',
     'user_activated' => 'Usuário ativado',
     'user_deactivated' => 'Usuário desativado',
+    'audit_retention_updated' => 'Retenção de auditoria atualizada',
+    'audit_logs_retention_cleaned' => 'Logs antigos removidos',
+    'clean_database_exported' => 'Banco limpo exportado',
+    'full_backup_exported' => 'Backup completo exportado',
+    'database_imported' => 'Banco importado',
+    'orphan_files_cleaned' => 'Órfãos removidos',
 ];
 
 $actionClasses = [
     'login_failed' => 'danger',
+    'login_rate_limited' => 'danger',
     'login_2fa_failed' => 'danger',
     'login_2fa_email_sent' => 'info',
     'login_inactive_user' => 'danger',
@@ -79,6 +87,12 @@ $actionClasses = [
     'user_2fa_enabled' => 'success',
     'user_2fa_disabled' => 'warning',
     'user_2fa_email_test_sent' => 'info',
+    'audit_retention_updated' => 'info',
+    'audit_logs_retention_cleaned' => 'warning',
+    'clean_database_exported' => 'info',
+    'full_backup_exported' => 'warning',
+    'database_imported' => 'danger',
+    'orphan_files_cleaned' => 'warning',
     'machine_photos_added' => 'info',
     'machine_photo_removed' => 'warning',
     'company_attachment_downloaded' => 'warning',
@@ -151,6 +165,13 @@ foreach ($filters as $filterValue) {
             <span>usuários monitorados</span>
         </div>
     </article>
+    <article class="summary-card">
+        <span class="summary-icon"><?= icon('warning') ?></span>
+        <div>
+            <strong><?= (int) $criticalCount ?></strong>
+            <span>eventos críticos</span>
+        </div>
+    </article>
 </section>
 
 <section class="asset-panel audit-filter-panel">
@@ -159,7 +180,7 @@ foreach ($filters as $filterValue) {
             <span><?= icon('filter') ?></span>
             <div>
                 <h2>Filtros de auditoria</h2>
-                <p>Refine por usuário, empresa, tipo de ação ou período.</p>
+                <p>Refine por usuário, empresa, módulo, ação, criticidade ou período.</p>
             </div>
         </div>
         <?php if ($activeFilters > 0): ?>
@@ -203,6 +224,26 @@ foreach ($filters as $filterValue) {
                         <?= e($actionLabels[$actionType] ?? $actionType) ?>
                     </option>
                 <?php endforeach; ?>
+            </select>
+        </label>
+
+        <label class="field">
+            <span>Módulo</span>
+            <select name="module">
+                <option value="">Todos os módulos</option>
+                <?php foreach ($modules as $moduleKey => $moduleLabel): ?>
+                    <option value="<?= e($moduleKey) ?>" <?= $moduleKey === $filters['module'] ? 'selected' : '' ?>>
+                        <?= e($moduleLabel) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+
+        <label class="field">
+            <span>Criticidade</span>
+            <select name="criticality">
+                <option value="">Todos os eventos</option>
+                <option value="critical" <?= $filters['criticality'] === 'critical' ? 'selected' : '' ?>>Somente críticos</option>
             </select>
         </label>
 
@@ -255,6 +296,8 @@ foreach ($filters as $filterValue) {
                 <?php
                 $actionType = (string) $log['action_type'];
                 $badgeClass = $actionClasses[$actionType] ?? 'neutral';
+                $isCritical = AuditLog::isCritical($actionType);
+                $moduleLabel = AuditLog::moduleLabel(AuditLog::moduleForAction($actionType));
                 $userName = (string) ($log['user_name'] ?: 'Sem usuário');
                 $userAgent = trim((string) ($log['user_agent'] ?? ''));
                 $hasChanges = (bool) ($log['old_data'] || $log['new_data']);
@@ -265,6 +308,10 @@ foreach ($filters as $filterValue) {
                             <?= icon($badgeClass === 'danger' ? 'warning' : 'check-circle') ?>
                             <?= e($actionLabels[$actionType] ?? $actionType) ?>
                         </span>
+                        <?php if ($isCritical): ?>
+                            <span class="status-chip danger"><?= icon('warning') ?> Crítico</span>
+                        <?php endif; ?>
+                        <span class="status-chip neutral"><?= e($moduleLabel) ?></span>
                         <time><?= e($log['created_at']) ?></time>
                     </header>
 
@@ -274,6 +321,10 @@ foreach ($filters as $filterValue) {
                         <div>
                             <dt>Usuário</dt>
                             <dd><?= e($userName) ?></dd>
+                        </div>
+                        <div>
+                            <dt>Módulo</dt>
+                            <dd><?= e($moduleLabel) ?></dd>
                         </div>
                         <div>
                             <dt>Empresa</dt>
@@ -328,6 +379,8 @@ foreach ($filters as $filterValue) {
                         <?php
                         $actionType = (string) $log['action_type'];
                         $badgeClass = $actionClasses[$actionType] ?? 'neutral';
+                        $isCritical = AuditLog::isCritical($actionType);
+                        $moduleLabel = AuditLog::moduleLabel(AuditLog::moduleForAction($actionType));
                         $userName = (string) ($log['user_name'] ?: 'Sem usuário');
                         $initial = strtoupper(substr(trim($userName) !== '' ? trim($userName) : 'S', 0, 1));
                         $hasChanges = (bool) ($log['old_data'] || $log['new_data']);
@@ -340,6 +393,10 @@ foreach ($filters as $filterValue) {
                                         <?= icon($badgeClass === 'danger' ? 'warning' : 'check-circle') ?>
                                         <?= e($actionLabels[$actionType] ?? $actionType) ?>
                                     </span>
+                                    <?php if ($isCritical): ?>
+                                        <span class="status-chip danger"><?= icon('warning') ?> Crítico</span>
+                                    <?php endif; ?>
+                                    <span class="status-chip neutral"><?= e($moduleLabel) ?></span>
                                     <strong><?= e($log['description']) ?></strong>
                                     <small><?= e($log['created_at']) ?></small>
                                 </div>

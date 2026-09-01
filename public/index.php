@@ -157,6 +157,15 @@ try {
         case 'settings.maintenance':
             SettingsController::maintenance();
             break;
+        case 'settings.audit':
+            SettingsController::audit();
+            break;
+        case 'settings.audit.update':
+            SettingsController::updateAuditSettings();
+            break;
+        case 'settings.audit.cleanup':
+            SettingsController::cleanupAuditLogs();
+            break;
         case 'settings.profile.update':
             SettingsController::updateProfile();
             break;

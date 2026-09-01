@@ -230,7 +230,9 @@ class ExportController
         $filters = [
             'user_id' => trim((string) ($_GET['user_id'] ?? '')),
             'company_id' => trim((string) ($_GET['company_id'] ?? '')),
+            'module' => trim((string) ($_GET['module'] ?? '')),
             'action_type' => trim((string) ($_GET['action_type'] ?? '')),
+            'criticality' => trim((string) ($_GET['criticality'] ?? '')),
             'date_from' => trim((string) ($_GET['date_from'] ?? '')),
             'date_to' => trim((string) ($_GET['date_to'] ?? '')),
         ];
@@ -239,6 +241,8 @@ class ExportController
             return [
                 'ID' => (int) $row['id'],
                 'Evento' => $row['action_type'],
+                'Módulo' => AuditLog::moduleLabel(AuditLog::moduleForAction((string) $row['action_type'])),
+                'Crítico' => AuditLog::isCritical((string) $row['action_type']) ? 'Sim' : 'Não',
                 'Descrição' => $row['description'],
                 'Usuário' => $row['user_name'] ?: '-',
                 'E-mail' => $row['user_email'] ?: '-',

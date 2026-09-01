@@ -150,6 +150,14 @@ CREATE TABLE IF NOT EXISTS api_rate_limits (
     INDEX idx_api_rate_limits_last_request (last_request_at)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key VARCHAR(120) NOT NULL PRIMARY KEY,
+    setting_value TEXT NOT NULL,
+    updated_by INT UNSIGNED NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_app_settings_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS vault_categories (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     parent_id INT UNSIGNED NULL,
