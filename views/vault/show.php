@@ -108,7 +108,7 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
     <div class="panel-header">
         <div>
             <span class="eyebrow">Categorias</span>
-            <h2>Acessos da empresa</h2>
+            <h2>Acessos da empresa - <?= e($company['name']) ?></h2>
             <?php if ($selectedParent): ?>
                 <p class="vault-category-path">
                     <a href="/?route=vault.show&id=<?= (int) $company['id'] ?>">Categorias</a>
