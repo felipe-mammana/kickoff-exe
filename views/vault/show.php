@@ -61,6 +61,20 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
 
     return '/?' . http_build_query($params);
 };
+
+$credentialDetailsAttributes = static function (array $credential): string {
+    return implode(' ', [
+        'data-vault-modal-open="details"',
+        'data-vault-id="' . (int) $credential['id'] . '"',
+        'data-vault-title="' . e($credential['title']) . '"',
+        'data-vault-category-name="' . e($credential['category_name'] ?: 'Sem tipo') . '"',
+        'data-vault-category-icon="' . e($credential['category_icon'] ?: 'lock') . '"',
+        'data-vault-username="' . e($credential['username'] ?? '') . '"',
+        'data-vault-service-url="' . e($credential['service_url'] ?? '') . '"',
+        'data-vault-notes="' . e($credential['notes'] ?? '') . '"',
+        'data-vault-updated-at="' . e($credential['updated_at'] ?: '-') . '"',
+    ]);
+};
 ?>
 
 <nav class="breadcrumbs" aria-label="Breadcrumb">
@@ -230,7 +244,14 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
                     <?php foreach ($credentials as $credential): ?>
                         <tr>
                             <td data-label="Nome">
-                                <strong class="truncate-text" title="<?= e($credential['title']) ?>"><?= e($credential['title']) ?></strong>
+                                <button
+                                    class="vault-name-button truncate-text"
+                                    type="button"
+                                    <?= $credentialDetailsAttributes($credential) ?>
+                                    title="<?= e($credential['title']) ?>"
+                                >
+                                    <?= e($credential['title']) ?>
+                                </button>
                             </td>
                             <td data-label="Tipo">
                                 <span class="vault-type-chip" title="<?= e($credential['category_name'] ?: 'Sem tipo') ?>">
@@ -295,15 +316,7 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
                                     <button
                                         class="icon-btn"
                                         type="button"
-                                        data-vault-modal-open="details"
-                                        data-vault-id="<?= (int) $credential['id'] ?>"
-                                        data-vault-title="<?= e($credential['title']) ?>"
-                                        data-vault-category-name="<?= e($credential['category_name'] ?: 'Sem tipo') ?>"
-                                        data-vault-category-icon="<?= e($credential['category_icon'] ?: 'lock') ?>"
-                                        data-vault-username="<?= e($credential['username'] ?? '') ?>"
-                                        data-vault-service-url="<?= e($credential['service_url'] ?? '') ?>"
-                                        data-vault-notes="<?= e($credential['notes'] ?? '') ?>"
-                                        data-vault-updated-at="<?= e($credential['updated_at'] ?: '-') ?>"
+                                        <?= $credentialDetailsAttributes($credential) ?>
                                         aria-label="Visualizar credencial"
                                         title="Visualizar"
                                     >
