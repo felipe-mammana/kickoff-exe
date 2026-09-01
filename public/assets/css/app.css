@@ -2173,9 +2173,9 @@ body.sidebar-collapsed .sidebar-profile {
 .settings-hero-card,
 .settings-topic-card,
 .settings-detail-shell {
-    border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+    border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
     background:
-        radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 34%),
+        radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 34%),
         var(--surface-2);
 }
 
@@ -2217,10 +2217,10 @@ body.sidebar-collapsed .sidebar-profile {
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    border: 1px solid color-mix(in srgb, var(--primary) 46%, var(--border));
+    border: 1px solid color-mix(in srgb, var(--accent) 46%, var(--border));
     border-radius: var(--radius);
-    background: color-mix(in srgb, var(--primary) 13%, var(--surface));
-    color: var(--primary);
+    background: color-mix(in srgb, var(--accent) 13%, var(--surface));
+    color: var(--accent);
     font-weight: 900;
 }
 
@@ -2257,6 +2257,7 @@ body.sidebar-collapsed .sidebar-profile {
     min-height: 6.4rem;
     padding: var(--space-4);
     border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
 }
 
 .settings-topic-card.wide {
@@ -2291,7 +2292,10 @@ body.sidebar-collapsed .sidebar-profile {
 .settings-detail-shell {
     display: grid;
     gap: var(--space-5);
+    width: 100%;
+    max-width: 100%;
     padding: var(--space-5);
+    overflow: hidden;
     border-radius: calc(var(--radius-lg) + 0.45rem);
 }
 
@@ -2315,6 +2319,21 @@ body.sidebar-collapsed .sidebar-profile {
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.settings-detail-shell .settings-account-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-detail-shell .settings-detail-card {
+    max-width: none;
+    min-width: 0;
+    padding: var(--space-5);
+}
+
+.settings-detail-shell .settings-account-grid .settings-detail-card {
+    grid-template-columns: 1fr;
+    align-content: start;
 }
 
 .settings-wide-panel {
@@ -2443,6 +2462,16 @@ body.sidebar-collapsed .sidebar-profile {
 
 .settings-security-panel .settings-security-form {
     padding: 0;
+}
+
+.settings-detail-shell .settings-account-grid .settings-security-form.settings-detail-card,
+.settings-detail-shell .settings-security-form.settings-detail-card {
+    max-width: none;
+    padding: var(--space-5);
+}
+
+.settings-detail-shell .settings-account-grid .settings-security-form.settings-detail-card {
+    grid-template-columns: 1fr;
 }
 
 .settings-security-form .btn {
