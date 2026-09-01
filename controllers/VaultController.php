@@ -275,7 +275,8 @@ class VaultController
             $_SESSION['vault_category_errors'] = $errors;
             $_SESSION['vault_category_old'] = $data;
             flash('danger', 'Revise os campos da categoria.');
-            redirect('/?route=vault.show&id=' . (int) $company['id'] . '&open_category_modal=1');
+            $modal = !empty($data['parent_id']) ? 'subcategory' : 'category';
+            redirect('/?route=vault.show&id=' . (int) $company['id'] . '&open_category_modal=' . $modal);
         }
 
         $userId = (int) current_user()['id'];
@@ -293,7 +294,11 @@ class VaultController
         ]);
 
         flash('success', 'Categoria cadastrada com sucesso.');
-        redirect('/?route=vault.show&id=' . (int) $company['id']);
+        $redirect = '/?route=vault.show&id=' . (int) $company['id'];
+        if (!empty($data['parent_id'])) {
+            $redirect .= '&parent_id=' . (int) $data['parent_id'];
+        }
+        redirect($redirect);
     }
 
     private static function requireCompany(int $companyId): array

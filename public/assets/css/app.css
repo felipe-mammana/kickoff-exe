@@ -2963,16 +2963,14 @@ body.sidebar-collapsed .sidebar-profile {
 }
 
 .vault-company-category {
+    position: relative;
     display: grid;
-    grid-template-rows: auto minmax(1.2rem, auto) auto;
     gap: 0.35rem;
     min-height: 7.25rem;
-    padding: var(--space-3);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: color-mix(in srgb, var(--surface-2) 92%, transparent);
     color: var(--muted);
-    text-decoration: none;
     transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
 }
 
@@ -2986,6 +2984,35 @@ body.sidebar-collapsed .sidebar-profile {
 .vault-company-category strong {
     color: var(--text);
     overflow-wrap: anywhere;
+}
+
+.vault-category-main {
+    display: grid;
+    align-content: start;
+    gap: 0.65rem;
+    min-width: 0;
+    min-height: 100%;
+    padding: var(--space-3);
+    padding-right: 3.2rem;
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.vault-category-title-line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.vault-category-title-line strong {
+    min-width: 0;
+}
+
+.vault-company-category > .icon-btn {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-3);
 }
 
 .vault-company-category small {
@@ -3033,6 +3060,14 @@ body.sidebar-collapsed .sidebar-profile {
     gap: var(--space-3);
 }
 
+.vault-panel-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
 .vault-subcategory-head h3 {
     margin: 0.25rem 0 0;
     color: var(--text);
@@ -3056,6 +3091,23 @@ body.sidebar-collapsed .sidebar-profile {
 .vault-category-icon .icon {
     width: 1.05rem;
     height: 1.05rem;
+}
+
+.vault-info-dialog {
+    max-width: 460px;
+}
+
+.vault-info-body {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-3);
+    padding: var(--space-4);
+}
+
+.vault-info-body p {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    overflow-wrap: anywhere;
 }
 
 .vault-company-cell strong {
@@ -4561,8 +4613,15 @@ form[id^="delete-photo-"] {
         flex-direction: column;
     }
 
+    .vault-panel-actions,
+    .vault-panel-actions .btn,
     .vault-subcategory-head .btn {
         width: 100%;
+    }
+
+    .vault-panel-actions {
+        align-items: stretch;
+        flex-direction: column;
     }
 
     .vault-table .table-actions {

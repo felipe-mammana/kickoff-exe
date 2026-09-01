@@ -23,6 +23,10 @@ if ($categoryDefaultParentId <= 0 && $selectedCategory) {
 } elseif ($categoryDefaultParentId <= 0 && $selectedParent) {
     $categoryDefaultParentId = (int) $selectedParent['id'];
 }
+$openCategoryModalName = (string) ($openCategoryModal ?: '');
+if ($openCategoryModalName === '1') {
+    $openCategoryModalName = $categoryDefaultParentId > 0 ? 'subcategory' : 'category';
+}
 
 $categoryUrl = static function (?int $categoryId = null) use ($company, $filters): string {
     $params = [
@@ -76,9 +80,6 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
         <h1><?= e($company['name']) ?></h1>
         <p>Pesquise credenciais por categoria, nome, usuário ou URL.</p>
     </div>
-    <button class="btn btn-primary" type="button" data-vault-modal-open="create" data-vault-category-id="<?= (int) $credentialDefaultCategoryId ?>">
-        <?= icon('plus') ?><span>Nova credencial</span>
-    </button>
 </section>
 
 <section class="content-panel vault-search-panel">
@@ -120,23 +121,42 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
                 </p>
             <?php endif; ?>
         </div>
-        <button class="btn btn-muted" type="button" data-vault-modal-open="category" data-vault-parent-id="<?= (int) $categoryDefaultParentId ?>">
-            <?= icon('folder-plus') ?><span>Nova categoria</span>
-        </button>
+        <div class="vault-panel-actions">
+            <button class="btn btn-primary" type="button" data-vault-modal-open="create" data-vault-category-id="<?= (int) $credentialDefaultCategoryId ?>">
+                <?= icon('plus') ?><span>Nova credencial</span>
+            </button>
+            <button class="btn btn-muted" type="button" data-vault-modal-open="category">
+                <?= icon('folder-plus') ?><span>Nova categoria</span>
+            </button>
+        </div>
     </div>
 
     <div class="vault-company-category-grid">
-        <a class="vault-company-category <?= !$selectedParent && empty($filters['category_id']) ? 'active' : '' ?>" href="<?= e($categoryUrl(null)) ?>">
-            <span class="vault-category-icon"><?= icon('lock') ?></span>
-            <strong>Todas</strong>
-            <span><?= (int) $totalCredentials ?> item(ns)</span>
-        </a>
-        <?php foreach ($rootCategories as $category): ?>
-            <a class="vault-company-category <?= $selectedParent && (int) $selectedParent['id'] === (int) $category['id'] ? 'active' : '' ?>" href="<?= e($parentUrl((int) $category['id'])) ?>">
-                <span class="vault-category-icon"><?= icon($category['icon'] ?: 'lock') ?></span>
-                <strong><?= e($category['name']) ?></strong>
-                <span><?= (int) $category['credentials_count'] ?> item(ns)</span>
+        <article class="vault-company-category <?= !$selectedParent && empty($filters['category_id']) ? 'active' : '' ?>">
+            <a class="vault-category-main" href="<?= e($categoryUrl(null)) ?>">
+                <span class="vault-category-title-line">
+                    <span class="vault-category-icon"><?= icon('lock') ?></span>
+                    <strong>Todas</strong>
+                </span>
+                <span><?= (int) $totalCredentials ?> item(ns)</span>
             </a>
+            <button class="icon-btn compact" type="button" data-vault-modal-open="category-info" data-category-name="Todas" data-category-description="Todas as credenciais da empresa." data-category-count="<?= (int) $totalCredentials ?>" data-category-icon="lock" aria-label="Ver informações de Todas" title="Informações">
+                <?= icon('info') ?>
+            </button>
+        </article>
+        <?php foreach ($rootCategories as $category): ?>
+            <article class="vault-company-category <?= $selectedParent && (int) $selectedParent['id'] === (int) $category['id'] ? 'active' : '' ?>">
+                <a class="vault-category-main" href="<?= e($parentUrl((int) $category['id'])) ?>">
+                    <span class="vault-category-title-line">
+                        <span class="vault-category-icon"><?= icon($category['icon'] ?: 'lock') ?></span>
+                        <strong><?= e($category['name']) ?></strong>
+                    </span>
+                    <span><?= (int) $category['credentials_count'] ?> item(ns)</span>
+                </a>
+                <button class="icon-btn compact" type="button" data-vault-modal-open="category-info" data-category-name="<?= e($category['name']) ?>" data-category-description="<?= e($category['description'] ?: 'Sem descrição.') ?>" data-category-count="<?= (int) $category['credentials_count'] ?>" data-category-icon="<?= e($category['icon'] ?: 'lock') ?>" aria-label="Ver informações de <?= e($category['name']) ?>" title="Informações">
+                    <?= icon('info') ?>
+                </button>
+            </article>
         <?php endforeach; ?>
     </div>
 
@@ -147,23 +167,35 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
                     <span class="eyebrow">Dentro de <?= e($selectedParent['name']) ?></span>
                     <h3>Subcategorias</h3>
                 </div>
-                <a class="btn btn-muted" href="<?= e($categoryUrl((int) $selectedParent['id'])) ?>">
-                    <?= icon('filter') ?><span>Ver itens desta categoria</span>
-                </a>
+                <div class="vault-panel-actions">
+                    <button class="btn btn-primary" type="button" data-vault-modal-open="subcategory" data-vault-parent-id="<?= (int) $selectedParent['id'] ?>" data-vault-parent-name="<?= e($selectedParent['name']) ?>">
+                        <?= icon('folder-plus') ?><span>Nova subcategoria</span>
+                    </button>
+                    <a class="btn btn-muted" href="<?= e($categoryUrl((int) $selectedParent['id'])) ?>">
+                        <?= icon('filter') ?><span>Ver itens desta categoria</span>
+                    </a>
+                </div>
             </div>
             <?php if (!$childCategories): ?>
                 <div class="empty-state compact">
                     <h3>Nenhuma subcategoria</h3>
-                    <p>Use Nova categoria e escolha <?= e($selectedParent['name']) ?> no campo Dentro de.</p>
+                    <p>Use Nova subcategoria para criar uma pasta dentro de <?= e($selectedParent['name']) ?>.</p>
                 </div>
             <?php else: ?>
                 <div class="vault-company-category-grid vault-subcategory-grid">
                     <?php foreach ($childCategories as $category): ?>
-                        <a class="vault-company-category <?= (int) $filters['category_id'] === (int) $category['id'] ? 'active' : '' ?>" href="<?= e($categoryUrl((int) $category['id'])) ?>">
-                            <span class="vault-category-icon"><?= icon($category['icon'] ?: 'lock') ?></span>
-                            <strong><?= e($category['name']) ?></strong>
-                            <span><?= (int) $category['credentials_count'] ?> item(ns)</span>
-                        </a>
+                        <article class="vault-company-category <?= (int) $filters['category_id'] === (int) $category['id'] ? 'active' : '' ?>">
+                            <a class="vault-category-main" href="<?= e($categoryUrl((int) $category['id'])) ?>">
+                                <span class="vault-category-title-line">
+                                    <span class="vault-category-icon"><?= icon($category['icon'] ?: 'lock') ?></span>
+                                    <strong><?= e($category['name']) ?></strong>
+                                </span>
+                                <span><?= (int) $category['credentials_count'] ?> item(ns)</span>
+                            </a>
+                            <button class="icon-btn compact" type="button" data-vault-modal-open="category-info" data-category-name="<?= e($category['name']) ?>" data-category-description="<?= e($category['description'] ?: 'Sem descrição.') ?>" data-category-count="<?= (int) $category['credentials_count'] ?>" data-category-icon="<?= e($category['icon'] ?: 'lock') ?>" aria-label="Ver informações de <?= e($category['name']) ?>" title="Informações">
+                                <?= icon('info') ?>
+                            </button>
+                        </article>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
@@ -447,7 +479,7 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
     </div>
 </div>
 
-<div class="company-modal vault-modal" data-vault-modal="category" <?= $openCategoryModal ? '' : 'hidden' ?>>
+<div class="company-modal vault-modal" data-vault-modal="category" <?= $openCategoryModalName === 'category' ? '' : 'hidden' ?>>
     <div class="company-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-category-title">
         <header class="modal-head">
             <div>
@@ -459,22 +491,11 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
         <form class="company-form modal-company-form vault-credential-form" action="/?route=vault.categories.store" method="post" novalidate>
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
             <input type="hidden" name="company_id" value="<?= (int) $company['id'] ?>">
+            <input type="hidden" name="parent_id" value="">
             <label class="field <?= isset($categoryErrors['name']) ? 'has-error' : '' ?>">
                 <span>Nome da categoria</span>
                 <input type="text" name="name" value="<?= e($categoryOld['name'] ?? '') ?>" required data-vault-modal-focus>
                 <?php if (isset($categoryErrors['name'])): ?><small><?= e($categoryErrors['name']) ?></small><?php endif; ?>
-            </label>
-            <label class="field <?= isset($categoryErrors['parent_id']) ? 'has-error' : '' ?>">
-                <span>Dentro de</span>
-                <select name="parent_id" data-vault-category-parent>
-                    <option value="">Categoria principal</option>
-                    <?php foreach ($categories as $category): ?>
-                        <option value="<?= (int) $category['id'] ?>" <?= $categoryDefaultParentId === (int) $category['id'] ? 'selected' : '' ?>>
-                            <?= !empty($category['parent_name']) ? e($category['parent_name'] . ' / ') : '' ?><?= e($category['name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <?php if (isset($categoryErrors['parent_id'])): ?><small><?= e($categoryErrors['parent_id']) ?></small><?php endif; ?>
             </label>
             <label class="field <?= isset($categoryErrors['description']) ? 'has-error' : '' ?>">
                 <span>Descrição</span>
@@ -495,6 +516,68 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
                 <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar</span></button>
             </div>
         </form>
+    </div>
+</div>
+
+<div class="company-modal vault-modal" data-vault-modal="subcategory" <?= $openCategoryModalName === 'subcategory' ? '' : 'hidden' ?>>
+    <div class="company-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-subcategory-title">
+        <header class="modal-head">
+            <div>
+                <span class="eyebrow">Subpasta do cofre</span>
+                <h2 id="vault-subcategory-title">Nova subcategoria</h2>
+            </div>
+            <button class="icon-btn" type="button" data-vault-modal-close aria-label="Fechar"><?= icon('x') ?></button>
+        </header>
+        <form class="company-form modal-company-form vault-credential-form" action="/?route=vault.categories.store" method="post" novalidate>
+            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" name="company_id" value="<?= (int) $company['id'] ?>">
+            <input type="hidden" name="parent_id" value="<?= (int) $categoryDefaultParentId ?>" data-vault-category-parent>
+            <div class="settings-readonly">
+                <p>Criando dentro de <strong data-vault-subcategory-parent-name><?= e($selectedCategory['name'] ?? $selectedParent['name'] ?? 'categoria selecionada') ?></strong>.</p>
+            </div>
+            <label class="field <?= isset($categoryErrors['name']) ? 'has-error' : '' ?>">
+                <span>Nome da subcategoria</span>
+                <input type="text" name="name" value="<?= e($categoryOld['name'] ?? '') ?>" required data-vault-modal-focus>
+                <?php if (isset($categoryErrors['name'])): ?><small><?= e($categoryErrors['name']) ?></small><?php endif; ?>
+            </label>
+            <label class="field <?= isset($categoryErrors['description']) ? 'has-error' : '' ?>">
+                <span>Descrição</span>
+                <input type="text" name="description" value="<?= e($categoryOld['description'] ?? '') ?>">
+                <?php if (isset($categoryErrors['description'])): ?><small><?= e($categoryErrors['description']) ?></small><?php endif; ?>
+            </label>
+            <fieldset class="vault-icon-picker">
+                <legend>Ícone</legend>
+                <?php foreach ($iconOptions as $iconName => $iconLabel): ?>
+                    <label>
+                        <input type="radio" name="icon" value="<?= e($iconName) ?>" <?= ($categoryOld['icon'] ?? 'folder') === $iconName ? 'checked' : '' ?>>
+                        <span><?= icon($iconName) ?><small><?= e($iconLabel) ?></small></span>
+                    </label>
+                <?php endforeach; ?>
+            </fieldset>
+            <div class="form-actions">
+                <button class="btn btn-muted" type="button" data-vault-modal-close>Cancelar</button>
+                <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar</span></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="company-modal vault-modal" data-vault-modal="category-info" hidden>
+    <div class="company-modal-dialog vault-info-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-category-info-title">
+        <header class="modal-head">
+            <div>
+                <span class="eyebrow">Informações</span>
+                <h2 id="vault-category-info-title" data-vault-info-name>Categoria</h2>
+            </div>
+            <button class="icon-btn" type="button" data-vault-modal-close aria-label="Fechar"><?= icon('x') ?></button>
+        </header>
+        <div class="vault-info-body">
+            <span class="vault-category-icon" data-vault-info-icon><?= icon('lock') ?></span>
+            <div>
+                <strong data-vault-info-count>0 item(ns)</strong>
+                <p data-vault-info-description>Sem descrição.</p>
+            </div>
+        </div>
     </div>
 </div>
 

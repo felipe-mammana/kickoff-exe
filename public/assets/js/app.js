@@ -1023,13 +1023,35 @@
                 }, 50);
             } else if (modalName === 'category') {
                 const parent = modal.querySelector('[data-vault-category-parent]');
-                const parentId = button.getAttribute('data-vault-parent-id') || '';
-                if (parent) parent.value = parentId;
+                if (parent) parent.value = '';
 
                 const focus = modal.querySelector('[data-vault-modal-focus]');
                 setTimeout(function () {
                     focus?.focus();
                 }, 50);
+            } else if (modalName === 'subcategory') {
+                const parent = modal.querySelector('[data-vault-category-parent]');
+                const parentName = modal.querySelector('[data-vault-subcategory-parent-name]');
+                const parentId = button.getAttribute('data-vault-parent-id') || '';
+                const label = button.getAttribute('data-vault-parent-name') || '';
+                if (parent) parent.value = parentId;
+                if (parentName && label) parentName.textContent = label;
+
+                const focus = modal.querySelector('[data-vault-modal-focus]');
+                setTimeout(function () {
+                    focus?.focus();
+                }, 50);
+            } else if (modalName === 'category-info') {
+                const name = modal.querySelector('[data-vault-info-name]');
+                const description = modal.querySelector('[data-vault-info-description]');
+                const count = modal.querySelector('[data-vault-info-count]');
+                const icon = modal.querySelector('[data-vault-info-icon]');
+                const cardIcon = button.closest('.vault-company-category')?.querySelector('.vault-category-icon');
+
+                if (name) name.textContent = button.getAttribute('data-category-name') || 'Categoria';
+                if (description) description.textContent = button.getAttribute('data-category-description') || 'Sem descrição.';
+                if (count) count.textContent = (button.getAttribute('data-category-count') || '0') + ' item(ns)';
+                if (icon && cardIcon) icon.innerHTML = cardIcon.innerHTML;
             } else if (modalName === 'create') {
                 const category = modal.querySelector('[data-vault-create-category]');
                 const categoryId = button.getAttribute('data-vault-category-id') || '';
