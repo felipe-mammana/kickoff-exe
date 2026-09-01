@@ -3389,6 +3389,24 @@ body.sidebar-collapsed .sidebar-profile {
     letter-spacing: 0.08em;
 }
 
+.vault-secret-quick-copy {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2.1rem;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    gap: 0.45rem;
+}
+
+.vault-secret-quick-copy .icon-btn.compact {
+    display: inline-grid;
+    place-items: center;
+    width: 2.1rem;
+    min-width: 2.1rem;
+    height: 2.1rem;
+    padding: 0;
+}
+
 .vault-detail-dialog {
     max-width: 680px;
 }

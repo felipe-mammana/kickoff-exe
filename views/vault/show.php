@@ -251,7 +251,21 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
                                 <?php endif; ?>
                             </td>
                             <td data-label="Senha">
-                                <span class="vault-secret-placeholder">••••••••</span>
+                                <span class="vault-secret-quick-copy" data-vault-secret-cell>
+                                    <span class="vault-secret-placeholder">••••••••</span>
+                                    <input type="hidden" value="<?= e(csrf_token()) ?>" data-vault-secret-csrf>
+                                    <input type="hidden" value="" data-vault-secret-output>
+                                    <button
+                                        class="icon-btn compact"
+                                        type="button"
+                                        data-vault-secret-copy
+                                        data-vault-secret-id="<?= (int) $credential['id'] ?>"
+                                        aria-label="Copiar senha"
+                                        title="Copiar senha"
+                                    >
+                                        <?= icon('copy') ?>
+                                    </button>
+                                </span>
                             </td>
                             <td data-label="URL">
                                 <?php $safeUrl = safe_external_url($credential['service_url'] ?? null); ?>

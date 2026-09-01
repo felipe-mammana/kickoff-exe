@@ -1276,8 +1276,11 @@
             }
 
             output.value = result.json.data.value || '';
+            if (output.tagName !== 'INPUT' && output.tagName !== 'TEXTAREA') {
+                output.textContent = result.json.data.value || '';
+            }
             output.dataset.loaded = '1';
-            return output.value;
+            return output.value || output.textContent || '';
         }).catch(function (error) {
             if (error.code !== 'password_required') {
                 throw error;
