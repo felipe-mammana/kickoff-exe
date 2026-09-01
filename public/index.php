@@ -139,6 +139,24 @@ try {
         case 'settings.index':
             SettingsController::index();
             break;
+        case 'settings.account':
+            SettingsController::account();
+            break;
+        case 'settings.preferences':
+            SettingsController::preferences();
+            break;
+        case 'settings.twoFactor':
+            SettingsController::twoFactor();
+            break;
+        case 'settings.sessionLimit':
+            SettingsController::sessionLimit();
+            break;
+        case 'settings.security':
+            SettingsController::security();
+            break;
+        case 'settings.maintenance':
+            SettingsController::maintenance();
+            break;
         case 'settings.profile.update':
             SettingsController::updateProfile();
             break;

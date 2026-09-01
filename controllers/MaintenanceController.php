@@ -33,7 +33,7 @@ class MaintenanceController
 
         if (empty($_FILES['backup_sql']) || !is_array($_FILES['backup_sql'])) {
             flash('danger', 'Selecione um arquivo SQL para importar.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.maintenance');
         }
 
         $file = $_FILES['backup_sql'];
@@ -42,14 +42,14 @@ class MaintenanceController
 
         if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || $extension !== 'sql') {
             flash('danger', 'Envie um arquivo .sql válido.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.maintenance');
         }
 
         try {
             $executed = DatabaseMaintenance::importSqlFile((string) ($file['tmp_name'] ?? ''));
         } catch (Throwable $exception) {
             flash('danger', 'Não foi possível importar o banco: ' . $exception->getMessage());
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.maintenance');
         }
 
         AuditLog::record([
@@ -63,7 +63,7 @@ class MaintenanceController
         ]);
 
         flash('success', 'Backup importado com sucesso. Comandos executados: ' . $executed . '.');
-        redirect('/?route=settings.index');
+        redirect('/?route=settings.maintenance');
     }
 
     public static function cleanupOrphans(): void
@@ -84,7 +84,7 @@ class MaintenanceController
         ]);
 
         flash('success', $result['deleted'] . ' arquivo(s) órfão(s) removido(s). Espaço liberado: ' . format_file_size((int) $result['bytes']) . '.');
-        redirect('/?route=settings.index');
+        redirect('/?route=settings.maintenance');
     }
 
     private static function download(string $contentType, string $filename, string $contents): void

@@ -6,6 +6,41 @@ class SettingsController
 {
     public static function index(): void
     {
+        self::render();
+    }
+
+    public static function account(): void
+    {
+        self::render('account');
+    }
+
+    public static function preferences(): void
+    {
+        self::render('preferences');
+    }
+
+    public static function twoFactor(): void
+    {
+        self::render('two_factor');
+    }
+
+    public static function sessionLimit(): void
+    {
+        self::render('session_limit');
+    }
+
+    public static function security(): void
+    {
+        self::render('security');
+    }
+
+    public static function maintenance(): void
+    {
+        self::render('maintenance');
+    }
+
+    private static function render(?string $topic = null): void
+    {
         require_auth();
 
         $user = User::find((int) current_user()['id']);
@@ -20,6 +55,7 @@ class SettingsController
 
         view('settings/index', [
             'title' => 'Configurações',
+            'settingsTopic' => $topic,
             'accountUser' => $user,
             'twoFactorSetupSecret' => $setupSecret,
             'twoFactorProvisioningUri' => $setupSecret
@@ -37,7 +73,7 @@ class SettingsController
         verify_csrf();
 
         $_SESSION['two_factor_setup_secret'] = TwoFactorAuth::generateSecret();
-        redirect('/?route=settings.index');
+        redirect('/?route=settings.twoFactor');
     }
 
     public static function updateProfile(): void
@@ -55,17 +91,17 @@ class SettingsController
 
         if ($name === '' || strlen($name) > 120) {
             flash('danger', 'Informe um nome válido com até 120 caracteres.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.account');
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 160) {
             flash('danger', 'Informe um e-mail válido.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.account');
         }
 
         if (User::duplicateEmailExists($email, (int) $user['id'])) {
             flash('danger', 'Este e-mail já está em uso por outro usuário.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.account');
         }
 
         User::updateProfile((int) $user['id'], $name, $email);
@@ -88,7 +124,7 @@ class SettingsController
         ]);
 
         flash('success', 'Perfil atualizado com sucesso.');
-        redirect('/?route=settings.index');
+        redirect('/?route=settings.account');
     }
 
     public static function updatePassword(): void
@@ -107,17 +143,17 @@ class SettingsController
 
         if (!password_verify($currentPassword, (string) $user['password_hash'])) {
             flash('danger', 'Senha atual inválida.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.account');
         }
 
         if (strlen($password) < 8) {
             flash('danger', 'A nova senha deve ter no mínimo 8 caracteres.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.account');
         }
 
         if ($password !== $confirmation) {
             flash('danger', 'A confirmação da nova senha não confere.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.account');
         }
 
         User::updatePassword((int) $user['id'], $password);
@@ -130,7 +166,7 @@ class SettingsController
         ]);
 
         flash('success', 'Senha alterada com sucesso.');
-        redirect('/?route=settings.index');
+        redirect('/?route=settings.account');
     }
 
     public static function updatePreferences(): void
@@ -159,7 +195,7 @@ class SettingsController
             || !in_array($datetimeFormat, $allowedDateFormats, true)
         ) {
             flash('danger', 'Preferências inválidas.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.preferences');
         }
 
         $preferences = [
@@ -190,7 +226,7 @@ class SettingsController
         ]);
 
         flash('success', 'Preferências salvas com sucesso.');
-        redirect('/?route=settings.index');
+        redirect('/?route=settings.preferences');
     }
 
     public static function updateSecurityPreferences(): void
@@ -207,7 +243,7 @@ class SettingsController
         $allowedTimeouts = [30, 60, 120, 240, 480, 720, 1440];
         if (!in_array($timeout, $allowedTimeouts, true)) {
             flash('danger', 'Tempo de sessão inválido.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.security');
         }
 
         $requirePassword = !empty($_POST['vault_require_password_reveal']);
@@ -231,7 +267,7 @@ class SettingsController
         ]);
 
         flash('success', 'Preferências de segurança salvas.');
-        redirect('/?route=settings.index');
+        redirect('/?route=settings.security');
     }
 
     public static function endOtherSessions(): void
@@ -255,7 +291,7 @@ class SettingsController
         ]);
 
         flash('success', 'Outras sessões foram encerradas. A sessão atual foi mantida.');
-        redirect('/?route=settings.index');
+        redirect('/?route=settings.security');
     }
 
     public static function createApiToken(): void
@@ -339,7 +375,7 @@ class SettingsController
 
         unset($_SESSION['two_factor_setup_secret']);
         flash('success', 'Configuração do 2FA cancelada.');
-        redirect('/?route=settings.index');
+        redirect('/?route=settings.twoFactor');
     }
 
     public static function sendTwoFactorTestEmail(): void
@@ -354,13 +390,13 @@ class SettingsController
 
         if (empty($user['two_factor_enabled'])) {
             flash('danger', 'Ative o 2FA antes de testar o envio por e-mail.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.twoFactor');
         }
 
         $code = EmailCode::generate();
         if (!EmailCode::sendSettingsTestCode($user, $code)) {
             flash('danger', 'Não foi possível enviar o código por e-mail. Verifique a configuração de e-mail do servidor.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.twoFactor');
         }
 
         AuditLog::record([
@@ -371,7 +407,7 @@ class SettingsController
         ]);
 
         flash('success', 'Código de teste enviado para seu e-mail.');
-        redirect('/?route=settings.index');
+        redirect('/?route=settings.twoFactor');
     }
 
     public static function enableTwoFactor(): void
@@ -386,17 +422,17 @@ class SettingsController
 
         if (!$user || !is_string($secret) || $secret === '') {
             flash('danger', 'Inicie a configuração do 2FA antes de ativar.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.twoFactor');
         }
 
         if (!password_verify($password, (string) $user['password_hash'])) {
             flash('danger', 'Senha atual inválida.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.twoFactor');
         }
 
         if (!TwoFactorAuth::verify($secret, $code)) {
             flash('danger', 'Código 2FA inválido.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.twoFactor');
         }
 
         User::enableTwoFactor((int) $user['id'], $secret);
@@ -411,7 +447,7 @@ class SettingsController
         ]);
 
         flash('success', '2FA ativado com sucesso.');
-        redirect('/?route=settings.index');
+        redirect('/?route=settings.twoFactor');
     }
 
     public static function disableTwoFactor(): void
@@ -425,18 +461,18 @@ class SettingsController
 
         if (!$user || empty($user['two_factor_enabled'])) {
             flash('danger', '2FA não está ativo nesta conta.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.twoFactor');
         }
 
         if (!password_verify($password, (string) $user['password_hash'])) {
             flash('danger', 'Senha atual inválida.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.twoFactor');
         }
 
         $secret = User::twoFactorSecret($user);
         if (!$secret || !TwoFactorAuth::verify($secret, $code)) {
             flash('danger', 'Código 2FA inválido.');
-            redirect('/?route=settings.index');
+            redirect('/?route=settings.twoFactor');
         }
 
         User::disableTwoFactor((int) $user['id']);
@@ -451,7 +487,7 @@ class SettingsController
         ]);
 
         flash('success', '2FA desativado com sucesso.');
-        redirect('/?route=settings.index');
+        redirect('/?route=settings.twoFactor');
     }
 
     private static function activeSessions(array $user): array
