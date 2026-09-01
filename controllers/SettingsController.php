@@ -27,6 +27,7 @@ class SettingsController
                 : null,
             'activeSessions' => self::activeSessions($user),
             'recentAccesses' => AuditLog::latestAccountAccesses((int) $user['id']),
+            'maintenanceStatus' => is_admin() ? DatabaseMaintenance::status() : null,
         ]);
     }
 

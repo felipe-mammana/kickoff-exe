@@ -432,6 +432,24 @@ try {
     check('Relatorio DOCX nao exporta marca nem modelo', strpos($docx, 'Marca') === false && strpos($docx, 'Modelo') === false && strpos($docx, 'ThinkPad') === false);
     check('Relatorio DOCX nao exporta senhas', strpos($docx, 'senha-equipamento') === false && strpos($docx, 'senha-admin') === false);
 
+    $cleanDump = DatabaseMaintenance::dumpSql(true);
+    check('Backup limpo exporta estrutura e dados principais', strpos($cleanDump, 'CREATE TABLE `companies`') !== false && strpos($cleanDump, 'INSERT INTO `companies`') !== false);
+    check('Backup limpo remove tabelas temporarias', strpos($cleanDump, 'CREATE TABLE `audit_logs`') === false && strpos($cleanDump, 'CREATE TABLE `api_tokens`') === false);
+    $fullBackup = DatabaseMaintenance::fullBackupZip();
+    check('Backup completo gera arquivo ZIP valido', substr($fullBackup, 0, 4) === "PK\x03\x04" && strpos($fullBackup, 'database-full.sql') !== false);
+    $orphanPhotoPath = UPLOAD_PATH . '/orfao-' . bin2hex(random_bytes(4)) . '.png';
+    file_put_contents($orphanPhotoPath, 'orphan-photo');
+    $attachmentDirectory = STORAGE_PATH . '/company_attachments';
+    if (!is_dir($attachmentDirectory)) {
+        mkdir($attachmentDirectory, 0755, true);
+    }
+    $orphanAttachmentPath = $attachmentDirectory . '/orfao-' . bin2hex(random_bytes(4)) . '.pdf';
+    file_put_contents($orphanAttachmentPath, 'orphan-attachment');
+    $temporaryFiles[] = $orphanPhotoPath;
+    $temporaryFiles[] = $orphanAttachmentPath;
+    $orphanSummary = DatabaseMaintenance::orphanSummary();
+    check('Manutencao identifica arquivos orfaos', $orphanSummary['total'] >= 2);
+
     $_SERVER['HTTP_USER_AGENT'] = 'Codex Test Browser/1.0';
     AuditLog::record([
         'action_type' => 'automated_test',

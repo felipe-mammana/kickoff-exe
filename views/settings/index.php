@@ -9,6 +9,7 @@ $sessionTimeoutMinutes = (int) ($accountUser['session_timeout_minutes'] ?? 480);
 $vaultRequirePasswordReveal = !empty($accountUser['vault_require_password_reveal']);
 $activeSessions = $activeSessions ?? [];
 $recentAccesses = $recentAccesses ?? [];
+$maintenanceStatus = $maintenanceStatus ?? null;
 ?>
 
 <nav class="breadcrumbs" aria-label="Breadcrumb">
@@ -378,4 +379,122 @@ $recentAccesses = $recentAccesses ?? [];
             </div>
         </div>
     </article>
+
+    <?php if (is_admin() && is_array($maintenanceStatus)): ?>
+        <article class="asset-panel settings-topic-panel settings-wide-panel" data-settings-topic>
+            <header class="asset-panel-head">
+                <div>
+                    <span><?= icon('database') ?></span>
+                    <div>
+                        <h2>Backup e manutenção</h2>
+                        <p>Exporte backups, importe SQL e remova arquivos órfãos.</p>
+                    </div>
+                </div>
+                <button class="btn btn-muted" type="button" data-settings-topic-toggle aria-expanded="false">
+                    <?= icon('settings') ?><span>Abrir configurações</span>
+                </button>
+            </header>
+            <div class="settings-topic-body" data-settings-topic-body hidden>
+                <div class="maintenance-grid">
+                    <section class="settings-security-card maintenance-status-card">
+                        <div class="settings-form-head">
+                            <h3>Status do banco</h3>
+                            <p><?= e((string) $maintenanceStatus['database_name']) ?> · <?= count($maintenanceStatus['tables']) ?> tabela(s)</p>
+                        </div>
+                        <div class="maintenance-metrics">
+                            <div>
+                                <span>Tamanho do banco</span>
+                                <strong><?= e(format_file_size((int) $maintenanceStatus['database_size'])) ?></strong>
+                            </div>
+                            <div>
+                                <span>Fotos</span>
+                                <strong><?= (int) $maintenanceStatus['machine_photos']['files'] ?></strong>
+                                <small><?= e(format_file_size((int) $maintenanceStatus['machine_photos']['bytes'])) ?></small>
+                            </div>
+                            <div>
+                                <span>Anexos</span>
+                                <strong><?= (int) $maintenanceStatus['company_attachments']['files'] ?></strong>
+                                <small><?= e(format_file_size((int) $maintenanceStatus['company_attachments']['bytes'])) ?></small>
+                            </div>
+                            <div>
+                                <span>Órfãos</span>
+                                <strong><?= (int) $maintenanceStatus['orphans']['total'] ?></strong>
+                                <small><?= e(format_file_size((int) $maintenanceStatus['orphans']['bytes'])) ?></small>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="settings-security-card">
+                        <div class="settings-form-head">
+                            <h3>Exportações</h3>
+                            <p>Baixe uma cópia do banco ou um pacote completo com arquivos.</p>
+                        </div>
+                        <div class="maintenance-action-list">
+                            <a class="btn btn-primary" href="/?route=maintenance.exportCleanDatabase">
+                                <?= icon('download') ?><span>Exportar banco limpo</span>
+                            </a>
+                            <a class="btn btn-muted" href="/?route=maintenance.exportFullBackup">
+                                <?= icon('download') ?><span>Exportar backup completo</span>
+                            </a>
+                        </div>
+                    </section>
+
+                    <section class="settings-security-card">
+                        <form class="company-form settings-maintenance-form" action="/?route=maintenance.importDatabase" method="post" enctype="multipart/form-data" data-confirm="Importar este SQL pode substituir dados atuais. Confirma a importação?" data-confirm-variant="warning" novalidate>
+                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                            <div class="settings-form-head">
+                                <h3>Importar backup</h3>
+                                <p>Use apenas arquivos SQL gerados por este sistema.</p>
+                            </div>
+                            <label class="field">
+                                <span>Arquivo SQL</span>
+                                <input type="file" name="backup_sql" accept=".sql" required>
+                            </label>
+                            <button class="btn btn-warning" type="submit"><?= icon('upload') ?><span>Importar SQL</span></button>
+                        </form>
+                    </section>
+
+                    <section class="settings-security-card">
+                        <div class="settings-form-head">
+                            <h3>Arquivos órfãos</h3>
+                            <p>Remove fotos e anexos que existem na pasta, mas não possuem vínculo no banco.</p>
+                        </div>
+                        <form action="/?route=maintenance.cleanupOrphans" method="post" data-confirm="Remover arquivos órfãos encontrados no storage?" data-confirm-variant="warning">
+                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                            <button class="btn btn-warning" type="submit" <?= (int) $maintenanceStatus['orphans']['total'] === 0 ? 'disabled' : '' ?>>
+                                <?= icon('trash-2') ?><span>Limpar arquivos órfãos</span>
+                            </button>
+                        </form>
+                    </section>
+                </div>
+
+                <section class="settings-security-card maintenance-table-card">
+                    <div class="settings-form-head">
+                        <h3>Tabelas do banco</h3>
+                        <p>Resumo rápido para acompanhar volume e espaço ocupado.</p>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="inventory-table">
+                            <thead>
+                                <tr>
+                                    <th>Tabela</th>
+                                    <th>Registros estimados</th>
+                                    <th>Tamanho</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($maintenanceStatus['tables'] as $table): ?>
+                                    <tr>
+                                        <td data-label="Tabela"><strong><?= e((string) $table['name']) ?></strong></td>
+                                        <td data-label="Registros estimados"><?= (int) $table['rows'] ?></td>
+                                        <td data-label="Tamanho"><?= e(format_file_size((int) $table['bytes'])) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </article>
+    <?php endif; ?>
 </section>

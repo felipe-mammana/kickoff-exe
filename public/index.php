@@ -175,6 +175,18 @@ try {
         case 'settings.2fa.disable':
             SettingsController::disableTwoFactor();
             break;
+        case 'maintenance.exportCleanDatabase':
+            MaintenanceController::exportCleanDatabase();
+            break;
+        case 'maintenance.exportFullBackup':
+            MaintenanceController::exportFullBackup();
+            break;
+        case 'maintenance.importDatabase':
+            MaintenanceController::importDatabase();
+            break;
+        case 'maintenance.cleanupOrphans':
+            MaintenanceController::cleanupOrphans();
+            break;
         case 'export.download':
             ExportController::download();
             break;

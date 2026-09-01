@@ -2387,6 +2387,61 @@ body.sidebar-collapsed .sidebar-profile {
     padding-right: 0.15rem;
 }
 
+.maintenance-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    gap: var(--space-4);
+    align-items: stretch;
+}
+
+.maintenance-status-card,
+.maintenance-table-card {
+    grid-column: 1 / -1;
+}
+
+.maintenance-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-3);
+}
+
+.maintenance-metrics > div {
+    display: grid;
+    gap: 0.3rem;
+    min-width: 0;
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.maintenance-metrics span,
+.maintenance-metrics small {
+    color: var(--muted);
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
+}
+
+.maintenance-metrics strong {
+    font-size: 1.25rem;
+}
+
+.maintenance-action-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.settings-maintenance-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    padding: 0;
+}
+
+.settings-maintenance-form .settings-form-head {
+    grid-column: 1 / -1;
+}
+
 .toggle-field {
     grid-column: 1 / -1;
     display: flex;
@@ -4523,12 +4578,16 @@ form[id^="delete-photo-"] {
     .settings-account-grid,
     .settings-security-row,
     .settings-security-form-compact,
+    .maintenance-grid,
+    .maintenance-metrics,
+    .settings-maintenance-form,
     .vault-detail-list,
     .two-factor-login-actions {
         grid-template-columns: 1fr;
     }
 
-    .settings-security-form-compact .btn {
+    .settings-security-form-compact .btn,
+    .settings-maintenance-form .btn {
         grid-column: 1;
         justify-self: stretch;
         width: 100%;
