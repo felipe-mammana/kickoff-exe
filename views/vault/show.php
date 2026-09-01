@@ -251,30 +251,7 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
                                 <?php endif; ?>
                             </td>
                             <td data-label="Senha">
-                                <span class="vault-secret-cell" data-vault-secret-cell>
-                                    <input type="password" value="" placeholder="••••••••" readonly data-vault-secret-output>
-                                    <input type="hidden" value="<?= e(csrf_token()) ?>" data-vault-secret-csrf>
-                                    <button
-                                        class="password-toggle-icon"
-                                        type="button"
-                                        data-vault-secret-toggle
-                                        data-vault-secret-id="<?= (int) $credential['id'] ?>"
-                                        aria-label="Mostrar senha"
-                                        title="Mostrar senha"
-                                    >
-                                        <?= icon('eye') ?>
-                                    </button>
-                                    <button
-                                        class="password-toggle-icon"
-                                        type="button"
-                                        data-vault-secret-copy
-                                        data-vault-secret-id="<?= (int) $credential['id'] ?>"
-                                        aria-label="Copiar senha"
-                                        title="Copiar senha"
-                                    >
-                                        <?= icon('copy') ?>
-                                    </button>
-                                </span>
+                                <span class="vault-secret-placeholder">••••••••</span>
                             </td>
                             <td data-label="URL">
                                 <?php $safeUrl = safe_external_url($credential['service_url'] ?? null); ?>
@@ -301,6 +278,23 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
                             <td data-label="Atualização"><?= e($credential['updated_at'] ?: '-') ?></td>
                             <td data-label="Ações">
                                 <div class="table-actions">
+                                    <button
+                                        class="icon-btn"
+                                        type="button"
+                                        data-vault-modal-open="details"
+                                        data-vault-id="<?= (int) $credential['id'] ?>"
+                                        data-vault-title="<?= e($credential['title']) ?>"
+                                        data-vault-category-name="<?= e($credential['category_name'] ?: 'Sem tipo') ?>"
+                                        data-vault-category-icon="<?= e($credential['category_icon'] ?: 'lock') ?>"
+                                        data-vault-username="<?= e($credential['username'] ?? '') ?>"
+                                        data-vault-service-url="<?= e($credential['service_url'] ?? '') ?>"
+                                        data-vault-notes="<?= e($credential['notes'] ?? '') ?>"
+                                        data-vault-updated-at="<?= e($credential['updated_at'] ?: '-') ?>"
+                                        aria-label="Visualizar credencial"
+                                        title="Visualizar"
+                                    >
+                                        <?= icon('eye') ?>
+                                    </button>
                                     <button
                                         class="icon-btn"
                                         type="button"
@@ -577,6 +571,77 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
                 <strong data-vault-info-count>0 item(ns)</strong>
                 <p data-vault-info-description>Sem descrição.</p>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="company-modal vault-modal" data-vault-modal="details" hidden>
+    <div class="company-modal-dialog vault-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-details-title">
+        <header class="modal-head">
+            <div>
+                <span class="eyebrow">Credencial</span>
+                <h2 id="vault-details-title" data-vault-details-title>Detalhes da credencial</h2>
+            </div>
+            <button class="icon-btn" type="button" data-vault-modal-close aria-label="Fechar"><?= icon('x') ?></button>
+        </header>
+        <div class="vault-detail-body">
+            <dl class="vault-detail-list">
+                <div>
+                    <dt>Tipo</dt>
+                    <dd>
+                        <span class="vault-type-chip">
+                            <span data-vault-details-category-icon><?= icon('lock') ?></span>
+                            <span data-vault-details-category>Sem tipo</span>
+                        </span>
+                    </dd>
+                </div>
+                <div>
+                    <dt>Usuário</dt>
+                    <dd>
+                        <span class="vault-copy-cell">
+                            <span data-vault-details-username>-</span>
+                            <button class="icon-btn compact" type="button" data-copy-value="" data-vault-details-username-copy aria-label="Copiar usuário" title="Copiar usuário">
+                                <?= icon('copy') ?>
+                            </button>
+                        </span>
+                    </dd>
+                </div>
+                <div>
+                    <dt>Senha</dt>
+                    <dd>
+                        <span class="vault-secret-cell" data-vault-secret-cell>
+                            <input type="password" value="" placeholder="••••••••" readonly data-vault-secret-output>
+                            <input type="hidden" value="<?= e(csrf_token()) ?>" data-vault-secret-csrf>
+                            <button class="password-toggle-icon" type="button" data-vault-secret-toggle data-vault-secret-id="" aria-label="Mostrar senha" title="Mostrar senha" data-vault-details-secret-toggle>
+                                <?= icon('eye') ?>
+                            </button>
+                            <button class="password-toggle-icon" type="button" data-vault-secret-copy data-vault-secret-id="" aria-label="Copiar senha" title="Copiar senha" data-vault-details-secret-copy>
+                                <?= icon('copy') ?>
+                            </button>
+                        </span>
+                    </dd>
+                </div>
+                <div>
+                    <dt>URL</dt>
+                    <dd>
+                        <span class="vault-copy-cell">
+                            <a class="vault-inline-link" href="#" target="_blank" rel="noopener noreferrer" data-vault-details-url-link hidden>-</a>
+                            <span data-vault-details-url-text>-</span>
+                            <button class="icon-btn compact" type="button" data-copy-value="" data-vault-details-url-copy aria-label="Copiar URL" title="Copiar URL">
+                                <?= icon('copy') ?>
+                            </button>
+                        </span>
+                    </dd>
+                </div>
+                <div>
+                    <dt>Atualização</dt>
+                    <dd data-vault-details-updated>-</dd>
+                </div>
+                <div class="field-wide">
+                    <dt>Observações</dt>
+                    <dd data-vault-details-notes>-</dd>
+                </div>
+            </dl>
         </div>
     </div>
 </div>

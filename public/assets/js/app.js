@@ -1021,6 +1021,63 @@
                 setTimeout(function () {
                     title?.focus();
                 }, 50);
+            } else if (modalName === 'details') {
+                const id = button.getAttribute('data-vault-id') || '';
+                const title = modal.querySelector('[data-vault-details-title]');
+                const category = modal.querySelector('[data-vault-details-category]');
+                const categoryIcon = modal.querySelector('[data-vault-details-category-icon]');
+                const username = modal.querySelector('[data-vault-details-username]');
+                const usernameCopy = modal.querySelector('[data-vault-details-username-copy]');
+                const urlLink = modal.querySelector('[data-vault-details-url-link]');
+                const urlText = modal.querySelector('[data-vault-details-url-text]');
+                const urlCopy = modal.querySelector('[data-vault-details-url-copy]');
+                const updated = modal.querySelector('[data-vault-details-updated]');
+                const notes = modal.querySelector('[data-vault-details-notes]');
+                const output = modal.querySelector('[data-vault-secret-output]');
+                const secretToggle = modal.querySelector('[data-vault-details-secret-toggle]');
+                const secretCopy = modal.querySelector('[data-vault-details-secret-copy]');
+                const credentialTitle = button.getAttribute('data-vault-title') || 'Detalhes da credencial';
+                const credentialUsername = button.getAttribute('data-vault-username') || '';
+                const credentialUrl = button.getAttribute('data-vault-service-url') || '';
+
+                if (title) title.textContent = credentialTitle;
+                if (category) category.textContent = button.getAttribute('data-vault-category-name') || 'Sem tipo';
+                if (categoryIcon) {
+                    categoryIcon.innerHTML = button.closest('tr')?.querySelector('.vault-type-chip .icon')?.outerHTML || '';
+                }
+                if (username) username.textContent = credentialUsername || '-';
+                if (usernameCopy) {
+                    usernameCopy.hidden = credentialUsername === '';
+                    usernameCopy.setAttribute('data-copy-value', credentialUsername);
+                }
+                if (urlCopy) {
+                    urlCopy.hidden = credentialUrl === '';
+                    urlCopy.setAttribute('data-copy-value', credentialUrl);
+                }
+                if (urlLink && urlText) {
+                    const isExternalUrl = /^https?:\/\//i.test(credentialUrl);
+                    urlLink.hidden = !isExternalUrl;
+                    urlText.hidden = isExternalUrl;
+                    if (isExternalUrl) {
+                        urlLink.href = credentialUrl;
+                        urlLink.textContent = credentialUrl;
+                    } else {
+                        urlText.textContent = credentialUrl || '-';
+                    }
+                }
+                if (updated) updated.textContent = button.getAttribute('data-vault-updated-at') || '-';
+                if (notes) notes.textContent = button.getAttribute('data-vault-notes') || '-';
+                if (output) {
+                    output.value = '';
+                    output.type = 'password';
+                    delete output.dataset.loaded;
+                }
+                if (secretToggle) {
+                    secretToggle.setAttribute('data-vault-secret-id', id);
+                    secretToggle.setAttribute('title', 'Mostrar senha');
+                    secretToggle.setAttribute('aria-label', 'Mostrar senha');
+                }
+                if (secretCopy) secretCopy.setAttribute('data-vault-secret-id', id);
             } else if (modalName === 'category') {
                 const parent = modal.querySelector('[data-vault-category-parent]');
                 if (parent) parent.value = '';
