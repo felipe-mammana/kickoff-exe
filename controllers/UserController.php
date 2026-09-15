@@ -55,8 +55,13 @@ class UserController
         $user = self::requireUser();
         [$data, $errors] = self::validatedData(false, $user);
 
-        if (self::wouldRemoveLastAdmin($user, !empty($data['is_admin']), !empty($user['is_active']))) {
-            $errors['is_admin'] = 'Mantenha ao menos um administrador ativo.';
+        if ((int) $user['id'] === (int) current_user()['id'] && strcasecmp($data['email'], (string) $user['email']) !== 0) {
+            flash('danger', 'Para trocar seu próprio e-mail, confirme a alteração nas configurações da conta.');
+            redirect('/?route=settings.account');
+        }
+
+        if (self::wouldRemoveLastAdmin($user, $data['role'] === 'admin', !empty($user['is_active']))) {
+            $errors['role'] = 'Mantenha ao menos um administrador ativo.';
         }
 
         if ($errors) {
@@ -71,6 +76,7 @@ class UserController
         }
 
         $changes = self::changedFields($user, $data);
+        if (strcasecmp((string) $user['email'], $data['email']) !== 0) AccountChallengeController::requireProof(User::find((int) current_user()['id']), 'admin-email');
         User::update((int) $user['id'], $data);
 
         if ($changes) {
@@ -87,7 +93,8 @@ class UserController
         if ((int) $user['id'] === (int) current_user()['id']) {
             $_SESSION['user']['name'] = $data['name'];
             $_SESSION['user']['email'] = $data['email'];
-            $_SESSION['user']['is_admin'] = (int) $data['is_admin'];
+            $_SESSION['user']['role'] = $data['role'];
+            $_SESSION['user']['is_admin'] = $data['role'] === 'admin' ? 1 : 0;
         }
 
         flash('success', 'Usuário atualizado com sucesso.');
@@ -100,12 +107,16 @@ class UserController
         verify_csrf();
 
         $user = self::requireUser();
+        if ((int) $user['id'] === (int) current_user()['id']) {
+            flash('danger', 'Altere sua própria senha nas configurações da conta, confirmando a senha atual.');
+            redirect('/?route=settings.account');
+        }
         $password = (string) ($_POST['password'] ?? '');
         $passwordConfirmation = (string) ($_POST['password_confirmation'] ?? '');
         $errors = [];
 
-        if (strlen($password) < 8) {
-            $errors['password'] = 'Use no minimo 8 caracteres.';
+        if (!PasswordSecurity::valid($password)) {
+            $errors['password'] = PasswordSecurity::REQUIREMENTS;
         } elseif ($password !== $passwordConfirmation) {
             $errors['password_confirmation'] = 'As senhas não conferem.';
         }
@@ -119,6 +130,7 @@ class UserController
                     'id' => (int) $user['id'],
                     'name' => $user['name'],
                     'email' => $user['email'],
+                    'role' => User::roleFromUser($user),
                     'is_admin' => (int) $user['is_admin'],
                 ],
                 'openModal' => 'password',
@@ -126,9 +138,12 @@ class UserController
             return;
         }
 
+        $actor = current_user();
+        AccountChallengeController::requireProof(User::find((int) $actor['id']), 'admin-reset');
         User::updatePassword((int) $user['id'], $password);
         AuditLog::record([
             'action_type' => 'user_password_reset',
+            'user_id' => (int) $actor['id'], 'user_name' => $actor['name'], 'user_email' => $actor['email'],
             'affected_table' => 'users',
             'affected_record_id' => (int) $user['id'],
             'description' => 'Senha de usuário redefinida.',
@@ -138,7 +153,7 @@ class UserController
             ],
         ]);
 
-        flash('success', 'Senha redefinida com sucesso.');
+        flash('success', 'Senha redefinida e sessões do usuário encerradas.');
         redirect('/?route=users.index');
     }
 
@@ -192,9 +207,10 @@ class UserController
         $data = [
             'name' => trim((string) ($_POST['name'] ?? ($current['name'] ?? ''))),
             'email' => strtolower(trim((string) ($_POST['email'] ?? ($current['email'] ?? '')))),
-            'is_admin' => isset($_POST['is_admin']) ? 1 : 0,
+            'role' => User::normalizeRole((string) ($_POST['role'] ?? ($current ? User::roleFromUser($current) : 'viewer'))),
             'is_active' => $creating ? 1 : (int) ($current['is_active'] ?? 1),
         ];
+        $data['is_admin'] = $data['role'] === 'admin' ? 1 : 0;
 
         if ($creating) {
             $data['password'] = (string) ($_POST['password'] ?? '');
@@ -219,8 +235,8 @@ class UserController
         }
 
         if ($creating) {
-            if (strlen((string) $data['password']) < 8) {
-                $errors['password'] = 'Use no minimo 8 caracteres.';
+            if (!PasswordSecurity::valid((string) $data['password'])) {
+                $errors['password'] = PasswordSecurity::REQUIREMENTS;
             } elseif ($data['password'] !== $data['password_confirmation']) {
                 $errors['password_confirmation'] = 'As senhas não conferem.';
             }
@@ -243,7 +259,7 @@ class UserController
         $labels = [
             'name' => 'Nome',
             'email' => 'E-mail',
-            'is_admin' => 'Administrador',
+            'role' => 'Nível de acesso',
         ];
         $changes = ['old' => [], 'new' => []];
 
@@ -252,8 +268,8 @@ class UserController
             $newValue = (string) ($new[$field] ?? '');
 
             if ($oldValue !== $newValue) {
-                $changes['old'][$label] = $field === 'is_admin' ? ($oldValue === '1' ? 'Sim' : 'Não') : $oldValue;
-                $changes['new'][$label] = $field === 'is_admin' ? ($newValue === '1' ? 'Sim' : 'Não') : $newValue;
+                $changes['old'][$label] = $field === 'role' ? User::roleLabel($oldValue) : $oldValue;
+                $changes['new'][$label] = $field === 'role' ? User::roleLabel($newValue) : $newValue;
             }
         }
 
@@ -265,6 +281,7 @@ class UserController
         return [
             'name' => $data['name'],
             'email' => $data['email'],
+            'role' => User::roleLabel($data['role']),
             'is_admin' => !empty($data['is_admin']),
             'is_active' => !empty($data['is_active']),
         ];

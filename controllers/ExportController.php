@@ -26,7 +26,7 @@ class ExportController
             return;
         }
 
-        if (in_array($type, ['companies', 'users', 'audit'], true)) {
+        if (in_array($type, ['users', 'audit'], true)) {
             require_admin();
         }
 
@@ -193,7 +193,7 @@ class ExportController
             'profile' => trim((string) ($_GET['profile'] ?? '')),
         ];
 
-        $sql = 'SELECT id, name, email, is_admin, is_active, created_at FROM users WHERE 1 = 1';
+        $sql = 'SELECT id, name, email, role, is_admin, is_active, created_at FROM users WHERE 1 = 1';
         $params = [];
 
         if ($filters['query'] !== '') {
@@ -202,9 +202,12 @@ class ExportController
         }
 
         if ($filters['profile'] === 'admin') {
-            $sql .= ' AND is_admin = 1';
+            $sql .= " AND role = 'admin'";
         } elseif ($filters['profile'] === 'standard') {
-            $sql .= ' AND is_admin = 0';
+            $sql .= " AND role = 'viewer'";
+        } elseif (in_array($filters['profile'], ['editor', 'viewer'], true)) {
+            $sql .= ' AND role = :profile';
+            $params['profile'] = $filters['profile'];
         }
 
         $sql .= ' ORDER BY name';
@@ -216,7 +219,7 @@ class ExportController
                 'ID' => (int) $row['id'],
                 'Usuário' => $row['name'],
                 'E-mail' => $row['email'],
-                'Perfil' => !empty($row['is_admin']) ? 'Administrador' : 'Usuário padrão',
+                'Perfil' => User::roleLabel(User::roleFromUser($row)),
                 'Status' => !empty($row['is_active']) ? 'Ativo' : 'Inativo',
                 'Criado em' => $row['created_at'] ?? '-',
             ];

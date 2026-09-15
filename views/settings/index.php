@@ -1,6 +1,8 @@
 <?php
 $settingsTopic = $settingsTopic ?? null;
 $twoFactorEnabled = !empty($accountUser['two_factor_enabled']);
+$twoFactorAuthenticatorEnabled = !empty($twoFactorAuthenticatorEnabled);
+$twoFactorEmailSetupPending = !empty($twoFactorEmailSetupPending);
 $sessionStartedAt = $accountUser['active_session_started_at'] ?? null;
 $preferredTheme = $accountUser['preferred_theme'] ?? 'light';
 $sidebarDefault = $accountUser['sidebar_default'] ?? 'expanded';
@@ -12,8 +14,66 @@ $activeSessions = $activeSessions ?? [];
 $recentAccesses = $recentAccesses ?? [];
 $maintenanceStatus = $maintenanceStatus ?? null;
 $auditRetentionDays = (int) ($auditRetentionDays ?? 365);
+$deviceSettings = is_array($deviceSettings ?? null) ? $deviceSettings : AppSetting::deviceSettings();
+$vaultSettings = is_array($vaultSettings ?? null) ? $vaultSettings : AppSetting::vaultSettings();
+$deviceTypes = is_array($deviceTypes ?? null) ? $deviceTypes : Machine::deviceTypes();
+$deviceFieldLabels = is_array($deviceFieldLabels ?? null) ? $deviceFieldLabels : AppSetting::deviceFieldLabels();
+$photoMimeLabels = is_array($photoMimeLabels ?? null) ? $photoMimeLabels : ['image/jpeg' => 'JPG / JPEG', 'image/png' => 'PNG', 'image/webp' => 'WEBP'];
+$attachmentExtensionLabels = array_combine(AppSetting::defaultAttachmentExtensions(), array_map('strtoupper', AppSetting::defaultAttachmentExtensions()));
+$vaultIconOptions = VaultCategory::iconOptions();
+$vaultCustomFieldTypeLabels = is_array($vaultCustomFieldTypeLabels ?? null) ? $vaultCustomFieldTypeLabels : AppSetting::vaultCustomFieldTypeLabels();
+$accountRole = User::roleFromUser($accountUser);
+$accountRoleIcons = ['admin' => 'settings', 'editor' => 'edit-3', 'viewer' => 'users'];
+$accountRoleClasses = ['admin' => 'info', 'editor' => 'success', 'viewer' => 'neutral'];
+$editableLabelPrefix = static function (string $template): string {
+    return trim(str_replace(['{empresa}', '{EMPRESA}'], '', $template));
+};
+$usesCompanyInitials = static function (string $template): bool {
+    return stripos($template, '{empresa}') !== false;
+};
 $nameParts = preg_split('/\s+/', trim((string) $accountUser['name'])) ?: [];
 $initials = strtoupper(substr($nameParts[0] ?? 'E', 0, 1) . substr($nameParts[1] ?? 'X', 0, 1));
+
+$renderVaultCustomFields = static function (string $baseName, array $fields) use ($vaultCustomFieldTypeLabels): void {
+    ?>
+    <details class="vault-default-fields" data-vault-custom-field-list>
+        <summary class="vault-default-fields-head">
+            <div>
+                <strong>Campos personalizados</strong>
+                <span>Campos que aparecem no cadastro da credencial.</span>
+            </div>
+            <span class="vault-collapse-chevron" aria-hidden="true"><?= icon('chevron-down') ?></span>
+        </summary>
+        <div class="vault-default-fields-content">
+            <button class="btn btn-muted compact-btn" type="button" data-vault-add-custom-field><?= icon('plus') ?><span>Adicionar campo</span></button>
+            <div class="vault-default-field-list">
+            <?php foreach ($fields as $fieldIndex => $field): ?>
+                <div class="vault-default-field-row" data-vault-custom-field>
+                    <input type="hidden" name="<?= e($baseName) ?>[fields][<?= (int) $fieldIndex ?>][key]" value="<?= e((string) ($field['key'] ?? '')) ?>">
+                    <label class="field">
+                        <span>Nome do campo</span>
+                        <input type="text" name="<?= e($baseName) ?>[fields][<?= (int) $fieldIndex ?>][label]" value="<?= e((string) ($field['label'] ?? '')) ?>" maxlength="80">
+                    </label>
+                    <label class="field">
+                        <span>Tipo</span>
+                        <select name="<?= e($baseName) ?>[fields][<?= (int) $fieldIndex ?>][type]">
+                            <?php foreach ($vaultCustomFieldTypeLabels as $type => $label): ?>
+                                <option value="<?= e($type) ?>" <?= (string) ($field['type'] ?? 'text') === $type ? 'selected' : '' ?>><?= e($label) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                    <label class="toggle-field vault-default-field-required">
+                        <input type="checkbox" name="<?= e($baseName) ?>[fields][<?= (int) $fieldIndex ?>][required]" value="1" <?= !empty($field['required']) ? 'checked' : '' ?>>
+                        <span>Obrigatório</span>
+                    </label>
+                    <button class="icon-btn danger" type="button" data-vault-remove-custom-field aria-label="Remover campo" title="Remover campo"><?= icon('trash-2') ?></button>
+                </div>
+            <?php endforeach; ?>
+            </div>
+        </div>
+    </details>
+    <?php
+};
 
 $topics = [
     'account' => ['route' => 'settings.account', 'icon' => 'user', 'eyebrow' => 'Segurança & perfil', 'title' => 'Configurações da conta', 'card_title' => 'Conta', 'description' => 'Dados do perfil e troca da senha de acesso.'],
@@ -23,11 +83,20 @@ $topics = [
     'security' => ['route' => 'settings.security', 'icon' => 'file-clock', 'eyebrow' => 'Segurança', 'title' => 'Segurança da conta', 'card_title' => 'Segurança', 'description' => 'Sessões, acessos, expiração e proteção do cofre.'],
 ];
 
-if (is_admin() && is_array($maintenanceStatus)) {
+if (is_admin()) {
     $topics['audit'] = ['route' => 'settings.audit', 'icon' => 'file-clock', 'eyebrow' => 'Auditoria', 'title' => 'Auditoria do sistema', 'card_title' => 'Auditoria', 'description' => 'Retenção de logs, exportação por período e eventos críticos.'];
-    $topics['maintenance'] = ['route' => 'settings.maintenance', 'icon' => 'database', 'eyebrow' => 'Manutenção', 'title' => 'Backup e manutenção', 'card_title' => 'Backup e manutenção', 'description' => 'Exporte backups, importe SQL e remova arquivos órfãos.'];
+    $topics['devices'] = ['route' => 'settings.devices', 'icon' => 'monitor-cog', 'eyebrow' => 'Empresas e dispositivos', 'title' => 'Empresas e dispositivos', 'card_title' => 'Empresas e dispositivos', 'description' => 'Prefixos, categorias, obrigatoriedade e uploads.'];
+    $topics['vault'] = ['route' => 'settings.vault', 'icon' => 'lock', 'eyebrow' => 'Cofre de senhas', 'title' => 'Cofre de senhas', 'card_title' => 'Cofre de senhas', 'description' => 'Categorias, cópia, revelação, logs e validade das credenciais.'];
+    if (is_array($maintenanceStatus)) {
+        $topics['maintenance'] = ['route' => 'settings.maintenance', 'icon' => 'database', 'eyebrow' => 'Manutenção', 'title' => 'Backup e manutenção', 'card_title' => 'Backup e manutenção', 'description' => 'Exporte backups, importe SQL e remova arquivos órfãos.'];
+        $topics['auditFiles'] = ['route' => 'settings.auditFiles', 'icon' => 'lock', 'eyebrow' => 'Auditoria', 'title' => 'Arquivos de auditoria', 'card_title' => 'Arquivos de auditoria', 'description' => 'Registros protegidos com confirmacao de senha.'];
+    }
 }
 
+unset($topics['vault']);
+if (can_access_vault()) {
+    $topics['vault'] = ['route' => 'settings.vault', 'icon' => 'lock', 'eyebrow' => 'Cofre', 'title' => 'Cofre de senhas', 'card_title' => 'Cofre de senhas', 'description' => 'Configuracoes do cofre.'];
+}
 $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $topics[$settingsTopic] : null;
 ?>
 
@@ -52,6 +121,7 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
         </div>
         <div class="header-actions">
             <?php if (is_admin()): ?>
+                <a class="btn btn-muted" href="/?route=settings.microsoft.index"><?= icon('mail') ?><span>Email Microsoft</span></a>
                 <a class="btn btn-muted" href="/?route=audit.index"><?= icon('file-clock') ?><span>Auditoria</span></a>
             <?php endif; ?>
             <a class="btn btn-primary" href="/"><?= icon('layout-dashboard') ?><span>Dashboard</span></a>
@@ -120,19 +190,50 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
         </header>
 
         <?php if ($settingsTopic === 'account'): ?>
+            <?php if (!empty($pendingEmailChange)): ?>
+                <section class="account-email-verification" aria-labelledby="email-change-title">
+                    <div class="settings-form-head">
+                        <h3 id="email-change-title">Confirmar novo e-mail</h3>
+                        <p>Código enviado para <strong><?= e($pendingEmailChange['email']) ?></strong>. Seu e-mail atual continua ativo até a confirmação.</p>
+                    </div>
+                    <form action="/?route=settings.email.confirm" method="post" class="account-email-verification-form">
+                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                        <label class="field"><span>Código de verificação</span><input name="email_change_code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" type="submit"><?= icon('check-circle') ?><span>Confirmar e-mail</span></button>
+                            <button class="btn btn-muted" type="submit" formaction="/?route=settings.email.resend" formnovalidate data-email-cooldown="<?= (int) ($emailRetryAfter ?? 0) ?>"><?= icon('mail') ?><span>Reenviar código</span></button>
+                            <button class="btn btn-muted" type="submit" formaction="/?route=settings.email.cancel" formnovalidate>Cancelar alteração</button>
+                        </div>
+                    </form>
+                </section>
+            <?php endif; ?>
             <div class="settings-account-grid">
-                <form class="company-form settings-security-form settings-detail-card" action="/?route=settings.profile.update" method="post" novalidate>
+                <form class="company-form settings-security-form settings-detail-card" action="/?route=settings.profile.update" method="post" novalidate data-account-confirmation-form data-original-email="<?= e($accountUser['email']) ?>">
                     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                     <div class="settings-form-head"><h3>Perfil da conta</h3><p>Atualize nome e e-mail do usuário conectado.</p></div>
+                    <div class="account-role-card">
+                        <span class="role-option-icon"><?= icon($accountRoleIcons[$accountRole] ?? 'users') ?></span>
+                        <div>
+                            <small>Nível de acesso</small>
+                            <strong><?= e(User::roleLabel($accountRole)) ?></strong>
+                        </div>
+                        <span class="status-chip <?= e($accountRoleClasses[$accountRole] ?? 'neutral') ?>">Atual</span>
+                    </div>
                     <label class="field"><span>Nome</span><input type="text" name="name" value="<?= e($accountUser['name']) ?>" maxlength="120" required></label>
                     <label class="field"><span>E-mail</span><input type="email" name="email" value="<?= e($accountUser['email']) ?>" maxlength="160" required></label>
                     <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar perfil</span></button>
+                    <?php
+                    $confirmationId = 'account-email';
+                    $confirmationTitle = 'Confirmar troca de e-mail';
+                    $confirmationDescription = 'Confirme sua senha para enviar um código ao novo endereço de e-mail.';
+                    require BASE_PATH . '/views/partials/account-password-modal.php';
+                    ?>
                 </form>
                 <form class="company-form settings-security-form settings-detail-card" action="/?route=settings.password.update" method="post" novalidate>
                     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                     <div class="settings-form-head"><h3>Alterar senha</h3><p>Troque a senha usada para entrar no sistema.</p></div>
                     <label class="field"><span>Senha atual</span><input type="password" name="current_password" autocomplete="current-password" required></label>
-                    <label class="field"><span>Nova senha</span><input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
+                    <label class="field"><span>Nova senha</span><input type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" pattern="(?=.*\p{Ll})(?=.*\p{Lu})(?=.*[0-9])(?=.*[^\p{L}\p{N}\s]).{8,}" title="Minimo 8 caracteres: maiuscula, minuscula, numero e especial." required><?php require BASE_PATH . '/views/partials/password-requirements.php'; ?></label>
                     <label class="field"><span>Confirmar nova senha</span><input type="password" name="password_confirmation" autocomplete="new-password" minlength="8" required></label>
                     <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Alterar senha</span></button>
                 </form>
@@ -149,32 +250,101 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
         <?php elseif ($settingsTopic === 'two_factor'): ?>
             <?php if ($twoFactorEnabled): ?>
                 <div class="settings-security-panel settings-detail-card">
-                    <div class="settings-readonly"><p>O 2FA está ativo. No login, o sistema aceita o código do aplicativo autenticador ou um código enviado por e-mail.</p></div>
+                    <div class="settings-readonly"><p>O 2FA está ativo por <?= $twoFactorAuthenticatorEnabled ? 'aplicativo autenticador e código por e-mail' : 'código por e-mail' ?>.</p></div>
                     <form action="/?route=settings.2fa.email.test" method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><button class="btn btn-muted" type="submit"><?= icon('mail') ?><span>Testar código por e-mail</span></button></form>
-                    <form class="company-form settings-security-form" action="/?route=settings.2fa.disable" method="post" novalidate>
+                    <form class="company-form settings-security-form" action="/?route=settings.2fa.disable" method="post" novalidate data-two-factor-disable-form>
                         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                        <label class="field"><span>Senha atual</span><input type="password" name="password" autocomplete="current-password" required></label>
-                        <label class="field"><span>Código 2FA</span><input type="text" name="two_factor_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
-                        <button class="btn btn-danger" type="submit"><?= icon('trash-2') ?><span>Desativar 2FA</span></button>
+                        <button class="btn btn-danger" type="button" data-two-factor-disable-open><?= icon('trash-2') ?><span>Desativar 2FA</span></button>
+
+                        <div class="company-modal two-factor-disable-modal" data-two-factor-disable-modal hidden>
+                            <div class="company-modal-dialog confirm-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="two-factor-disable-title">
+                                <header class="modal-head">
+                                    <div>
+                                        <span class="eyebrow">Confirmação</span>
+                                        <h2 id="two-factor-disable-title">Desativar 2FA</h2>
+                                    </div>
+                                    <button class="icon-btn" type="button" data-two-factor-disable-close aria-label="Fechar"><?= icon('x') ?></button>
+                                </header>
+                                <div class="confirm-modal-body two-factor-disable-body">
+                                    <p>Informe sua senha atual para confirmar a desativação da autenticação em dois fatores.</p>
+                                    <label class="field">
+                                        <span>Senha atual</span>
+                                        <input type="password" name="password" autocomplete="current-password" required disabled data-two-factor-disable-password>
+                                    </label>
+                                </div>
+                                <div class="form-actions confirm-modal-actions">
+                                    <button class="btn btn-muted" type="button" data-two-factor-disable-close>Cancelar</button>
+                                    <button class="btn btn-danger" type="submit"><?= icon('trash-2') ?><span>Desativar</span></button>
+                                </div>
+                            </div>
+                        </div>
                     </form>
                 </div>
             <?php else: ?>
-                <div class="settings-security-panel settings-detail-card">
-                    <?php if (!$twoFactorSetupSecret): ?>
-                        <div class="settings-readonly"><p>Para ativar, gere uma chave, cadastre no aplicativo autenticador e confirme o primeiro código.</p></div>
-                        <form action="/?route=settings.2fa.prepare" method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><button class="btn btn-primary" type="submit"><?= icon('plus') ?><span>Configurar 2FA</span></button></form>
-                    <?php else: ?>
-                        <div class="two-factor-setup">
-                            <div><span class="eyebrow">Chave manual</span><code><?= e($twoFactorSetupSecret) ?></code><small>Adicione esta chave no aplicativo autenticador e informe o código gerado.</small></div>
-                            <?php if ($twoFactorProvisioningUri): ?><div><span class="eyebrow">URI de configuração</span><code><?= e($twoFactorProvisioningUri) ?></code><small>Use apenas se o aplicativo permitir colar uma URI otpauth.</small></div><?php endif; ?>
-                        </div>
-                        <form class="company-form settings-security-form" action="/?route=settings.2fa.enable" method="post" novalidate>
-                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                            <label class="field"><span>Senha atual</span><input type="password" name="password" autocomplete="current-password" required></label>
-                            <label class="field"><span>Código 2FA</span><input type="text" name="two_factor_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
-                            <button class="btn btn-primary" type="submit"><?= icon('check-circle') ?><span>Ativar 2FA</span></button>
-                        </form>
-                        <form action="/?route=settings.2fa.cancel" method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><button class="btn btn-muted" type="submit"><?= icon('x') ?><span>Cancelar configuração</span></button></form>
+                <div class="<?= ($twoFactorEmailSetupPending || $twoFactorSetupSecret) ? 'settings-two-factor-step' : 'settings-two-column' ?>">
+                    <?php if (!$twoFactorEmailSetupPending): ?>
+                    <section class="settings-security-panel settings-detail-card">
+                        <div class="settings-form-head"><h3>Aplicativo autenticador</h3><p>Use Google Authenticator, Microsoft Authenticator ou aplicativo compatível.</p></div>
+                        <?php if (!$twoFactorSetupSecret): ?>
+                            <form action="/?route=settings.2fa.prepare" method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><button class="btn btn-primary" type="submit"><?= icon('plus') ?><span>Configurar aplicativo</span></button></form>
+                        <?php else: ?>
+                            <div class="two-factor-setup">
+                                <div><span class="eyebrow">Chave manual</span><code><?= e($twoFactorSetupSecret) ?></code><small>Adicione esta chave no aplicativo autenticador e informe o código gerado.</small></div>
+                                <?php if ($twoFactorProvisioningUri): ?><div><span class="eyebrow">URI de configuração</span><code><?= e($twoFactorProvisioningUri) ?></code><small>Use apenas se o aplicativo permitir colar uma URI otpauth.</small></div><?php endif; ?>
+                            </div>
+                            <form class="company-form settings-security-form" action="/?route=settings.2fa.enable" method="post" novalidate>
+                                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                                <label class="field"><span>Senha atual</span><input type="password" name="password" autocomplete="current-password" required></label>
+                                <label class="field"><span>Código do autenticador</span><input type="text" name="two_factor_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
+                                <button class="btn btn-primary" type="submit"><?= icon('check-circle') ?><span>Ativar aplicativo</span></button>
+                            </form>
+                            <form action="/?route=settings.2fa.cancel" method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><button class="btn btn-muted" type="submit"><?= icon('x') ?><span>Cancelar configuração</span></button></form>
+                        <?php endif; ?>
+                    </section>
+                    <?php endif; ?>
+                    <?php if (!$twoFactorSetupSecret || $twoFactorEmailSetupPending): ?>
+                    <section class="settings-security-panel settings-detail-card">
+                        <div class="settings-form-head"><h3>Código por e-mail</h3><p>Receba um código no e-mail da conta sempre que fizer login.</p></div>
+                        <?php if (!$twoFactorEmailSetupPending): ?>
+                            <form action="/?route=settings.2fa.email.prepare" method="post">
+                                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                                <button class="btn btn-primary" type="submit"><?= icon('mail') ?><span>Enviar código de ativação</span></button>
+                            </form>
+                        <?php else: ?>
+                            <form class="company-form settings-security-form" action="/?route=settings.2fa.email.enable" method="post" novalidate data-two-factor-password-modal-form>
+                                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                                <label class="field"><span>Código recebido por e-mail</span><input type="text" name="email_two_factor_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
+                                <button class="btn btn-primary" type="button" data-two-factor-password-modal-open><?= icon('check-circle') ?><span>Ativar por e-mail</span></button>
+
+                                <div class="company-modal two-factor-disable-modal" data-two-factor-password-modal hidden>
+                                    <div class="company-modal-dialog confirm-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="two-factor-email-enable-title">
+                                        <header class="modal-head">
+                                            <div>
+                                                <span class="eyebrow">Confirmação</span>
+                                                <h2 id="two-factor-email-enable-title">Ativar 2FA por e-mail</h2>
+                                            </div>
+                                            <button class="icon-btn" type="button" data-two-factor-password-modal-close aria-label="Fechar"><?= icon('x') ?></button>
+                                        </header>
+                                        <div class="confirm-modal-body two-factor-disable-body">
+                                            <p>Informe sua senha atual para confirmar a ativação da autenticação por e-mail.</p>
+                                            <label class="field">
+                                                <span>Senha atual</span>
+                                                <input type="password" name="password" autocomplete="current-password" required disabled data-two-factor-password-modal-input>
+                                            </label>
+                                        </div>
+                                        <div class="form-actions confirm-modal-actions">
+                                            <button class="btn btn-muted" type="button" data-two-factor-password-modal-close>Cancelar</button>
+                                            <button class="btn btn-primary" type="submit"><?= icon('check-circle') ?><span>Ativar</span></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                            <form action="/?route=settings.2fa.cancel" method="post">
+                                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                                <button class="btn btn-muted" type="submit"><?= icon('x') ?><span>Voltar para escolha do método</span></button>
+                            </form>
+                        <?php endif; ?>
+                    </section>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
@@ -196,12 +366,20 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                         <form action="/?route=settings.sessions.endOther" method="post" data-confirm="Encerrar outras sessões e manter apenas esta?"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><button class="btn btn-warning" type="submit"><?= icon('log-out') ?><span>Encerrar outras sessões</span></button></form>
                     </section>
                     <section class="settings-security-card">
-                        <form class="company-form settings-security-form settings-security-form-compact" action="/?route=settings.security.update" method="post" novalidate>
+                        <form class="company-form settings-security-form settings-security-form-compact" action="/?route=settings.security.update" method="post" novalidate data-account-confirmation-form data-vault-password-enabled="<?= $vaultRequirePasswordReveal ? '1' : '0' ?>">
                             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                             <div class="settings-form-head"><h3>Regras de segurança</h3><p>Defina expiração da sessão e reforço para revelar senhas do cofre.</p></div>
                             <label class="field"><span>Tempo de expiração da sessão</span><select name="session_timeout_minutes" required><?php foreach ([30 => '30 minutos', 60 => '1 hora', 120 => '2 horas', 240 => '4 horas', 480 => '8 horas', 720 => '12 horas', 1440 => '24 horas'] as $minutes => $label): ?><option value="<?= $minutes ?>" <?= $sessionTimeoutMinutes === $minutes ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
+                            <?php if (can_access_vault()): ?>
                             <label class="toggle-field settings-security-toggle"><input type="checkbox" name="vault_require_password_reveal" value="1" <?= $vaultRequirePasswordReveal ? 'checked' : '' ?>><span>Exigir senha para revelar credenciais do cofre</span></label>
+                            <?php endif; ?>
                             <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar segurança</span></button>
+                            <?php
+                            $confirmationId = 'account-vault';
+                            $confirmationTitle = 'Desativar confirmação de senha';
+                            $confirmationDescription = 'Confirme sua senha para permitir a revelação de credenciais sem pedir a senha da conta.';
+                            require BASE_PATH . '/views/partials/account-password-modal.php';
+                            ?>
                         </form>
                     </section>
                 </div>
@@ -265,6 +443,296 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                     </form>
                 </section>
             </div>
+        <?php elseif ($settingsTopic === 'devices' && is_admin()): ?>
+            <form class="company-form settings-security-form settings-detail-card settings-admin-form" action="/?route=settings.devices.update" method="post" novalidate>
+                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                <div class="settings-form-head">
+                    <h3>Prefixos de etiqueta</h3>
+                    <p>Edite apenas o prefixo do tipo. As iniciais da empresa entram automaticamente.</p>
+                </div>
+                <div class="settings-config-grid">
+                    <?php foreach ($deviceTypes as $type => $label): ?>
+                        <?php
+                        $template = (string) ($deviceSettings['label_prefixes'][$type] ?? '');
+                        $hasCompanyInitials = $usesCompanyInitials($template);
+                        ?>
+                        <label class="settings-prefix-card">
+                            <span class="settings-prefix-title"><?= e($label) ?></span>
+                            <span class="settings-prefix-row">
+                                <span class="settings-prefix-label">Prefixo</span>
+                                <input type="text" name="label_prefixes[<?= e($type) ?>]" value="<?= e($editableLabelPrefix($template)) ?>" maxlength="12" placeholder="Ex.: N">
+                            </span>
+                            <?php if ($hasCompanyInitials): ?>
+                                <span class="settings-prefix-note">+ iniciais da empresa</span>
+                                <input type="hidden" name="label_prefix_uses_company[<?= e($type) ?>]" value="1">
+                            <?php else: ?>
+                                <span class="settings-prefix-note muted">Sem iniciais automáticas</span>
+                            <?php endif; ?>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="settings-rule-section">
+                    <div class="settings-form-head">
+                        <h3>Categorias padrão</h3>
+                        <p>Defina quais tipos aparecem como categorias operacionais para novos cadastros.</p>
+                    </div>
+                    <div class="settings-checkbox-grid">
+                        <?php foreach ($deviceTypes as $type => $label): ?>
+                            <label class="toggle-field">
+                                <input type="checkbox" name="default_categories[]" value="<?= e($type) ?>" <?= in_array($type, (array) $deviceSettings['default_categories'], true) ? 'checked' : '' ?>>
+                                <span><?= e($label) ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <div class="settings-rule-section">
+                    <div class="settings-form-head">
+                        <h3>Campos obrigatórios por tipo</h3>
+                        <p>Controle quais campos bloqueiam o salvamento de cada equipamento.</p>
+                    </div>
+                    <div class="settings-required-list">
+                        <?php foreach ($deviceTypes as $type => $label): ?>
+                            <section class="settings-mini-card">
+                                <h4><?= e($label) ?></h4>
+                                <div class="settings-checkbox-grid compact">
+                                    <?php foreach ($deviceFieldLabels as $field => $fieldLabel): ?>
+                                        <label class="toggle-field">
+                                            <input type="checkbox" name="required_fields[<?= e($type) ?>][]" value="<?= e($field) ?>" <?= in_array($field, (array) ($deviceSettings['required_fields'][$type] ?? []), true) ? 'checked' : '' ?>>
+                                            <span><?= e($fieldLabel) ?></span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </section>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <div class="settings-rule-section">
+                    <div class="settings-form-head">
+                        <h3>Fotos e anexos</h3>
+                        <p>Defina limite de tamanho e formatos permitidos para uploads.</p>
+                    </div>
+                    <div class="settings-config-grid">
+                        <label class="field">
+                            <span>Limite de fotos</span>
+                            <select name="photo_max_mb" required>
+                                <?php foreach ([1, 2, 5, 10, 15, 20, 25] as $mb): ?>
+                                    <option value="<?= $mb ?>" <?= (int) $deviceSettings['photo_max_mb'] === $mb ? 'selected' : '' ?>><?= $mb ?> MB</option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Limite de anexos</span>
+                            <select name="attachment_max_mb" required>
+                                <?php foreach ([1, 2, 5, 10, 15, 20, 25] as $mb): ?>
+                                    <option value="<?= $mb ?>" <?= (int) $deviceSettings['attachment_max_mb'] === $mb ? 'selected' : '' ?>><?= $mb ?> MB</option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="settings-two-column">
+                        <section class="settings-mini-card">
+                            <h4>Fotos permitidas</h4>
+                            <div class="settings-checkbox-grid compact">
+                                <?php foreach ($photoMimeLabels as $mime => $label): ?>
+                                    <label class="toggle-field">
+                                        <input type="checkbox" name="photo_mimes[]" value="<?= e($mime) ?>" <?= in_array($mime, (array) $deviceSettings['photo_mimes'], true) ? 'checked' : '' ?>>
+                                        <span><?= e($label) ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </section>
+                        <section class="settings-mini-card">
+                            <h4>Anexos permitidos</h4>
+                            <div class="settings-checkbox-grid compact">
+                                <?php foreach ($attachmentExtensionLabels as $extension => $label): ?>
+                                    <label class="toggle-field">
+                                        <input type="checkbox" name="attachment_extensions[]" value="<?= e($extension) ?>" <?= in_array($extension, (array) $deviceSettings['attachment_extensions'], true) ? 'checked' : '' ?>>
+                                        <span><?= e($label) ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar empresas e dispositivos</span></button>
+            </form>
+        <?php elseif ($settingsTopic === 'vault' && can_access_vault()): ?>
+            <form class="company-form settings-security-form settings-detail-card settings-admin-form vault-settings-form" action="/?route=settings.vault.update" method="post" novalidate>
+                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                <div class="settings-form-head vault-default-head vault-settings-intro">
+                    <div>
+                        <h3>Categorias padrão do cofre</h3>
+                        <p>Configure nome, ícone e subcategorias. Ao salvar, o sistema cria ou atualiza os itens padrão.</p>
+                    </div>
+                    <button class="btn btn-muted" type="button" data-vault-add-category>
+                        <?= icon('plus') ?><span>Adicionar categoria</span>
+                    </button>
+                </div>
+                <div class="vault-default-category-list" data-vault-category-list>
+                    <?php foreach ((array) $vaultSettings['default_categories'] as $categoryIndex => $category): ?>
+                        <section class="vault-default-category-card" data-vault-default-category>
+                            <div class="vault-default-category-main vault-category-editor">
+                                <span class="vault-default-icon-preview"><?= icon((string) ($category['icon'] ?? 'folder')) ?></span>
+                                <label class="field">
+                                    <span>Categoria</span>
+                                    <input type="text" name="vault_categories[<?= (int) $categoryIndex ?>][name]" value="<?= e((string) ($category['name'] ?? '')) ?>" maxlength="120" required>
+                                </label>
+                                <label class="field">
+                                    <span>Ícone</span>
+                                    <select name="vault_categories[<?= (int) $categoryIndex ?>][icon]" data-vault-icon-select>
+                                        <?php foreach ($vaultIconOptions as $iconKey => $iconLabel): ?>
+                                            <option value="<?= e($iconKey) ?>" data-icon-markup="<?= e(icon($iconKey)) ?>" <?= (string) ($category['icon'] ?? 'folder') === $iconKey ? 'selected' : '' ?>><?= e($iconLabel) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </label>
+                                <button class="icon-btn danger" type="button" data-vault-remove-category aria-label="Remover categoria" title="Remover categoria"><?= icon('trash-2') ?></button>
+                            </div>
+                            <?php $renderVaultCustomFields('vault_categories[' . (int) $categoryIndex . ']', (array) ($category['fields'] ?? [])); ?>
+                            <details class="vault-default-subcategory-block">
+                                <summary class="vault-default-subcategory-head">
+                                    <strong>Subcategorias padrão</strong>
+                                    <span class="vault-collapse-chevron" aria-hidden="true"><?= icon('chevron-down') ?></span>
+                                </summary>
+                                <div class="vault-default-subcategory-content">
+                                    <button class="btn btn-muted compact-btn" type="button" data-vault-add-subcategory><?= icon('plus') ?><span>Adicionar subcategoria</span></button>
+                                    <div class="vault-default-subcategory-list" data-vault-subcategory-list>
+                                    <?php foreach ((array) ($category['children'] ?? []) as $childIndex => $child): ?>
+                                        <div class="vault-default-subcategory-row" data-vault-default-subcategory>
+                                            <div class="vault-default-subcategory-main">
+                                                <span class="vault-default-icon-preview small"><?= icon((string) ($child['icon'] ?? 'folder')) ?></span>
+                                                <label class="field">
+                                                    <span>Subcategoria</span>
+                                                    <input type="text" name="vault_categories[<?= (int) $categoryIndex ?>][children][<?= (int) $childIndex ?>][name]" value="<?= e((string) ($child['name'] ?? '')) ?>" maxlength="120" required>
+                                                </label>
+                                                <label class="field">
+                                                    <span>Ícone</span>
+                                                    <select name="vault_categories[<?= (int) $categoryIndex ?>][children][<?= (int) $childIndex ?>][icon]" data-vault-icon-select>
+                                                        <?php foreach ($vaultIconOptions as $iconKey => $iconLabel): ?>
+                                                            <option value="<?= e($iconKey) ?>" data-icon-markup="<?= e(icon($iconKey)) ?>" <?= (string) ($child['icon'] ?? 'folder') === $iconKey ? 'selected' : '' ?>><?= e($iconLabel) ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </label>
+                                                <button class="icon-btn danger" type="button" data-vault-remove-subcategory aria-label="Remover subcategoria" title="Remover subcategoria"><?= icon('trash-2') ?></button>
+                                            </div>
+                                            <?php $renderVaultCustomFields('vault_categories[' . (int) $categoryIndex . '][children][' . (int) $childIndex . ']', (array) ($child['fields'] ?? [])); ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </details>
+                        </section>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="settings-rule-section vault-access-rules">
+                    <div class="settings-form-head">
+                        <h3>Regras de acesso às senhas</h3>
+                        <p>Controle cópia, confirmação, auditoria e alerta de credenciais antigas.</p>
+                    </div>
+                    <div class="settings-check-list">
+                        <label class="toggle-field">
+                            <input type="checkbox" name="allow_password_copy" value="1" <?= !empty($vaultSettings['allow_password_copy']) ? 'checked' : '' ?>>
+                            <span>Permitir botão de copiar senha</span>
+                        </label>
+                        <label class="toggle-field">
+                            <input type="checkbox" name="require_reveal_confirmation" value="1" <?= !empty($vaultSettings['require_reveal_confirmation']) ? 'checked' : '' ?>>
+                            <span>Exigir confirmação antes de revelar senha</span>
+                        </label>
+                        <label class="toggle-field">
+                            <input type="checkbox" name="audit_secret_access" value="1" checked disabled>
+                            <span>Registrar visualização e cópia de senha nos logs</span>
+                        </label>
+                    </div>
+                    <label class="field settings-expiration-field">
+                        <span>Alerta de credencial antiga</span>
+                        <select name="credential_expiration_days" required>
+                            <?php foreach ([0 => 'Desativado', 30 => '30 dias', 60 => '60 dias', 90 => '90 dias', 180 => '180 dias', 365 => '1 ano', 730 => '2 anos', 1095 => '3 anos'] as $days => $label): ?>
+                                <option value="<?= $days ?>" <?= (int) $vaultSettings['credential_expiration_days'] === $days ? 'selected' : '' ?>><?= e($label) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                </div>
+
+                <button class="btn btn-primary vault-save-button" type="submit"><?= icon('save') ?><span>Salvar cofre de senhas</span></button>
+            </form>
+            <template data-vault-category-template>
+                <section class="vault-default-category-card" data-vault-default-category>
+                    <div class="vault-default-category-main vault-category-editor">
+                        <span class="vault-default-icon-preview"><?= icon('folder') ?></span>
+                        <label class="field">
+                            <span>Categoria</span>
+                            <input type="text" name="vault_categories[__CATEGORY__][name]" value="" maxlength="120" required>
+                        </label>
+                        <label class="field">
+                            <span>Ícone</span>
+                            <select name="vault_categories[__CATEGORY__][icon]" data-vault-icon-select>
+                                <?php foreach ($vaultIconOptions as $iconKey => $iconLabel): ?>
+                                    <option value="<?= e($iconKey) ?>" data-icon-markup="<?= e(icon($iconKey)) ?>" <?= $iconKey === 'folder' ? 'selected' : '' ?>><?= e($iconLabel) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <button class="icon-btn danger" type="button" data-vault-remove-category aria-label="Remover categoria" title="Remover categoria"><?= icon('trash-2') ?></button>
+                    </div>
+                    <?php $renderVaultCustomFields('vault_categories[__CATEGORY__]', []); ?>
+                    <details class="vault-default-subcategory-block">
+                        <summary class="vault-default-subcategory-head">
+                            <strong>Subcategorias padrão</strong>
+                            <span class="vault-collapse-chevron" aria-hidden="true"><?= icon('chevron-down') ?></span>
+                        </summary>
+                        <div class="vault-default-subcategory-content">
+                            <button class="btn btn-muted compact-btn" type="button" data-vault-add-subcategory><?= icon('plus') ?><span>Adicionar subcategoria</span></button>
+                            <div class="vault-default-subcategory-list" data-vault-subcategory-list></div>
+                        </div>
+                    </details>
+                </section>
+            </template>
+            <template data-vault-subcategory-template>
+                <div class="vault-default-subcategory-row" data-vault-default-subcategory>
+                    <div class="vault-default-subcategory-main">
+                        <span class="vault-default-icon-preview small"><?= icon('folder') ?></span>
+                        <label class="field">
+                            <span>Subcategoria</span>
+                            <input type="text" name="vault_categories[__CATEGORY__][children][__CHILD__][name]" value="" maxlength="120" required>
+                        </label>
+                        <label class="field">
+                            <span>Ícone</span>
+                            <select name="vault_categories[__CATEGORY__][children][__CHILD__][icon]" data-vault-icon-select>
+                                <?php foreach ($vaultIconOptions as $iconKey => $iconLabel): ?>
+                                    <option value="<?= e($iconKey) ?>" data-icon-markup="<?= e(icon($iconKey)) ?>" <?= $iconKey === 'folder' ? 'selected' : '' ?>><?= e($iconLabel) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <button class="icon-btn danger" type="button" data-vault-remove-subcategory aria-label="Remover subcategoria" title="Remover subcategoria"><?= icon('trash-2') ?></button>
+                    </div>
+                    <?php $renderVaultCustomFields('vault_categories[__CATEGORY__][children][__CHILD__]', []); ?>
+                </div>
+            </template>
+            <template data-vault-custom-field-template>
+                <div class="vault-default-field-row" data-vault-custom-field>
+                    <input type="hidden" name="__BASE__[fields][__FIELD__][key]" value="">
+                    <label class="field">
+                        <span>Nome do campo</span>
+                        <input type="text" name="__BASE__[fields][__FIELD__][label]" value="" maxlength="80" placeholder="Ex.: IP de acesso">
+                    </label>
+                    <label class="field">
+                        <span>Tipo</span>
+                        <select name="__BASE__[fields][__FIELD__][type]">
+                            <?php foreach ($vaultCustomFieldTypeLabels as $type => $label): ?>
+                                <option value="<?= e($type) ?>"><?= e($label) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                    <label class="toggle-field vault-default-field-required">
+                        <input type="checkbox" name="__BASE__[fields][__FIELD__][required]" value="1">
+                        <span>Obrigatório</span>
+                    </label>
+                    <button class="icon-btn danger" type="button" data-vault-remove-custom-field aria-label="Remover campo" title="Remover campo"><?= icon('trash-2') ?></button>
+                </div>
+            </template>
         <?php elseif ($settingsTopic === 'maintenance' && is_array($maintenanceStatus)): ?>
             <div class="maintenance-grid">
                 <section class="settings-security-card maintenance-status-card">
@@ -277,7 +745,7 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                     </div>
                 </section>
                 <section class="settings-security-card"><div class="settings-form-head"><h3>Exportações</h3><p>Baixe uma cópia do banco ou um pacote completo com arquivos.</p></div><div class="maintenance-action-list"><a class="btn btn-primary" href="/?route=maintenance.exportCleanDatabase"><?= icon('download') ?><span>Exportar banco limpo</span></a><a class="btn btn-muted" href="/?route=maintenance.exportFullBackup"><?= icon('download') ?><span>Exportar backup completo</span></a></div></section>
-                <section class="settings-security-card"><form class="company-form settings-maintenance-form" action="/?route=maintenance.importDatabase" method="post" enctype="multipart/form-data" data-confirm="Importar este SQL pode substituir dados atuais. Confirma a importação?" data-confirm-variant="warning" novalidate><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><div class="settings-form-head"><h3>Importar backup</h3><p>Use apenas arquivos SQL gerados por este sistema.</p></div><label class="field"><span>Arquivo SQL</span><input type="file" name="backup_sql" accept=".sql" required></label><button class="btn btn-warning" type="submit"><?= icon('upload') ?><span>Importar SQL</span></button></form></section>
+                <section class="settings-security-card"><form class="company-form settings-maintenance-form" action="/?route=maintenance.importDatabase" method="post" enctype="multipart/form-data" data-confirm="Importar este SQL pode substituir dados atuais. Confirma a importação?" data-confirm-variant="warning" novalidate><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><div class="settings-form-head"><h3>Importar backup</h3><p>Use apenas arquivos SQL gerados por este sistema.</p></div><label class="field"><span>Arquivo SQL</span><input type="file" name="backup_sql" accept=".sql,.exe-sql" required></label><button class="btn btn-warning" type="submit"><?= icon('upload') ?><span>Importar SQL</span></button></form></section>
                 <section class="settings-security-card"><div class="settings-form-head"><h3>Arquivos órfãos</h3><p>Remove fotos e anexos que existem na pasta, mas não possuem vínculo no banco.</p></div><form action="/?route=maintenance.cleanupOrphans" method="post" data-confirm="Remover arquivos órfãos encontrados no storage?" data-confirm-variant="warning"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><button class="btn btn-warning" type="submit" <?= (int) $maintenanceStatus['orphans']['total'] === 0 ? 'disabled' : '' ?>><?= icon('trash-2') ?><span>Limpar arquivos órfãos</span></button></form></section>
             </div>
             <section class="settings-security-card maintenance-table-card">

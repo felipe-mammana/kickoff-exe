@@ -19,9 +19,9 @@ if ($adminPassword === '') {
 }
 
 $stmt = db()->prepare(
-    'INSERT INTO users (name, email, password_hash, is_admin, is_active)
-     VALUES (:name, :email, :password_hash, 1, 1)
-     ON DUPLICATE KEY UPDATE name = VALUES(name), password_hash = VALUES(password_hash), is_admin = 1, is_active = 1'
+    "INSERT INTO users (name, email, password_hash, role, is_admin, is_active)
+     VALUES (:name, :email, :password_hash, 'admin', 1, 1)
+     ON DUPLICATE KEY UPDATE name = VALUES(name), password_hash = VALUES(password_hash), role = 'admin', is_admin = 1, is_active = 1"
 );
 
 $stmt->execute([

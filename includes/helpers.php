@@ -57,8 +57,8 @@ function current_user(): ?array
         }
 
         $timeoutMinutes = (int) ($user['session_timeout_minutes'] ?? 480);
-        $startedAt = strtotime((string) ($user['active_session_started_at'] ?? ''));
-        if ($timeoutMinutes > 0 && $startedAt !== false && $startedAt + ($timeoutMinutes * 60) < time()) {
+        $sessionAge = $user['active_session_age_seconds'] ?? null;
+        if ($timeoutMinutes > 0 && ($sessionAge === null || (int) $sessionAge >= $timeoutMinutes * 60)) {
             User::clearActiveSession((int) $user['id'], $sessionToken);
             $_SESSION = [];
             if (session_status() === PHP_SESSION_ACTIVE) {
@@ -73,6 +73,7 @@ function current_user(): ?array
             'name' => $user['name'],
             'email' => $user['email'],
             'is_admin' => (int) ($user['is_admin'] ?? 0),
+            'role' => User::roleFromUser($user),
             'two_factor_enabled' => (int) ($user['two_factor_enabled'] ?? 0),
             'preferred_theme' => $user['preferred_theme'] ?? 'light',
             'sidebar_default' => $user['sidebar_default'] ?? 'expanded',
@@ -83,9 +84,28 @@ function current_user(): ?array
         ];
         $checkedUserId = (int) $user['id'];
         $checkedSessionToken = $sessionToken;
+        if (PHP_SAPI !== 'cli') SessionPresence::touch((int) $user['id'], $sessionToken);
     }
 
     return $_SESSION['user'];
+}
+
+function can_access_vault(): bool
+{
+    $user = current_user();
+    return $user !== null && (int) AppSetting::get('vault_exclusive_user_id', '0') > 0
+        && (int) $user['id'] === (int) AppSetting::get('vault_exclusive_user_id', '0');
+}
+
+function require_vault_access(): void
+{
+    require_auth();
+    if (!can_access_vault()) {
+        http_response_code(403);
+        view('errors/403', ['title' => 'Acesso negado']);
+        exit;
+    }
+    VaultSession::guard();
 }
 
 function require_auth(): void
@@ -97,7 +117,35 @@ function require_auth(): void
 
 function is_admin(): bool
 {
-    return !empty(current_user()['is_admin']);
+    return user_role() === 'admin';
+}
+
+function user_role(): string
+{
+    $user = current_user();
+
+    return is_array($user) ? User::roleFromUser($user) : 'viewer';
+}
+
+function can_edit_records(): bool
+{
+    return in_array(user_role(), ['admin', 'editor'], true);
+}
+
+function can_delete_records(): bool
+{
+    return user_role() === 'admin';
+}
+
+function require_editor(): void
+{
+    require_auth();
+
+    if (!can_edit_records()) {
+        http_response_code(403);
+        view('errors/403', ['title' => 'Acesso negado']);
+        exit;
+    }
 }
 
 function require_admin(): void
@@ -144,6 +192,14 @@ function csp_nonce(): string
     return $nonce;
 }
 
+function form_action_policy(string $route): string
+{
+    // Chromium also checks the destination of redirects after form submission.
+    return in_array($route, ['settings.microsoft.index', 'settings.microsoft.connect'], true)
+        ? "form-action 'self' https://login.microsoftonline.com"
+        : "form-action 'self'";
+}
+
 function apply_security_headers(): void
 {
     if (headers_sent()) {
@@ -156,7 +212,7 @@ function apply_security_headers(): void
         "base-uri 'self'",
         "connect-src 'self'",
         "font-src 'self' data:",
-        "form-action 'self'",
+        form_action_policy(is_string($_GET['route'] ?? null) ? $_GET['route'] : ''),
         "frame-ancestors 'self'",
         "img-src 'self' data: blob:",
         "object-src 'none'",

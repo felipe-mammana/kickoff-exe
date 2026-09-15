@@ -1,3 +1,9 @@
+<?php
+$companyAttachmentSettings = AppSetting::deviceSettings();
+$companyAttachmentMaxBytes = (int) $companyAttachmentSettings['attachment_max_mb'] * 1024 * 1024;
+$companyAttachmentAccept = implode(',', array_map(static fn (string $extension): string => '.' . $extension, (array) $companyAttachmentSettings['attachment_extensions']));
+?>
+
 <nav class="breadcrumbs" aria-label="Breadcrumb">
     <a href="/">Home</a>
     <?= icon('chevron-right', 'breadcrumb-icon') ?>
@@ -17,22 +23,26 @@
     </div>
     <div class="heading-actions">
         <a class="btn btn-muted" href="/?route=companies.index"><?= icon('chevron-left') ?><span>Voltar</span></a>
-        <a class="btn btn-primary" href="/?route=companies.edit&id=<?= (int) $company['id'] ?>"><?= icon('edit-3') ?><span>Editar</span></a>
-        <?php if (!empty($company['is_active'])): ?>
-            <form action="/?route=companies.deactivate&id=<?= (int) $company['id'] ?>" method="post" data-confirm="Desativar esta empresa?" data-confirm-variant="warning">
+        <?php if (can_edit_records()): ?>
+            <a class="btn btn-primary" href="/?route=companies.edit&id=<?= (int) $company['id'] ?>"><?= icon('edit-3') ?><span>Editar</span></a>
+        <?php endif; ?>
+        <?php if (can_delete_records()): ?>
+            <?php if (!empty($company['is_active'])): ?>
+                <form action="/?route=companies.deactivate&id=<?= (int) $company['id'] ?>" method="post" data-confirm="Desativar esta empresa?" data-confirm-variant="warning">
+                    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                    <button class="btn btn-warning" type="submit"><?= icon('warning') ?><span>Desativar</span></button>
+                </form>
+            <?php else: ?>
+                <form action="/?route=companies.reactivate&id=<?= (int) $company['id'] ?>" method="post" data-confirm="Reativar esta empresa?" data-confirm-variant="primary">
+                    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                    <button class="btn btn-primary" type="submit"><?= icon('check-circle') ?><span>Reativar</span></button>
+                </form>
+            <?php endif; ?>
+            <form action="/?route=companies.destroy&id=<?= (int) $company['id'] ?>" method="post" data-confirm="Excluir totalmente esta empresa? Esta ação apaga a empresa e seus dados vinculados.">
                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                <button class="btn btn-warning" type="submit"><?= icon('warning') ?><span>Desativar</span></button>
-            </form>
-        <?php else: ?>
-            <form action="/?route=companies.reactivate&id=<?= (int) $company['id'] ?>" method="post" data-confirm="Reativar esta empresa?" data-confirm-variant="primary">
-                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                <button class="btn btn-primary" type="submit"><?= icon('check-circle') ?><span>Reativar</span></button>
+                <button class="btn btn-danger" type="submit"><?= icon('trash-2') ?><span>Excluir total</span></button>
             </form>
         <?php endif; ?>
-        <form action="/?route=companies.destroy&id=<?= (int) $company['id'] ?>" method="post" data-confirm="Excluir totalmente esta empresa? Esta ação apaga a empresa e seus dados vinculados.">
-            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-            <button class="btn btn-danger" type="submit"><?= icon('trash-2') ?><span>Excluir total</span></button>
-        </form>
     </div>
 </section>
 
@@ -89,12 +99,15 @@
                 </div>
                 <div class="panel-actions">
                     <span><?= count($attachments ?? []) ?> arquivo(s)</span>
-                    <button class="btn btn-muted" type="button" data-attachment-form-toggle aria-expanded="false">
-                        <?= icon('plus') ?><span>Adicionar anexo</span>
-                    </button>
+                    <?php if (can_edit_records()): ?>
+                        <button class="btn btn-muted" type="button" data-attachment-form-toggle aria-expanded="false">
+                            <?= icon('plus') ?><span>Adicionar anexo</span>
+                        </button>
+                    <?php endif; ?>
                 </div>
             </header>
 
+            <?php if (can_edit_records()): ?>
             <form class="company-attachment-form" action="/?route=companies.attachments.store" method="post" enctype="multipart/form-data" data-attachment-form-panel hidden>
                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                 <input type="hidden" name="company_id" value="<?= (int) $company['id'] ?>">
@@ -102,8 +115,8 @@
                     <label class="upload-drop compact">
                         <span class="upload-icon"><?= icon('file-text') ?></span>
                         <strong>Selecionar arquivo</strong>
-                        <small>PDF, Office, CSV, TXT, imagem ou ZIP até <?= e(format_file_size(COMPANY_ATTACHMENT_MAX_BYTES)) ?></small>
-                        <input type="file" name="attachment" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.webp,.zip" required data-attachment-input>
+                        <small>Arquivos permitidos até <?= e(format_file_size($companyAttachmentMaxBytes)) ?></small>
+                        <input type="file" name="attachment" accept="<?= e($companyAttachmentAccept) ?>" required data-attachment-input>
                     </label>
                     <label class="field">
                         <span>Descrição opcional</span>
@@ -119,6 +132,7 @@
                     <button class="btn btn-primary" type="submit"><?= icon('upload') ?><span>Enviar anexo</span></button>
                 </div>
             </form>
+            <?php endif; ?>
 
             <?php if (empty($attachments)): ?>
                 <div class="empty-state compact">
@@ -153,13 +167,15 @@
                                             <a class="icon-btn" href="/?route=companies.attachments.download&id=<?= (int) $attachment['id'] ?>" aria-label="Baixar anexo" title="Baixar">
                                                 <?= icon('download') ?>
                                             </a>
-                                            <form action="/?route=companies.attachments.delete" method="post" data-confirm="Remover este anexo?">
-                                                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                                                <input type="hidden" name="id" value="<?= (int) $attachment['id'] ?>">
-                                                <button class="icon-btn danger" type="submit" aria-label="Remover anexo" title="Remover">
-                                                    <?= icon('trash-2') ?>
-                                                </button>
-                                            </form>
+                                            <?php if (can_delete_records()): ?>
+                                                <form action="/?route=companies.attachments.delete" method="post" data-confirm="Remover este anexo?">
+                                                    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                                                    <input type="hidden" name="id" value="<?= (int) $attachment['id'] ?>">
+                                                    <button class="icon-btn danger" type="submit" aria-label="Remover anexo" title="Remover">
+                                                        <?= icon('trash-2') ?>
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 </tr>
@@ -185,7 +201,7 @@
             </div>
         </article>
 
-        <?php if (!empty($company['is_active'])): ?>
+        <?php if (can_delete_records() && !empty($company['is_active'])): ?>
             <article class="danger-panel">
                 <h2><?= icon('warning') ?> Zona de risco</h2>
                 <p>A desativação remove a empresa dos fluxos principais sem apagar seu histórico.</p>
@@ -194,7 +210,7 @@
                     <button class="btn btn-warning btn-full" type="submit"><?= icon('warning') ?><span>Desativar empresa</span></button>
                 </form>
             </article>
-        <?php else: ?>
+        <?php elseif (can_delete_records()): ?>
             <article class="danger-panel">
                 <h2><?= icon('check-circle') ?> Empresa inativa</h2>
                 <p>Reative a empresa para permitir novos cadastros de dispositivos.</p>

@@ -29,6 +29,18 @@ class Machine
         return self::DEVICE_TYPES;
     }
 
+    public static function configuredDeviceTypes(?string $includeType = null): array
+    {
+        $enabled = (array) AppSetting::deviceSettings()['default_categories'];
+        $types = array_intersect_key(self::DEVICE_TYPES, array_flip($enabled));
+
+        if ($includeType !== null && isset(self::DEVICE_TYPES[$includeType])) {
+            $types[$includeType] = self::DEVICE_TYPES[$includeType];
+        }
+
+        return $types ?: self::DEVICE_TYPES;
+    }
+
     public static function typeLabel(?string $type): string
     {
         return self::DEVICE_TYPES[$type ?? ''] ?? 'Dispositivo';
@@ -36,19 +48,19 @@ class Machine
 
     public static function tagPrefix(string $deviceType, $company): ?string
     {
-        if (!array_key_exists($deviceType, self::TAG_PREFIX_TYPE_MAP)) {
+        if (!array_key_exists($deviceType, self::DEVICE_TYPES)) {
             return null;
         }
 
-        $typePrefix = self::TAG_PREFIX_TYPE_MAP[$deviceType];
-        if ($typePrefix === 'LINK') {
-            return 'LINK';
+        $template = (string) (AppSetting::deviceSettings()['label_prefixes'][$deviceType] ?? '');
+        if ($template === '') {
+            return null;
         }
 
         $companyData = is_int($company) ? Company::find($company) : $company;
         $companyCode = Company::tagCode($companyData);
 
-        return $typePrefix . $companyCode;
+        return strtoupper(str_replace('{EMPRESA}', $companyCode, str_replace('{empresa}', $companyCode, $template)));
     }
 
     public static function normalizeTag(?string $rawTag, string $deviceType, $company): ?string

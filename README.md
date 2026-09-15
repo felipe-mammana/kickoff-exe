@@ -1,5 +1,12 @@
 # EXE Inventario TI
 
+## Documentacao atual
+
+O [Guia tecnico e operacional](docs/guia-tecnico-operacional.md) documenta
+arquitetura, requisitos, seguranca, Microsoft Graph/2FA, API, deploy e backups.
+Revisao de 10/09/2026 baseada no codigo. Em divergencias com notas historicas,
+consulte esse guia e o codigo da versao instalada.
+
 Sistema web simples em PHP e MySQL para cadastro e documentação de dispositivos da empresa.
 
 Funcionalidades principais:
@@ -51,8 +58,8 @@ Copie a linha gerada para `config/local.php`. Guarde essa chave: sem ela, creden
 
 Requisitos:
 
-- PHP 7.4 ou superior com `pdo_mysql` e `fileinfo`
-- MySQL 5.7 ou superior
+- PHP 8.2 ou superior como alvo de homologacao; extensoes no guia tecnico.
+- MySQL/MariaDB com InnoDB e utf8mb4; homologar a versao de destino.
 
 1. Crie o banco importando `database/schema.sql` no MySQL. Para uma base sem nenhuma informação cadastrada, use `database/schema_empty.sql`.
 2. Configure `config/local.php`, se necessário.

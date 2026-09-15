@@ -1,4 +1,94 @@
 (function () {
+    let terminationBusy = false;
+    let terminationTrigger = null;
+    function closeTermination() {
+        const dialog = document.querySelector('.session-termination-modal');
+        if (dialog) { dialog.close(); dialog.remove(); }
+        document.body.classList.remove('termination-modal-open');
+        terminationTrigger?.focus();
+    }
+    document.addEventListener('click', function (event) {
+        if (event.target.closest('[data-termination-close]')) {
+            event.preventDefault();
+            if (!terminationBusy) closeTermination();
+        }
+    });
+    document.addEventListener('submit', async function (event) {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement) || !form.action.includes('route=sessions.terminate')) return;
+        event.preventDefault();
+        if (terminationBusy) return;
+        const currentDialog = document.querySelector('.session-termination-modal');
+        if (!currentDialog) terminationTrigger = event.submitter;
+        terminationBusy = true;
+        const button = event.submitter;
+        const data = new FormData(form);
+        if (button) button.disabled = true;
+        try {
+            const response = await fetch(form.action, { method: 'POST', body: data, credentials: 'same-origin', cache: 'no-store' });
+            const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+            const next = page.querySelector('.session-termination-modal');
+            if (!next) {
+                // Preserve server-rendered flash messages on the returned sessions page.
+                const panel = page.querySelector('.sessions-panel');
+                if (panel && document.querySelector('.sessions-panel')) {
+                    closeTermination();
+                    document.querySelector('.sessions-panel').replaceWith(panel);
+                    page.querySelectorAll('.alert').forEach(function (alert) { panel.prepend(alert); });
+                } else window.location.assign(response.url);
+                return;
+            }
+            if (currentDialog) { currentDialog.close(); currentDialog.remove(); }
+            next.removeAttribute('open');
+            document.body.append(next);
+            document.body.classList.add('termination-modal-open');
+            next.addEventListener('cancel', function (event) { event.preventDefault(); if (!terminationBusy) closeTermination(); });
+            next.showModal();
+            next.querySelector('input[name="admin_password"]')?.focus();
+        } catch (error) {
+            let message = form.querySelector('[data-termination-error]');
+            if (!message) { message = document.createElement('p'); message.dataset.terminationError = ''; message.setAttribute('role', 'alert'); form.append(message); }
+            message.textContent = 'Não foi possível confirmar a operação. Atualize a lista antes de tentar novamente.';
+        } finally {
+            terminationBusy = false;
+            if (button) button.disabled = false;
+        }
+    });
+    const vaultRoute = new URLSearchParams(location.search).get('route') || '';
+    if (vaultRoute.startsWith('vault.') || vaultRoute === 'settings.vault') {
+        const lockAt = Date.now() + 1200000;
+        function expireVault() {
+            if (Date.now() >= lockAt) location.replace('/?route=vault.index');
+        }
+        setTimeout(expireVault, 1200100);
+        document.addEventListener('visibilitychange', expireVault);
+        window.addEventListener('pageshow', function (event) { if (event.persisted) location.reload(); });
+    }
+    document.querySelectorAll('[data-password-requirements]').forEach(function (list) {
+        const input = list.parentElement.querySelector('input[name="password"]');
+        if (!input) return;
+        function updateRequirements() {
+            const value = input.value;
+            const rules = {
+                upper: /\p{Lu}/u.test(value),
+                lower: /\p{Ll}/u.test(value),
+                number: /[0-9]/.test(value),
+                special: /[^\p{L}\p{N}\s]/u.test(value),
+                length: Array.from(value).length >= 8,
+            };
+            list.querySelectorAll('[data-password-rule]').forEach(function (item) {
+                const satisfied = rules[item.dataset.passwordRule];
+                item.classList.toggle('is-satisfied', satisfied);
+                item.querySelector('.password-requirement-symbol').textContent = satisfied ? '\u2713' : '\u2715';
+                item.querySelector('.password-requirement-status').textContent = satisfied ? 'Atendido' : 'Pendente';
+            });
+            input.setCustomValidity(new TextEncoder().encode(value).length > 72 ? 'A senha deve ter no máximo 72 bytes.' : '');
+        }
+        input.addEventListener('input', updateRequirements);
+        input.addEventListener('change', updateRequirements);
+        input.form?.addEventListener('reset', function () { setTimeout(updateRequirements, 0); });
+        updateRequirements();
+    });
     const root = document.documentElement;
     const themeToggles = document.querySelectorAll('[data-theme-toggle]');
     let storedTheme = 'light';
@@ -88,6 +178,123 @@
 
         setTopicOpen(false);
     });
+
+    const vaultCategoryList = document.querySelector('[data-vault-category-list]');
+    const vaultCategoryTemplate = document.querySelector('[data-vault-category-template]');
+    const vaultSubcategoryTemplate = document.querySelector('[data-vault-subcategory-template]');
+    const vaultCustomFieldTemplate = document.querySelector('[data-vault-custom-field-template]');
+    let vaultDynamicIndex = Date.now();
+
+    function updateVaultIconPreview(select) {
+        const preview = select.closest('[data-vault-default-category], [data-vault-default-subcategory]')?.querySelector('.vault-default-icon-preview');
+        const markup = select.selectedOptions?.[0]?.dataset.iconMarkup || '';
+        if (preview && markup) {
+            preview.innerHTML = markup;
+        }
+    }
+
+    function bindVaultDefaultCategoryControls(scope) {
+        scope.querySelectorAll('[data-vault-icon-select]').forEach(function (select) {
+            updateVaultIconPreview(select);
+            select.addEventListener('change', function () {
+                updateVaultIconPreview(select);
+            });
+        });
+
+        scope.querySelectorAll('[data-vault-add-subcategory]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const category = button.closest('[data-vault-default-category]');
+                const list = category?.querySelector('[data-vault-subcategory-list]');
+                const categoryInput = category?.querySelector('input[name$="[name]"]');
+                const categoryMatch = categoryInput?.name.match(/vault_categories\[([^\]]+)\]/);
+                if (!list || !vaultSubcategoryTemplate || !categoryMatch) {
+                    return;
+                }
+
+                const categoryIndex = categoryMatch[1];
+                const childIndex = 'new_' + vaultDynamicIndex++;
+                const html = vaultSubcategoryTemplate.innerHTML
+                    .replaceAll('__CATEGORY__', categoryIndex)
+                    .replaceAll('__CHILD__', childIndex);
+                list.insertAdjacentHTML('beforeend', html);
+                const added = list.lastElementChild;
+                if (added) {
+                    bindVaultDefaultCategoryControls(added);
+                    added.querySelector('input')?.focus();
+                }
+            });
+        });
+
+        scope.querySelectorAll('[data-vault-add-custom-field]').forEach(function (button) {
+            if (button.dataset.bound === 'true') {
+                return;
+            }
+            button.dataset.bound = 'true';
+            button.addEventListener('click', function () {
+                const fieldBlock = button.closest('[data-vault-custom-field-list]');
+                const list = fieldBlock?.querySelector('.vault-default-field-list');
+                const owner = button.closest('[data-vault-default-subcategory], [data-vault-default-category]');
+                const ownerNameInput = owner?.querySelector(':scope > .vault-default-subcategory-main input[name$="[name]"], :scope > .vault-default-category-main input[name$="[name]"]');
+                const ownerName = ownerNameInput?.name || '';
+                const baseName = ownerName.replace(/\[name\]$/, '');
+                if (!list || !vaultCustomFieldTemplate || !baseName) {
+                    return;
+                }
+
+                const fieldIndex = 'new_' + vaultDynamicIndex++;
+                const html = vaultCustomFieldTemplate.innerHTML
+                    .replaceAll('__BASE__', baseName)
+                    .replaceAll('__FIELD__', fieldIndex);
+                list.insertAdjacentHTML('beforeend', html);
+                const added = list.lastElementChild;
+                if (added) {
+                    bindVaultDefaultCategoryControls(added);
+                    added.querySelector('input[type="text"]')?.focus();
+                }
+            });
+        });
+
+        scope.querySelectorAll('[data-vault-remove-category]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                button.closest('[data-vault-default-category]')?.remove();
+            });
+        });
+
+        scope.querySelectorAll('[data-vault-remove-subcategory]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                button.closest('[data-vault-default-subcategory]')?.remove();
+            });
+        });
+
+        scope.querySelectorAll('[data-vault-remove-custom-field]').forEach(function (button) {
+            if (button.dataset.bound === 'true') {
+                return;
+            }
+            button.dataset.bound = 'true';
+            button.addEventListener('click', function () {
+                button.closest('[data-vault-custom-field]')?.remove();
+            });
+        });
+    }
+
+    document.querySelector('[data-vault-add-category]')?.addEventListener('click', function () {
+        if (!vaultCategoryList || !vaultCategoryTemplate) {
+            return;
+        }
+
+        const categoryIndex = 'new_' + vaultDynamicIndex++;
+        const html = vaultCategoryTemplate.innerHTML.replaceAll('__CATEGORY__', categoryIndex);
+        vaultCategoryList.insertAdjacentHTML('beforeend', html);
+        const added = vaultCategoryList.lastElementChild;
+        if (added) {
+            bindVaultDefaultCategoryControls(added);
+            added.querySelector('input')?.focus();
+        }
+    });
+
+    if (vaultCategoryList) {
+        bindVaultDefaultCategoryControls(vaultCategoryList);
+    }
 
     document.querySelectorAll('.company-attachment-form').forEach(function (form) {
         const input = form.querySelector('[data-attachment-input]');
@@ -913,6 +1120,372 @@
         return modal;
     }
 
+    function syncRoleOptionCards(scope) {
+        scope.querySelectorAll('.role-option-card').forEach(function (card) {
+            const input = card.querySelector('input[type="radio"]');
+            card.classList.toggle('is-selected', !!input?.checked);
+        });
+    }
+
+    function parseJson(value, fallback) {
+        try {
+            return JSON.parse(value || '');
+        } catch (error) {
+            return fallback;
+        }
+    }
+
+    const vaultCustomFieldConfig = parseJson(document.querySelector('[data-vault-custom-field-config]')?.textContent || '{}', {});
+
+    function vaultCustomValuesFrom(container, fallback) {
+        return parseJson(container?.getAttribute('data-vault-custom-values') || '', fallback || {});
+    }
+
+    function renderVaultCustomFields(container, categoryId, values) {
+        if (!container) {
+            return;
+        }
+
+        const existingErrors = Array.from(container.querySelectorAll('small'));
+        container.replaceChildren();
+        existingErrors.forEach(function (error) {
+            container.appendChild(error);
+        });
+
+        const fields = vaultCustomFieldConfig[String(categoryId || '')] || [];
+        if (!fields.length) {
+            container.hidden = true;
+            return;
+        }
+
+        container.hidden = false;
+
+        const head = document.createElement('div');
+        head.className = 'vault-custom-fields-head';
+        const title = document.createElement('strong');
+        title.textContent = 'Campos da categoria';
+        const description = document.createElement('span');
+        description.textContent = 'Preencha as informações específicas deste tipo de credencial.';
+        head.append(title, description);
+        container.appendChild(head);
+
+        const grid = document.createElement('div');
+        grid.className = 'vault-custom-fields-grid';
+
+        fields.forEach(function (field) {
+            const key = String(field.key || '');
+            if (!key) {
+                return;
+            }
+
+            const label = document.createElement('label');
+            label.className = 'field';
+            const labelText = document.createElement('span');
+            labelText.textContent = String(field.label || 'Campo') + (field.required ? ' *' : '');
+
+            let input;
+            if (field.type === 'textarea') {
+                input = document.createElement('textarea');
+                input.rows = 3;
+            } else {
+                input = document.createElement('input');
+                input.type = field.type === 'number' ? 'text' : (field.type || 'text');
+                if (field.type === 'number') {
+                    input.inputMode = 'decimal';
+                }
+            }
+
+            input.name = 'custom_fields[' + key + ']';
+            input.value = values && Object.prototype.hasOwnProperty.call(values, key) ? values[key] : '';
+            input.required = Boolean(field.required);
+            input.maxLength = field.type === 'textarea' ? 5000 : 255;
+            label.append(labelText, input);
+            grid.appendChild(label);
+        });
+
+        container.appendChild(grid);
+    }
+
+    function syncVaultFormCustomFields(form, values) {
+        const category = form?.querySelector('[data-vault-create-category], [data-vault-edit-category]');
+        const container = form?.querySelector('[data-vault-custom-fields]');
+        renderVaultCustomFields(container, category?.value || '', values || vaultCustomValuesFrom(container, {}));
+    }
+
+    function syncVaultCategorySearchInput(select) {
+        const combobox = select?.closest('[data-vault-category-combobox]');
+        const input = combobox?.querySelector('[data-vault-category-search-input]');
+        const selected = select?.selectedOptions?.[0];
+        if (input && selected) {
+            input.value = selected.textContent.trim();
+        }
+    }
+
+    function initVaultCategoryCombobox(select) {
+        const combobox = select.closest('[data-vault-category-combobox]');
+        const input = combobox?.querySelector('[data-vault-category-search-input]');
+        const optionsBox = combobox?.querySelector('[data-vault-category-options]');
+
+        if (!combobox || !input || !optionsBox) {
+            return;
+        }
+
+        const options = Array.from(select.options).map(function (option) {
+            return {
+                value: option.value,
+                label: option.textContent.trim()
+            };
+        });
+
+        function closeOptions() {
+            optionsBox.hidden = true;
+            input.setAttribute('aria-expanded', 'false');
+        }
+
+        function selectOption(value, label) {
+            select.value = value;
+            input.value = label;
+            closeOptions();
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        function renderOptions() {
+            const query = input.value.trim().toLowerCase();
+            const matches = options.filter(function (option) {
+                return option.label.toLowerCase().includes(query);
+            });
+
+            optionsBox.replaceChildren();
+            if (!matches.length) {
+                const empty = document.createElement('div');
+                empty.className = 'vault-category-option-empty';
+                empty.textContent = 'Nenhum tipo encontrado.';
+                optionsBox.appendChild(empty);
+            } else {
+                matches.forEach(function (option) {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'vault-category-option';
+                    button.textContent = option.label;
+                    button.addEventListener('mousedown', function (event) {
+                        event.preventDefault();
+                    });
+                    button.addEventListener('click', function () {
+                        selectOption(option.value, option.label);
+                    });
+                    optionsBox.appendChild(button);
+                });
+            }
+
+            optionsBox.hidden = false;
+            input.setAttribute('aria-expanded', 'true');
+        }
+
+        input.addEventListener('focus', renderOptions);
+        input.addEventListener('input', function () {
+            const exact = options.find(function (option) {
+                return option.label.toLowerCase() === input.value.trim().toLowerCase();
+            });
+            select.value = exact ? exact.value : '';
+            renderOptions();
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        input.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                closeOptions();
+            }
+        });
+        input.addEventListener('blur', function () {
+            setTimeout(function () {
+                const selected = select.selectedOptions?.[0];
+                if (selected) {
+                    input.value = selected.textContent.trim();
+                }
+                closeOptions();
+            }, 120);
+        });
+
+        syncVaultCategorySearchInput(select);
+    }
+
+    document.querySelectorAll('[data-vault-create-category], [data-vault-edit-category]').forEach(function (select) {
+        initVaultCategoryCombobox(select);
+        select.addEventListener('change', function () {
+            const form = select.closest('form');
+            const container = form?.querySelector('[data-vault-custom-fields]');
+            if (container) {
+                container.setAttribute('data-vault-custom-values', '{}');
+            }
+            syncVaultFormCustomFields(form, {});
+        });
+        syncVaultFormCustomFields(select.closest('form'));
+    });
+
+    function randomPasswordIndex(max) {
+        if (max <= 0) {
+            return 0;
+        }
+
+        if (window.crypto?.getRandomValues) {
+            const values = new Uint32Array(1);
+            const limit = Math.floor(0x100000000 / max) * max;
+            do {
+                window.crypto.getRandomValues(values);
+            } while (values[0] >= limit);
+            return values[0] % max;
+        }
+
+        return Math.floor(Math.random() * max);
+    }
+
+    function shufflePasswordCharacters(characters) {
+        const shuffled = characters.slice();
+        for (let index = shuffled.length - 1; index > 0; index -= 1) {
+            const nextIndex = randomPasswordIndex(index + 1);
+            const current = shuffled[index];
+            shuffled[index] = shuffled[nextIndex];
+            shuffled[nextIndex] = current;
+        }
+        return shuffled;
+    }
+
+    function createGeneratedVaultPassword(panel) {
+        const groups = {
+            lowercase: 'abcdefghijklmnopqrstuvwxyz',
+            uppercase: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            numbers: '0123456789',
+            symbols: '!@#$%&*_-+=?'
+        };
+        const selectedGroups = Object.entries(groups).filter(function (entry) {
+            return !!panel.querySelector('[data-vault-password-option="' + entry[0] + '"]')?.checked;
+        }).map(function (entry) {
+            return entry[1];
+        });
+        const length = Number(panel.querySelector('input[type="radio"]:checked')?.value || 12);
+
+        if (!selectedGroups.length) {
+            throw new Error('Selecione pelo menos um tipo de caractere.');
+        }
+
+        const pool = selectedGroups.join('');
+        const characters = selectedGroups.map(function (group) {
+            return group[randomPasswordIndex(group.length)];
+        });
+
+        while (characters.length < length) {
+            characters.push(pool[randomPasswordIndex(pool.length)]);
+        }
+
+        return shufflePasswordCharacters(characters).join('');
+    }
+
+    document.querySelectorAll('.vault-password-generator-field').forEach(function (field) {
+        const toggle = field.querySelector('[data-vault-password-generator-toggle]');
+        const panel = field.querySelector('[data-vault-password-generator]');
+        const output = field.querySelector('[data-vault-generated-password]');
+        const generate = field.querySelector('[data-vault-password-generate]');
+        const message = field.querySelector('[data-vault-password-generator-message]');
+
+        toggle?.addEventListener('click', function () {
+            if (!panel) {
+                return;
+            }
+
+            const shouldOpen = panel.hidden;
+            panel.hidden = !shouldOpen;
+            toggle.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+        });
+
+        generate?.addEventListener('click', function () {
+            if (!panel || !output) {
+                return;
+            }
+
+            try {
+                output.value = createGeneratedVaultPassword(panel);
+                output.type = 'text';
+                output.dispatchEvent(new Event('input', { bubbles: true }));
+                if (message) {
+                    message.hidden = false;
+                    message.textContent = 'Senha gerada e preenchida no campo.';
+                    message.classList.remove('error');
+                }
+            } catch (error) {
+                if (message) {
+                    message.hidden = false;
+                    message.textContent = error.message || 'Não foi possível gerar a senha.';
+                    message.classList.add('error');
+                }
+            }
+        });
+    });
+
+    function resetVaultPasswordGenerators(scope, clearOutput) {
+        scope?.querySelectorAll('.vault-password-generator-field').forEach(function (field) {
+            const toggle = field.querySelector('[data-vault-password-generator-toggle]');
+            const panel = field.querySelector('[data-vault-password-generator]');
+            const output = field.querySelector('[data-vault-generated-password]');
+            const message = field.querySelector('[data-vault-password-generator-message]');
+
+            if (panel) {
+                panel.hidden = true;
+            }
+            if (toggle) {
+                toggle.setAttribute('aria-expanded', 'false');
+            }
+            if (output) {
+                output.type = 'password';
+                if (clearOutput) {
+                    output.value = '';
+                }
+            }
+            if (message) {
+                message.hidden = true;
+                message.textContent = '';
+                message.classList.remove('error');
+            }
+        });
+    }
+
+    function renderVaultDetailsCustomFields(container, categoryId, values) {
+        if (!container) {
+            return;
+        }
+
+        const list = container.querySelector('[data-vault-details-custom-field-list]');
+        if (!list) {
+            return;
+        }
+
+        list.replaceChildren();
+        const definitions = vaultCustomFieldConfig[String(categoryId || '')] || [];
+        const labels = {};
+        definitions.forEach(function (field) {
+            if (field.key) {
+                labels[String(field.key)] = String(field.label || field.key);
+            }
+        });
+        const entries = Object.entries(values || {}).filter(function (entry) {
+            return String(entry[1] || '').trim() !== '';
+        });
+
+        if (!entries.length) {
+            container.hidden = true;
+            return;
+        }
+
+        container.hidden = false;
+        entries.forEach(function (entry) {
+            const wrapper = document.createElement('div');
+            const label = document.createElement('span');
+            const value = document.createElement('strong');
+            label.textContent = labels[entry[0]] || entry[0].replaceAll('_', ' ');
+            value.textContent = String(entry[1]);
+            wrapper.append(label, value);
+            list.appendChild(wrapper);
+        });
+    }
+
     document.querySelectorAll('[data-company-modal-open]').forEach(function (button) {
         button.addEventListener('click', function () {
             if (!companyModal) {
@@ -950,12 +1523,15 @@
                 const id = modal.querySelector('[data-user-edit-id]');
                 const name = modal.querySelector('[data-user-edit-name]');
                 const email = modal.querySelector('[data-user-edit-email]');
-                const admin = modal.querySelector('[data-user-edit-admin]');
+                const role = button.getAttribute('data-user-role') || 'viewer';
 
                 if (id) id.value = button.getAttribute('data-user-id') || '';
                 if (name) name.value = button.getAttribute('data-user-name') || '';
                 if (email) email.value = button.getAttribute('data-user-email') || '';
-                if (admin) admin.checked = button.getAttribute('data-user-admin') === '1';
+                modal.querySelectorAll('[data-user-edit-role-option]').forEach(function (option) {
+                    option.checked = option.value === role;
+                });
+                syncRoleOptionCards(modal);
                 setTimeout(function () {
                     name?.focus();
                 }, 50);
@@ -983,6 +1559,219 @@
     document.querySelectorAll('[data-user-modal-close]').forEach(function (button) {
         button.addEventListener('click', closeUserModals);
     });
+
+    document.querySelectorAll('[data-email-cooldown]').forEach(function (button) {
+        const label = button.querySelector('span');
+        const originalText = label?.textContent || button.textContent;
+        const expiresAt = Date.now() + Number(button.dataset.emailCooldown || 0) * 1000;
+        function updateCooldown() {
+            const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+            button.disabled = remaining > 0;
+            if (label) label.textContent = remaining > 0 ? 'Reenviar em ' + remaining + ' s' : originalText;
+            if (remaining > 0) window.setTimeout(updateCooldown, 1000);
+        }
+        updateCooldown();
+    });
+
+    document.querySelectorAll('[data-account-confirmation-form]').forEach(function (form, index) {
+        const modal = form.querySelector('[data-account-password-modal]');
+        const password = form.querySelector('[data-account-password-input]');
+        let previousFocus = null;
+        if (!modal || !password) return;
+        form.id = form.id || 'account-confirmation-form-' + index;
+        modal.querySelectorAll('input, button[type="submit"]').forEach(function (control) {
+            control.setAttribute('form', form.id);
+        });
+        // Animated page containers change the containing block of fixed elements.
+        document.body.appendChild(modal);
+
+        function closeModal() {
+            modal.hidden = true;
+            password.value = '';
+            password.disabled = true;
+            document.body.classList.remove('modal-open');
+            previousFocus?.focus();
+        }
+
+        form.addEventListener('submit', function (event) {
+            const email = form.elements.namedItem('email');
+            const vaultProtection = form.elements.namedItem('vault_require_password_reveal');
+            const needsPassword = (email && email.value.trim().toLowerCase() !== form.dataset.originalEmail.toLowerCase())
+                || (form.dataset.vaultPasswordEnabled === '1' && !vaultProtection.checked);
+            if (!needsPassword) {
+                if (!form.reportValidity()) event.preventDefault();
+                return;
+            }
+            if (!modal.hidden) {
+                if (!form.reportValidity()) event.preventDefault();
+                return;
+            }
+            event.preventDefault();
+            if (!form.reportValidity()) return;
+            previousFocus = document.activeElement;
+            modal.hidden = false;
+            password.disabled = false;
+            document.body.classList.add('modal-open');
+            password.focus();
+        });
+
+        modal.querySelectorAll('[data-account-password-close]').forEach(function (button) {
+            button.addEventListener('click', closeModal);
+        });
+        modal.addEventListener('click', function (event) {
+            if (event.target === modal) closeModal();
+        });
+        modal.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeModal();
+            } else if (event.key === 'Tab') {
+                const focusable = Array.from(modal.querySelectorAll('button:not([disabled]), input:not([disabled])'));
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault();
+                    last.focus();
+                } else if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+            }
+        });
+    });
+
+    function mountTwoFactorModal(form, modal, close) {
+        if (!modal) return;
+        if (!form.id) form.id = 'two-factor-form-' + document.querySelectorAll('[data-two-factor-mounted]').length;
+        modal.querySelectorAll('input, button[type="submit"]').forEach(function (control) {
+            control.setAttribute('form', form.id);
+        });
+        modal.setAttribute('data-two-factor-mounted', '');
+        document.body.appendChild(modal);
+        modal.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                close();
+                form.querySelector('button[type="button"]')?.focus();
+            }
+            if (event.key === 'Tab') {
+                const controls = Array.from(modal.querySelectorAll('button:not(:disabled), input:not(:disabled)')).filter(el => el.type !== 'hidden');
+                const first = controls[0];
+                const last = controls[controls.length - 1];
+                if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+            }
+        });
+    }
+
+    document.querySelectorAll('[data-two-factor-disable-form]').forEach(function (form) {
+        const modal = form.querySelector('[data-two-factor-disable-modal]');
+        const password = form.querySelector('[data-two-factor-disable-password]');
+
+        function closeTwoFactorDisableModal() {
+            if (modal) {
+                modal.hidden = true;
+            }
+            if (password) {
+                password.value = '';
+                password.disabled = true;
+            }
+            if ((!galleryModal || galleryModal.hidden) && (!companyModal || companyModal.hidden) && !hasOpenUserModal() && !hasOpenVaultModal() && (!confirmModal || confirmModal.hidden) && (!lightbox || lightbox.hidden)) {
+                document.body.classList.remove('modal-open');
+            }
+        }
+
+        form.querySelectorAll('[data-two-factor-disable-open]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                if (!modal) {
+                    return;
+                }
+
+                if (!form.reportValidity()) {
+                    return;
+                }
+
+                if (password) {
+                    password.disabled = false;
+                }
+                modal.hidden = false;
+                document.body.classList.add('modal-open');
+                setTimeout(function () {
+                    password?.focus();
+                }, 50);
+            });
+        });
+
+        form.querySelectorAll('[data-two-factor-disable-close]').forEach(function (button) {
+            button.addEventListener('click', closeTwoFactorDisableModal);
+        });
+
+        modal?.addEventListener('click', function (event) {
+            if (event.target === modal) {
+                closeTwoFactorDisableModal();
+            }
+        });
+        mountTwoFactorModal(form, modal, closeTwoFactorDisableModal);
+    });
+
+    document.querySelectorAll('[data-two-factor-password-modal-form]').forEach(function (form) {
+        const modal = form.querySelector('[data-two-factor-password-modal]');
+        const password = form.querySelector('[data-two-factor-password-modal-input]');
+
+        function closeTwoFactorPasswordModal() {
+            if (modal) {
+                modal.hidden = true;
+            }
+            if (password) {
+                password.value = '';
+                password.disabled = true;
+            }
+            if ((!galleryModal || galleryModal.hidden) && (!companyModal || companyModal.hidden) && !hasOpenUserModal() && !hasOpenVaultModal() && (!confirmModal || confirmModal.hidden) && (!lightbox || lightbox.hidden)) {
+                document.body.classList.remove('modal-open');
+            }
+        }
+
+        form.querySelectorAll('[data-two-factor-password-modal-open]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                if (!modal) {
+                    return;
+                }
+
+                if (!form.reportValidity()) {
+                    return;
+                }
+
+                if (password) {
+                    password.disabled = false;
+                }
+                modal.hidden = false;
+                document.body.classList.add('modal-open');
+                setTimeout(function () {
+                    password?.focus();
+                }, 50);
+            });
+        });
+
+        form.querySelectorAll('[data-two-factor-password-modal-close]').forEach(function (button) {
+            button.addEventListener('click', closeTwoFactorPasswordModal);
+        });
+
+        modal?.addEventListener('click', function (event) {
+            if (event.target === modal) {
+                closeTwoFactorPasswordModal();
+            }
+        });
+        mountTwoFactorModal(form, modal, closeTwoFactorPasswordModal);
+    });
+
+    document.querySelectorAll('.role-option-card input[type="radio"]').forEach(function (input) {
+        input.addEventListener('change', function () {
+            const modal = input.closest('[data-user-modal]') || document;
+            syncRoleOptionCards(modal);
+        });
+    });
+
+    userModals.forEach(syncRoleOptionCards);
 
     userModals.forEach(function (modal) {
         modal.addEventListener('click', function (event) {
@@ -1013,10 +1802,13 @@
                 if (id) id.value = button.getAttribute('data-vault-id') || '';
                 if (title) title.value = button.getAttribute('data-vault-title') || '';
                 if (category) category.value = button.getAttribute('data-vault-category-id') || '';
+                syncVaultCategorySearchInput(category);
                 if (username) username.value = button.getAttribute('data-vault-username') || '';
                 if (serviceUrl) serviceUrl.value = button.getAttribute('data-vault-service-url') || '';
                 if (notes) notes.value = button.getAttribute('data-vault-notes') || '';
                 if (secret) secret.value = '';
+                resetVaultPasswordGenerators(modal, false);
+                syncVaultFormCustomFields(modal.querySelector('form'), parseJson(button.getAttribute('data-vault-custom-fields') || '{}', {}));
 
                 setTimeout(function () {
                     title?.focus();
@@ -1036,9 +1828,11 @@
                 const output = modal.querySelector('[data-vault-secret-output]');
                 const secretToggle = modal.querySelector('[data-vault-details-secret-toggle]');
                 const secretCopy = modal.querySelector('[data-vault-details-secret-copy]');
+                const customFields = modal.querySelector('[data-vault-details-custom-fields]');
                 const credentialTitle = button.getAttribute('data-vault-title') || 'Detalhes da credencial';
                 const credentialUsername = button.getAttribute('data-vault-username') || '';
                 const credentialUrl = button.getAttribute('data-vault-service-url') || '';
+                const credentialCategoryId = button.getAttribute('data-vault-category-id') || '';
 
                 if (title) title.textContent = credentialTitle;
                 if (category) category.textContent = button.getAttribute('data-vault-category-name') || 'Sem tipo';
@@ -1067,6 +1861,7 @@
                 }
                 if (updated) updated.textContent = button.getAttribute('data-vault-updated-at') || '-';
                 if (notes) notes.textContent = button.getAttribute('data-vault-notes') || '-';
+                renderVaultDetailsCustomFields(customFields, credentialCategoryId, parseJson(button.getAttribute('data-vault-custom-fields') || '{}', {}));
                 if (output) {
                     output.value = '';
                     output.type = 'password';
@@ -1113,6 +1908,9 @@
                 const category = modal.querySelector('[data-vault-create-category]');
                 const categoryId = button.getAttribute('data-vault-category-id') || '';
                 if (category && categoryId) category.value = categoryId;
+                syncVaultCategorySearchInput(category);
+                resetVaultPasswordGenerators(modal, false);
+                syncVaultFormCustomFields(modal.querySelector('form'), {});
 
                 const focus = modal.querySelector('[data-vault-modal-focus]');
                 setTimeout(function () {
@@ -1237,7 +2035,7 @@
         });
     }
 
-    function fetchVaultSecret(cell, id, revealPassword) {
+    function fetchVaultSecret(cell, id, revealPassword, confirmedReveal) {
         const output = cell?.querySelector('[data-vault-secret-output]');
         if (!cell || !output) {
             return Promise.reject(new Error('Campo de senha inválido.'));
@@ -1256,6 +2054,9 @@
         payload.set('csrf_token', csrf);
         if (revealPassword) {
             payload.set('reveal_password', revealPassword);
+        }
+        if (confirmedReveal || cell.dataset.vaultRevealConfirmed === '1') {
+            payload.set('confirm_reveal', '1');
         }
 
         return fetch('/?route=vault.reveal', {
@@ -1283,6 +2084,15 @@
             return output.value || output.textContent || '';
         }).catch(function (error) {
             if (error.code !== 'password_required') {
+                if (error.code === 'confirmation_required') {
+                    if (!window.confirm('Revelar esta senha?')) {
+                        throw new Error('Revelação cancelada.');
+                    }
+
+                    cell.dataset.vaultRevealConfirmed = '1';
+                    return fetchVaultSecret(cell, id, revealPassword, true);
+                }
+
                 throw error;
             }
 
@@ -1291,7 +2101,7 @@
                 throw new Error('A senha é obrigatória para revelar esta credencial.');
             }
 
-            return fetchVaultSecret(cell, id, password);
+            return fetchVaultSecret(cell, id, password, confirmedReveal);
         });
     }
 

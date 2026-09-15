@@ -10,7 +10,7 @@ class CredentialCrypto
     private const TAG_BYTES = 16;
     private const AAD = 'exe-kickoff:credential:v1';
 
-    public static function encrypt(?string $value): ?string
+    public static function encrypt(?string $value, string $purpose = 'credentials'): ?string
     {
         if ($value === null || $value === '') {
             return $value;
@@ -18,6 +18,11 @@ class CredentialCrypto
 
         if (self::isEncrypted($value)) {
             return $value;
+        }
+
+        $ring = self::ring($purpose);
+        if (!empty($ring['active'])) {
+            return VersionedCrypto::encrypt($value, $purpose, $ring['active'], $ring['keys'] ?? []);
         }
 
         $iv = random_bytes(self::IV_BYTES);
@@ -40,8 +45,15 @@ class CredentialCrypto
         return self::PREFIX . base64_encode($iv . $tag . $encrypted);
     }
 
-    public static function decrypt(?string $value): ?string
+    public static function decrypt(?string $value, string $purpose = 'credentials'): ?string
     {
+        if (is_string($value) && str_starts_with($value, 'enc:v2:')) {
+            try {
+                return VersionedCrypto::decrypt($value, $purpose, self::ring($purpose)['keys'] ?? []);
+            } catch (RuntimeException $error) {
+                return '[credencial inválida]';
+            }
+        }
         if ($value === null || $value === '' || !self::isEncrypted($value)) {
             return $value;
         }
@@ -69,7 +81,37 @@ class CredentialCrypto
 
     public static function isEncrypted(?string $value): bool
     {
-        return is_string($value) && substr($value, 0, strlen(self::PREFIX)) === self::PREFIX;
+        return is_string($value) && (str_starts_with($value, self::PREFIX) || str_starts_with($value, 'enc:v2:'));
+    }
+
+    private static function ring(string $purpose): array
+    {
+        $path = BASE_PATH . '/config/crypto.local.php';
+        $config = is_file($path) ? require $path : [];
+        return $config[$purpose] ?? [];
+    }
+
+    public static function rotate(string $value, string $purpose = 'credentials'): string
+    {
+        $ring = self::ring($purpose);
+        if (empty($ring['active'])) {
+            throw new RuntimeException('Configure uma chave ativa antes de migrar.');
+        }
+        if (str_starts_with($value, 'enc:v2:')) {
+            $plain = VersionedCrypto::decrypt($value, $purpose, $ring['keys'] ?? []);
+        } elseif (str_starts_with($value, self::PREFIX)) {
+            $plain = self::decrypt($value, $purpose);
+            if ($plain === '[credencial inválida]') {
+                throw new RuntimeException('Credencial antiga ilegivel; migracao cancelada.');
+            }
+        } else {
+            throw new RuntimeException('Registro sem envelope reconhecido; revisar manualmente.');
+        }
+        $new = VersionedCrypto::encrypt($plain, $purpose, $ring['active'], $ring['keys'] ?? []);
+        if (!hash_equals($plain, VersionedCrypto::decrypt($new, $purpose, $ring['keys'] ?? []))) {
+            throw new RuntimeException('Falha na verificacao da migracao.');
+        }
+        return $new;
     }
 
     private static function key(): string

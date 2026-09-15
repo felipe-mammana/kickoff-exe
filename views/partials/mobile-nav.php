@@ -3,24 +3,26 @@
         <?= icon('layout-dashboard') ?>
         <span>Home</span>
     </a>
-    <?php if ($companyIdForNav && (empty($company) || !isset($company['is_active']) || !empty($company['is_active']))): ?>
+    <?php if (can_edit_records() && $companyIdForNav && (empty($company) || !isset($company['is_active']) || !empty($company['is_active']))): ?>
         <a class="mobile-primary <?= $route === 'machines.create' ? 'active' : '' ?>" href="/?route=machines.create&company_id=<?= (int) $companyIdForNav ?>">
             <?= icon('plus') ?>
             <span>Add</span>
         </a>
+    <?php endif; ?>
+    <?php if (can_access_vault()): ?>
+    <a class="<?= $isVault ? 'active' : '' ?>" href="/?route=vault.index">
+        <?= icon('lock') ?>
+        <span>Cofre</span>
+    </a>
     <?php endif; ?>
     <?php if (is_admin()): ?>
         <a class="<?= $isAudit ? 'active' : '' ?>" href="/?route=audit.index">
             <?= icon('file-clock') ?>
             <span>Logs</span>
         </a>
-        <a class="<?= $isVault ? 'active' : '' ?>" href="/?route=vault.index">
-            <?= icon('lock') ?>
-            <span>Cofre</span>
-        </a>
-        <a class="<?= $isSettings ? 'active' : '' ?>" href="/?route=settings.index">
-            <?= icon('settings') ?>
-            <span>Settings</span>
-        </a>
     <?php endif; ?>
+    <a class="<?= $isSettings ? 'active' : '' ?>" href="/?route=settings.index">
+        <?= icon('settings') ?>
+        <span>Settings</span>
+    </a>
 </nav>

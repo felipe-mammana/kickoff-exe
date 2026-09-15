@@ -5,7 +5,7 @@ declare(strict_types=1);
 class LoginAttempt
 {
     private const MAX_ATTEMPTS = 5;
-    private const WINDOW_SECONDS = 600;
+    private const WINDOW_SECONDS = 1800;
 
     private static bool $tableChecked = false;
 
@@ -14,7 +14,7 @@ class LoginAttempt
         self::ensureTable();
         self::deleteExpired();
 
-        return self::countRecentFailures($email, $ipAddress) >= self::MAX_ATTEMPTS;
+        return self::remainingSeconds($email, $ipAddress) > 0;
     }
 
     public static function recordFailure(string $email, string $ipAddress): void
@@ -49,12 +49,25 @@ class LoginAttempt
     {
         self::ensureTable();
 
-        $firstAttempt = self::firstRecentAttemptAt($email, $ipAddress);
-        if ($firstAttempt === null) {
-            return 0;
+        $remaining = 0;
+        // Account and origin buckets also catch distributed guessing and password spraying.
+        foreach ([['email = :value', self::normalizeEmail($email), 5],
+                  ['ip_address = :value', self::normalizeIp($ipAddress), 30]] as [$where, $value, $threshold]) {
+            $stmt = db()->prepare('SELECT COUNT(*) AS failures,
+                TIMESTAMPDIFF(SECOND, MAX(attempted_at), NOW()) AS age
+                FROM login_attempts WHERE ' . $where . '
+                AND attempted_at >= (NOW() - INTERVAL 1800 SECOND)');
+            $stmt->execute(['value' => $value]);
+            $row = $stmt->fetch();
+            $delay = self::delay((int) $row['failures'], $threshold);
+            $remaining = max($remaining, $delay - (int) $row['age']);
         }
+        return max(0, $remaining);
+    }
 
-        return max(0, strtotime($firstAttempt) + self::WINDOW_SECONDS - time());
+    public static function delay(int $failures, int $threshold = 5): int
+    {
+        return $failures < $threshold ? 0 : min(900, 30 * (2 ** min(5, $failures - $threshold)));
     }
 
     private static function countRecentFailures(string $email, string $ipAddress): int

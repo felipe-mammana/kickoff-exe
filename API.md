@@ -1,5 +1,8 @@
 # API — EXE Inventário TI
 
+> Resumo atual de rotas e operacao: [guia tecnico](docs/guia-tecnico-operacional.md#api).
+> A fonte executavel das rotas e config/api_routes.php; exemplos abaixo podem ser historicos.
+
 Base: `/api/v1`.
 
 Componentes: ApiRouter, ApiAuth, ApiRequest, ApiResponse, ApiValidator, ApiV1Controller.

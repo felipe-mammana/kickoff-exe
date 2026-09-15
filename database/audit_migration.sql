@@ -3,6 +3,9 @@ USE inventario_ti;
 ALTER TABLE users
     ADD COLUMN is_admin TINYINT(1) NOT NULL DEFAULT 0 AFTER password_hash;
 
+ALTER TABLE users
+    ADD COLUMN role ENUM('admin','editor','viewer') NOT NULL DEFAULT 'viewer' AFTER password_hash;
+
 ALTER TABLE machines
     ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER requester_in_tflux;
 
@@ -47,5 +50,5 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 ) ENGINE=InnoDB;
 
 UPDATE users
-SET is_admin = 1
+SET role = 'admin', is_admin = 1
 WHERE email = 'admin@empresa.com';

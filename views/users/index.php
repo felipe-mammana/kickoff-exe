@@ -3,20 +3,46 @@ $errors = $errors ?? [];
 $old = $old ?? [];
 $openModal = $openModal ?? '';
 $adminCount = 0;
+$editorCount = 0;
 $activeCount = 0;
 
 foreach ($users as $user) {
-    if (!empty($user['is_admin'])) {
+    $role = User::roleFromUser($user);
+    if ($role === 'admin') {
         $adminCount++;
+    } elseif ($role === 'editor') {
+        $editorCount++;
     }
     if (!empty($user['is_active'])) {
         $activeCount++;
     }
 }
 
-$standardCount = count($users) - $adminCount;
+$viewerCount = count($users) - $adminCount - $editorCount;
+$roleIcons = ['admin' => 'settings', 'editor' => 'edit-3', 'viewer' => 'users'];
+$roleClasses = ['admin' => 'info', 'editor' => 'success', 'viewer' => 'neutral'];
+$roleDescriptions = [
+    'admin' => 'Acesso completo ao sistema.',
+    'editor' => 'Cria e edita, sem apagar.',
+    'viewer' => 'Visualiza e exporta relatórios.',
+];
 $fieldError = static fn (string $field): string => isset($errors[$field]) ? '<small>' . e($errors[$field]) . '</small>' : '';
 $oldValue = static fn (string $field, string $default = ''): string => e((string) ($old[$field] ?? $default));
+$roleOptions = static function (string $selectedRole, string $dataAttribute = '') use ($roleIcons, $roleDescriptions): void {
+    foreach (User::ROLES as $roleKey => $roleLabel):
+        $data = $dataAttribute !== '' ? ' ' . $dataAttribute : '';
+?>
+        <label class="role-option-card <?= $selectedRole === $roleKey ? 'is-selected' : '' ?>">
+            <input type="radio" name="role" value="<?= e($roleKey) ?>" <?= $selectedRole === $roleKey ? 'checked' : '' ?><?= $data ?>>
+            <span class="role-option-icon"><?= icon($roleIcons[$roleKey] ?? 'users') ?></span>
+            <span>
+                <strong><?= e($roleLabel) ?></strong>
+                <small><?= e($roleDescriptions[$roleKey] ?? '') ?></small>
+            </span>
+        </label>
+<?php
+    endforeach;
+};
 ?>
 
 <nav class="breadcrumbs" aria-label="Breadcrumb">
@@ -60,10 +86,17 @@ $oldValue = static fn (string $field, string $default = ''): string => e((string
         </div>
     </article>
     <article class="summary-card">
-        <span class="summary-icon"><?= icon('users') ?></span>
+            <span class="summary-icon"><?= icon('users') ?></span>
+            <div>
+            <strong><?= $editorCount ?></strong>
+            <span>editores</span>
+            </div>
+    </article>
+    <article class="summary-card">
+        <span class="summary-icon"><?= icon('eye') ?></span>
         <div>
-            <strong><?= $standardCount ?></strong>
-            <span>usuários padrão</span>
+            <strong><?= $viewerCount ?></strong>
+            <span>usuários</span>
         </div>
     </article>
 </section>
@@ -91,7 +124,7 @@ $oldValue = static fn (string $field, string $default = ''): string => e((string
     <?php if (!$users): ?>
         <div class="empty-state compact audit-empty">
             <span class="empty-icon"><?= icon('users') ?></span>
-            <h3>Nenhum usuario cadastrado</h3>
+            <h3>Nenhum usuário cadastrado</h3>
             <p>Cadastre uma conta administrativa antes de liberar o sistema.</p>
             <button class="btn btn-primary" type="button" data-user-modal-open="create"><?= icon('plus') ?><span>Novo usuário</span></button>
         </div>
@@ -112,7 +145,8 @@ $oldValue = static fn (string $field, string $default = ''): string => e((string
                         <?php
                         $name = (string) $user['name'];
                         $initial = strtoupper(substr(trim($name) !== '' ? trim($name) : 'U', 0, 1));
-                        $isAdmin = !empty($user['is_admin']);
+                        $role = User::roleFromUser($user);
+                        $roleLabel = User::roleLabel($role);
                         $isActive = !empty($user['is_active']);
                         $isSelf = (int) $user['id'] === (int) current_user()['id'];
                         ?>
@@ -130,9 +164,9 @@ $oldValue = static fn (string $field, string $default = ''): string => e((string
                                 <span class="user-email"><?= e($user['email']) ?></span>
                             </td>
                             <td data-label="Perfil">
-                                <span class="audit-action-badge <?= $isAdmin ? 'info' : 'neutral' ?>">
-                                    <?= icon($isAdmin ? 'settings' : 'users') ?>
-                                    <?= $isAdmin ? 'Administrador' : 'Usuário padrão' ?>
+                                <span class="audit-action-badge <?= e($roleClasses[$role] ?? 'neutral') ?>">
+                                    <?= icon($roleIcons[$role] ?? 'users') ?>
+                                    <?= e($roleLabel) ?>
                                 </span>
                             </td>
                             <td data-label="Status">
@@ -147,9 +181,9 @@ $oldValue = static fn (string $field, string $default = ''): string => e((string
                                         data-user-id="<?= (int) $user['id'] ?>"
                                         data-user-name="<?= e($user['name']) ?>"
                                         data-user-email="<?= e($user['email']) ?>"
-                                        data-user-admin="<?= $isAdmin ? '1' : '0' ?>"
-                                        aria-label="Editar usuario"
-                                        title="Editar usuario"
+                                        data-user-role="<?= e($role) ?>"
+                                        aria-label="Editar usuário"
+                                        title="Editar usuário"
                                     ><?= icon('edit-3') ?></button>
                                     <button
                                         class="icon-btn"
@@ -164,7 +198,7 @@ $oldValue = static fn (string $field, string $default = ''): string => e((string
                                         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                                         <input type="hidden" name="id" value="<?= (int) $user['id'] ?>">
                                         <input type="hidden" name="status" value="<?= $isActive ? 'inactive' : 'active' ?>">
-                                        <button class="icon-btn" type="submit" aria-label="<?= $isActive ? 'Desativar usuario' : 'Ativar usuario' ?>" title="<?= $isActive ? 'Desativar usuario' : 'Ativar usuario' ?>" <?= $isSelf && $isActive ? 'disabled' : '' ?>>
+                                        <button class="icon-btn" type="submit" aria-label="<?= $isActive ? 'Desativar usuário' : 'Ativar usuário' ?>" title="<?= $isActive ? 'Desativar usuário' : 'Ativar usuário' ?>" <?= $isSelf && $isActive ? 'disabled' : '' ?>>
                                             <?= icon($isActive ? 'trash-2' : 'check-circle') ?>
                                         </button>
                                     </form>
@@ -179,11 +213,15 @@ $oldValue = static fn (string $field, string $default = ''): string => e((string
 </section>
 
 <div class="company-modal user-modal" data-user-modal="create" <?= $openModal === 'create' ? '' : 'hidden' ?>>
-    <div class="company-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="user-create-title">
-        <header class="asset-panel-head">
+    <div class="company-modal-dialog user-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="user-create-title">
+        <header class="asset-panel-head user-modal-head">
             <div>
                 <span><?= icon('users') ?></span>
-                <h2 id="user-create-title">Novo usuario</h2>
+                <div>
+                    <span class="eyebrow">Acesso ao sistema</span>
+                    <h2 id="user-create-title">Novo usuário</h2>
+                    <p>Cadastre os dados de acesso e defina o nível correto de permissão.</p>
+                </div>
             </div>
             <button class="icon-btn" type="button" data-user-modal-close aria-label="Fechar"><?= icon('x') ?></button>
         </header>
@@ -199,9 +237,18 @@ $oldValue = static fn (string $field, string $default = ''): string => e((string
                 <input type="email" name="email" value="<?= $openModal === 'create' ? $oldValue('email') : '' ?>" required>
                 <?= $openModal === 'create' ? $fieldError('email') : '' ?>
             </label>
+            <fieldset class="user-role-field <?= isset($errors['role']) && $openModal === 'create' ? 'has-error' : '' ?>">
+                <legend>Nível de acesso</legend>
+                <div class="role-option-grid">
+                    <?php $roleOptions($openModal === 'create' ? User::normalizeRole((string) ($old['role'] ?? 'viewer')) : 'viewer'); ?>
+                </div>
+                <?= $openModal === 'create' ? $fieldError('role') : '' ?>
+            </fieldset>
+            <fieldset class="user-password-fields">
+                <legend>Senha de acesso</legend>
             <label class="field <?= isset($errors['password']) && $openModal === 'create' ? 'has-error' : '' ?>">
                 <span>Senha inicial</span>
-                <input type="password" name="password" minlength="8" required>
+                <input type="password" name="password" minlength="8" maxlength="72" pattern="(?=.*\p{Ll})(?=.*\p{Lu})(?=.*[0-9])(?=.*[^\p{L}\p{N}\s]).{8,}" title="Minimo 8 caracteres: maiuscula, minuscula, numero e especial." required><?php require BASE_PATH . '/views/partials/password-requirements.php'; ?>
                 <?= $openModal === 'create' ? $fieldError('password') : '' ?>
             </label>
             <label class="field <?= isset($errors['password_confirmation']) && $openModal === 'create' ? 'has-error' : '' ?>">
@@ -209,10 +256,7 @@ $oldValue = static fn (string $field, string $default = ''): string => e((string
                 <input type="password" name="password_confirmation" minlength="8" required>
                 <?= $openModal === 'create' ? $fieldError('password_confirmation') : '' ?>
             </label>
-            <label class="check-card">
-                <input type="checkbox" name="is_admin" <?= !empty($old['is_admin']) && $openModal === 'create' ? 'checked' : '' ?>>
-                <span>Administrador</span>
-            </label>
+            </fieldset>
             <footer class="form-actions">
                 <button class="btn btn-muted" type="button" data-user-modal-close>Cancelar</button>
                 <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar</span></button>
@@ -222,11 +266,15 @@ $oldValue = static fn (string $field, string $default = ''): string => e((string
 </div>
 
 <div class="company-modal user-modal" data-user-modal="edit" <?= $openModal === 'edit' ? '' : 'hidden' ?>>
-    <div class="company-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="user-edit-title">
-        <header class="asset-panel-head">
+    <div class="company-modal-dialog user-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="user-edit-title">
+        <header class="asset-panel-head user-modal-head">
             <div>
                 <span><?= icon('edit-3') ?></span>
-                <h2 id="user-edit-title">Editar usuario</h2>
+                <div>
+                    <span class="eyebrow">Acesso ao sistema</span>
+                    <h2 id="user-edit-title">Editar usuário</h2>
+                    <p>Atualize os dados da conta e revise o nível de permissão.</p>
+                </div>
             </div>
             <button class="icon-btn" type="button" data-user-modal-close aria-label="Fechar"><?= icon('x') ?></button>
         </header>
@@ -243,13 +291,13 @@ $oldValue = static fn (string $field, string $default = ''): string => e((string
                 <input type="email" name="email" value="<?= $openModal === 'edit' ? $oldValue('email') : '' ?>" required data-user-edit-email>
                 <?= $openModal === 'edit' ? $fieldError('email') : '' ?>
             </label>
-            <label class="check-card <?= isset($errors['is_admin']) && $openModal === 'edit' ? 'has-error' : '' ?>">
-                <input type="checkbox" name="is_admin" <?= !empty($old['is_admin']) && $openModal === 'edit' ? 'checked' : '' ?> data-user-edit-admin>
-                <span>Administrador</span>
-            </label>
-            <?php if ($openModal === 'edit'): ?>
-                <?= $fieldError('is_admin') ?>
-            <?php endif; ?>
+            <fieldset class="user-role-field <?= isset($errors['role']) && $openModal === 'edit' ? 'has-error' : '' ?>">
+                <legend>Nível de acesso</legend>
+                <div class="role-option-grid">
+                    <?php $roleOptions($openModal === 'edit' ? User::normalizeRole((string) ($old['role'] ?? 'viewer')) : 'viewer', 'data-user-edit-role-option'); ?>
+                </div>
+                <?= $openModal === 'edit' ? $fieldError('role') : '' ?>
+            </fieldset>
             <footer class="form-actions">
                 <button class="btn btn-muted" type="button" data-user-modal-close>Cancelar</button>
                 <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar</span></button>
@@ -273,7 +321,7 @@ $oldValue = static fn (string $field, string $default = ''): string => e((string
             <p class="field-hint">Usuário: <strong data-user-password-name><?= e((string) ($old['name'] ?? '')) ?></strong></p>
             <label class="field <?= isset($errors['password']) && $openModal === 'password' ? 'has-error' : '' ?>">
                 <span>Nova senha</span>
-                <input type="password" name="password" minlength="8" required>
+                <input type="password" name="password" minlength="8" maxlength="72" pattern="(?=.*\p{Ll})(?=.*\p{Lu})(?=.*[0-9])(?=.*[^\p{L}\p{N}\s]).{8,}" title="Minimo 8 caracteres: maiuscula, minuscula, numero e especial." required><?php require BASE_PATH . '/views/partials/password-requirements.php'; ?>
                 <?= $openModal === 'password' ? $fieldError('password') : '' ?>
             </label>
             <label class="field <?= isset($errors['password_confirmation']) && $openModal === 'password' ? 'has-error' : '' ?>">

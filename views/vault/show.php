@@ -27,6 +27,21 @@ $openCategoryModalName = (string) ($openCategoryModal ?: '');
 if ($openCategoryModalName === '1') {
     $openCategoryModalName = $categoryDefaultParentId > 0 ? 'subcategory' : 'category';
 }
+$vaultSettings = is_array($vaultSettings ?? null) ? $vaultSettings : AppSetting::vaultSettings();
+$vaultCustomFieldConfig = is_array($vaultCustomFieldConfig ?? null) ? $vaultCustomFieldConfig : [];
+$allowPasswordCopy = !empty($vaultSettings['allow_password_copy']);
+$credentialExpirationDays = (int) ($vaultSettings['credential_expiration_days'] ?? 0);
+$attachmentSettings = AppSetting::deviceSettings();
+$attachmentMaxBytes = (int) $attachmentSettings['attachment_max_mb'] * 1024 * 1024;
+$attachmentAccept = implode(',', array_map(static fn (string $extension): string => '.' . $extension, (array) $attachmentSettings['attachment_extensions']));
+
+$credentialIsOld = static function (array $credential) use ($credentialExpirationDays): bool {
+    if ($credentialExpirationDays <= 0 || empty($credential['updated_at'])) {
+        return false;
+    }
+
+    return strtotime((string) $credential['updated_at']) <= strtotime('-' . $credentialExpirationDays . ' days');
+};
 
 $categoryUrl = static function (?int $categoryId = null) use ($company, $filters): string {
     $params = [
@@ -62,20 +77,40 @@ $parentUrl = static function (?int $parentId = null) use ($company, $filters): s
     return '/?' . http_build_query($params);
 };
 
-$credentialDetailsAttributes = static function (array $credential): string {
+$credentialCustomFieldsJson = static function (array $credential): string {
+    return json_encode(VaultCredential::customFields($credential), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_APOS | JSON_HEX_QUOT);
+};
+
+$formCustomFieldValues = (array) ($formOld['custom_fields'] ?? []);
+
+$categoryNameById = static function (int $categoryId) use ($categories): string {
+    foreach ($categories as $category) {
+        if ((int) $category['id'] === $categoryId) {
+            return (string) $category['name'];
+        }
+    }
+
+    return $categoryId > 0 ? '' : 'Sem tipo';
+};
+
+$credentialDetailsAttributes = static function (array $credential) use ($credentialCustomFieldsJson): string {
     return implode(' ', [
         'data-vault-modal-open="details"',
         'data-vault-id="' . (int) $credential['id'] . '"',
         'data-vault-title="' . e($credential['title']) . '"',
+        'data-vault-category-id="' . (int) ($credential['category_id'] ?? 0) . '"',
         'data-vault-category-name="' . e($credential['category_name'] ?: 'Sem tipo') . '"',
         'data-vault-category-icon="' . e($credential['category_icon'] ?: 'lock') . '"',
         'data-vault-username="' . e($credential['username'] ?? '') . '"',
         'data-vault-service-url="' . e($credential['service_url'] ?? '') . '"',
         'data-vault-notes="' . e($credential['notes'] ?? '') . '"',
+        'data-vault-custom-fields="' . e($credentialCustomFieldsJson($credential)) . '"',
         'data-vault-updated-at="' . e($credential['updated_at'] ?: '-') . '"',
     ]);
 };
 ?>
+
+<script type="application/json" data-vault-custom-field-config><?= e(json_encode($vaultCustomFieldConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></script>
 
 <nav class="breadcrumbs" aria-label="Breadcrumb">
     <a href="/">Home</a>
@@ -136,12 +171,14 @@ $credentialDetailsAttributes = static function (array $credential): string {
             <?php endif; ?>
         </div>
         <div class="vault-panel-actions">
-            <button class="btn btn-primary" type="button" data-vault-modal-open="create" data-vault-category-id="<?= (int) $credentialDefaultCategoryId ?>">
-                <?= icon('plus') ?><span>Nova credencial</span>
-            </button>
-            <button class="btn btn-muted" type="button" data-vault-modal-open="category">
-                <?= icon('folder-plus') ?><span>Nova categoria</span>
-            </button>
+            <?php if (can_access_vault()): ?>
+                <button class="btn btn-primary" type="button" data-vault-modal-open="create" data-vault-category-id="<?= (int) $credentialDefaultCategoryId ?>">
+                    <?= icon('plus') ?><span>Nova credencial</span>
+                </button>
+                <button class="btn btn-muted" type="button" data-vault-modal-open="category">
+                    <?= icon('folder-plus') ?><span>Nova categoria</span>
+                </button>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -182,9 +219,11 @@ $credentialDetailsAttributes = static function (array $credential): string {
                     <h3>Subcategorias</h3>
                 </div>
                 <div class="vault-panel-actions">
-                    <button class="btn btn-primary" type="button" data-vault-modal-open="subcategory" data-vault-parent-id="<?= (int) $selectedParent['id'] ?>" data-vault-parent-name="<?= e($selectedParent['name']) ?>">
-                        <?= icon('folder-plus') ?><span>Nova subcategoria</span>
-                    </button>
+                    <?php if (can_access_vault()): ?>
+                        <button class="btn btn-primary" type="button" data-vault-modal-open="subcategory" data-vault-parent-id="<?= (int) $selectedParent['id'] ?>" data-vault-parent-name="<?= e($selectedParent['name']) ?>">
+                            <?= icon('folder-plus') ?><span>Nova subcategoria</span>
+                        </button>
+                    <?php endif; ?>
                     <a class="btn btn-muted" href="<?= e($categoryUrl((int) $selectedParent['id'])) ?>">
                         <?= icon('filter') ?><span>Ver itens desta categoria</span>
                     </a>
@@ -244,6 +283,7 @@ $credentialDetailsAttributes = static function (array $credential): string {
                     <?php foreach ($credentials as $credential): ?>
                         <tr>
                             <td data-label="Nome">
+                                <?php $isOldCredential = $credentialIsOld($credential); ?>
                                 <button
                                     class="vault-name-button truncate-text"
                                     type="button"
@@ -252,6 +292,9 @@ $credentialDetailsAttributes = static function (array $credential): string {
                                 >
                                     <?= e($credential['title']) ?>
                                 </button>
+                                <?php if ($isOldCredential): ?>
+                                    <span class="status-chip warning">Antiga</span>
+                                <?php endif; ?>
                             </td>
                             <td data-label="Tipo">
                                 <span class="vault-type-chip" title="<?= e($credential['category_name'] ?: 'Sem tipo') ?>">
@@ -276,16 +319,18 @@ $credentialDetailsAttributes = static function (array $credential): string {
                                     <span class="vault-secret-placeholder">••••••••</span>
                                     <input type="hidden" value="<?= e(csrf_token()) ?>" data-vault-secret-csrf>
                                     <input type="hidden" value="" data-vault-secret-output>
-                                    <button
-                                        class="icon-btn compact"
-                                        type="button"
-                                        data-vault-secret-copy
-                                        data-vault-secret-id="<?= (int) $credential['id'] ?>"
-                                        aria-label="Copiar senha"
-                                        title="Copiar senha"
-                                    >
-                                        <?= icon('copy') ?>
-                                    </button>
+                                    <?php if ($allowPasswordCopy): ?>
+                                        <button
+                                            class="icon-btn compact"
+                                            type="button"
+                                            data-vault-secret-copy
+                                            data-vault-secret-id="<?= (int) $credential['id'] ?>"
+                                            aria-label="Copiar senha"
+                                            title="Copiar senha"
+                                        >
+                                            <?= icon('copy') ?>
+                                        </button>
+                                    <?php endif; ?>
                                 </span>
                             </td>
                             <td data-label="URL">
@@ -322,28 +367,33 @@ $credentialDetailsAttributes = static function (array $credential): string {
                                     >
                                         <?= icon('eye') ?>
                                     </button>
-                                    <button
-                                        class="icon-btn"
-                                        type="button"
-                                        data-vault-modal-open="edit"
-                                        data-vault-id="<?= (int) $credential['id'] ?>"
-                                        data-vault-title="<?= e($credential['title']) ?>"
-                                        data-vault-category-id="<?= (int) ($credential['category_id'] ?? 0) ?>"
-                                        data-vault-username="<?= e($credential['username'] ?? '') ?>"
-                                        data-vault-service-url="<?= e($credential['service_url'] ?? '') ?>"
-                                        data-vault-notes="<?= e($credential['notes'] ?? '') ?>"
-                                        aria-label="Editar credencial"
-                                        title="Editar"
-                                    >
-                                        <?= icon('edit-3') ?>
-                                    </button>
-                                    <form action="/?route=vault.deactivate" method="post" data-confirm="Desativar esta credencial?">
-                                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                                        <input type="hidden" name="id" value="<?= (int) $credential['id'] ?>">
-                                        <button class="icon-btn danger" type="submit" aria-label="Desativar credencial" title="Desativar">
-                                            <?= icon('trash-2') ?>
+                                    <?php if (can_access_vault()): ?>
+                                        <button
+                                            class="icon-btn"
+                                            type="button"
+                                            data-vault-modal-open="edit"
+                                            data-vault-id="<?= (int) $credential['id'] ?>"
+                                            data-vault-title="<?= e($credential['title']) ?>"
+                                            data-vault-category-id="<?= (int) ($credential['category_id'] ?? 0) ?>"
+                                            data-vault-username="<?= e($credential['username'] ?? '') ?>"
+                                            data-vault-service-url="<?= e($credential['service_url'] ?? '') ?>"
+                                            data-vault-notes="<?= e($credential['notes'] ?? '') ?>"
+                                            data-vault-custom-fields="<?= e($credentialCustomFieldsJson($credential)) ?>"
+                                            aria-label="Editar credencial"
+                                            title="Editar"
+                                        >
+                                            <?= icon('edit-3') ?>
                                         </button>
-                                    </form>
+                                    <?php endif; ?>
+                                    <?php if (can_access_vault()): ?>
+                                        <form action="/?route=vault.deactivate" method="post" data-confirm="Desativar esta credencial?">
+                                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                                            <input type="hidden" name="id" value="<?= (int) $credential['id'] ?>">
+                                            <button class="icon-btn danger" type="submit" aria-label="Desativar credencial" title="Desativar">
+                                                <?= icon('trash-2') ?>
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
@@ -363,11 +413,14 @@ $credentialDetailsAttributes = static function (array $credential): string {
                 <h2>Arquivos de <?= e($attachmentCategory['name']) ?></h2>
                 <p><?= count($attachments ?? []) ?> arquivo(s) vinculado(s)</p>
             </div>
-            <button class="btn btn-muted" type="button" data-attachment-form-toggle aria-expanded="false">
-                <?= icon('plus') ?><span>Adicionar anexo</span>
-            </button>
+            <?php if (can_access_vault()): ?>
+                <button class="btn btn-muted" type="button" data-attachment-form-toggle aria-expanded="false">
+                    <?= icon('plus') ?><span>Adicionar anexo</span>
+                </button>
+            <?php endif; ?>
         </div>
 
+        <?php if (can_access_vault()): ?>
         <form class="company-attachment-form" action="/?route=companies.attachments.store" method="post" enctype="multipart/form-data" data-attachment-form-panel hidden>
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
             <input type="hidden" name="company_id" value="<?= (int) $company['id'] ?>">
@@ -376,8 +429,8 @@ $credentialDetailsAttributes = static function (array $credential): string {
                 <label class="upload-drop compact">
                     <span class="upload-icon"><?= icon('file-text') ?></span>
                     <strong>Selecionar arquivo</strong>
-                    <small>PDF, Office, CSV, TXT, imagem ou ZIP até <?= e(format_file_size(COMPANY_ATTACHMENT_MAX_BYTES)) ?></small>
-                    <input type="file" name="attachment" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.webp,.zip" required data-attachment-input>
+                    <small>Arquivos permitidos até <?= e(format_file_size($attachmentMaxBytes)) ?></small>
+                    <input type="file" name="attachment" accept="<?= e($attachmentAccept) ?>" required data-attachment-input>
                 </label>
                 <label class="field">
                     <span>Descrição opcional</span>
@@ -393,6 +446,7 @@ $credentialDetailsAttributes = static function (array $credential): string {
                 <button class="btn btn-primary" type="submit"><?= icon('upload') ?><span>Enviar anexo</span></button>
             </div>
         </form>
+        <?php endif; ?>
 
         <?php if (empty($attachments)): ?>
             <div class="empty-state compact">
@@ -425,13 +479,15 @@ $credentialDetailsAttributes = static function (array $credential): string {
                                         <a class="icon-btn" href="/?route=companies.attachments.download&id=<?= (int) $attachment['id'] ?>" aria-label="Baixar anexo" title="Baixar">
                                             <?= icon('download') ?>
                                         </a>
-                                        <form action="/?route=companies.attachments.delete" method="post" data-confirm="Remover este anexo?">
-                                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                                            <input type="hidden" name="id" value="<?= (int) $attachment['id'] ?>">
-                                            <button class="icon-btn danger" type="submit" aria-label="Remover anexo" title="Remover">
-                                                <?= icon('trash-2') ?>
-                                            </button>
-                                        </form>
+                                        <?php if (can_access_vault()): ?>
+                                            <form action="/?route=companies.attachments.delete" method="post" data-confirm="Remover este anexo?">
+                                                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                                                <input type="hidden" name="id" value="<?= (int) $attachment['id'] ?>">
+                                                <button class="icon-btn danger" type="submit" aria-label="Remover anexo" title="Remover">
+                                                    <?= icon('trash-2') ?>
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
@@ -443,8 +499,9 @@ $credentialDetailsAttributes = static function (array $credential): string {
     </section>
 <?php endif; ?>
 
+<?php if (can_access_vault()): ?>
 <div class="company-modal vault-modal" data-vault-modal="create" <?= $openModal === 'create' ? '' : 'hidden' ?>>
-    <div class="company-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-create-title">
+    <div class="company-modal-dialog vault-credential-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-create-title">
         <header class="modal-head">
             <div>
                 <span class="eyebrow">Cofre</span>
@@ -462,26 +519,63 @@ $credentialDetailsAttributes = static function (array $credential): string {
             </label>
             <label class="field <?= isset($formErrors['category_id']) ? 'has-error' : '' ?>">
                 <span>Tipo de credencial</span>
-                <select name="category_id" data-vault-create-category>
-                    <option value="">Sem tipo</option>
-                    <?php foreach ($categories as $category): ?>
-                        <option value="<?= (int) $category['id'] ?>" <?= $credentialDefaultCategoryId === (int) $category['id'] ? 'selected' : '' ?>>
-                            <?= e($category['name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+                <div class="vault-category-combobox" data-vault-category-combobox>
+                    <input type="text" value="<?= e($categoryNameById($credentialDefaultCategoryId)) ?>" placeholder="Digite para buscar..." autocomplete="off" data-vault-category-search-input>
+                    <select class="vault-native-category-select" name="category_id" data-vault-create-category tabindex="-1" aria-hidden="true">
+                        <option value="">Sem tipo</option>
+                        <?php foreach ($categories as $category): ?>
+                            <option value="<?= (int) $category['id'] ?>" <?= $credentialDefaultCategoryId === (int) $category['id'] ? 'selected' : '' ?>>
+                                <?= e($category['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="vault-category-options" data-vault-category-options hidden></div>
+                </div>
                 <?php if (isset($formErrors['category_id'])): ?><small><?= e($formErrors['category_id']) ?></small><?php endif; ?>
             </label>
+            <div class="field-wide vault-dynamic-custom-fields <?= isset($formErrors['custom_fields']) ? 'has-error' : '' ?>" data-vault-custom-fields data-vault-custom-values="<?= e(json_encode($formCustomFieldValues, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_APOS | JSON_HEX_QUOT)) ?>">
+                <?php if (isset($formErrors['custom_fields'])): ?><small><?= e($formErrors['custom_fields']) ?></small><?php endif; ?>
+            </div>
             <label class="field <?= isset($formErrors['username']) ? 'has-error' : '' ?>">
                 <span>Usuário</span>
                 <input type="text" name="username" value="<?= e($formOld['username'] ?? '') ?>">
                 <?php if (isset($formErrors['username'])): ?><small><?= e($formErrors['username']) ?></small><?php endif; ?>
             </label>
-            <label class="field <?= isset($formErrors['secret_value']) ? 'has-error' : '' ?>">
+            <div class="field vault-password-generator-field <?= isset($formErrors['secret_value']) ? 'has-error' : '' ?>">
                 <span>Senha / segredo</span>
-                <input type="password" name="secret_value" required>
+                <div class="vault-password-input-row">
+                    <input type="password" name="secret_value" required data-vault-generated-password>
+                    <button class="btn btn-muted compact-btn" type="button" data-vault-password-generator-toggle aria-expanded="false">
+                        <?= icon('key-round') ?><span>Gerar</span>
+                    </button>
+                </div>
                 <?php if (isset($formErrors['secret_value'])): ?><small><?= e($formErrors['secret_value']) ?></small><?php endif; ?>
-            </label>
+                <div class="vault-password-generator-panel" data-vault-password-generator hidden>
+                    <div class="vault-password-generator-head">
+                        <strong>Gerador de senha</strong>
+                        <span>Personalize e gere uma senha segura.</span>
+                    </div>
+                    <div class="vault-password-generator-controls">
+                        <fieldset class="vault-password-length-options">
+                            <legend>Tamanho</legend>
+                            <label><input type="radio" name="password_length_create" value="8"><span>8</span></label>
+                            <label><input type="radio" name="password_length_create" value="12" checked><span>12</span></label>
+                            <label><input type="radio" name="password_length_create" value="16"><span>16</span></label>
+                        </fieldset>
+                        <fieldset class="vault-password-option-grid">
+                            <legend>Caracteres</legend>
+                            <label><input type="checkbox" data-vault-password-option="uppercase" checked><span>ABCD</span></label>
+                            <label><input type="checkbox" data-vault-password-option="lowercase" checked><span>abcd</span></label>
+                            <label><input type="checkbox" data-vault-password-option="symbols" checked><span>!@#$</span></label>
+                            <label><input type="checkbox" data-vault-password-option="numbers" checked><span>1234</span></label>
+                        </fieldset>
+                    </div>
+                    <button class="btn btn-primary compact-btn" type="button" data-vault-password-generate>
+                        <?= icon('refresh-cw') ?><span>Gerar senha</span>
+                    </button>
+                    <small data-vault-password-generator-message hidden></small>
+                </div>
+            </div>
             <label class="field field-wide <?= isset($formErrors['service_url']) ? 'has-error' : '' ?>">
                 <span>URL</span>
                 <input type="text" name="service_url" value="<?= e($formOld['service_url'] ?? '') ?>">
@@ -583,6 +677,8 @@ $credentialDetailsAttributes = static function (array $credential): string {
     </div>
 </div>
 
+<?php endif; ?>
+
 <div class="company-modal vault-modal" data-vault-modal="category-info" hidden>
     <div class="company-modal-dialog vault-info-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-category-info-title">
         <header class="modal-head">
@@ -642,9 +738,11 @@ $credentialDetailsAttributes = static function (array $credential): string {
                             <button class="password-toggle-icon" type="button" data-vault-secret-toggle data-vault-secret-id="" aria-label="Mostrar senha" title="Mostrar senha" data-vault-details-secret-toggle>
                                 <?= icon('eye') ?>
                             </button>
-                            <button class="password-toggle-icon" type="button" data-vault-secret-copy data-vault-secret-id="" aria-label="Copiar senha" title="Copiar senha" data-vault-details-secret-copy>
-                                <?= icon('copy') ?>
-                            </button>
+                            <?php if ($allowPasswordCopy): ?>
+                                <button class="password-toggle-icon" type="button" data-vault-secret-copy data-vault-secret-id="" aria-label="Copiar senha" title="Copiar senha" data-vault-details-secret-copy>
+                                    <?= icon('copy') ?>
+                                </button>
+                            <?php endif; ?>
                         </span>
                     </dd>
                 </div>
@@ -668,13 +766,18 @@ $credentialDetailsAttributes = static function (array $credential): string {
                     <dt>Observações</dt>
                     <dd data-vault-details-notes>-</dd>
                 </div>
+                <div class="field-wide vault-detail-custom-fields" data-vault-details-custom-fields hidden>
+                    <dt>Campos personalizados</dt>
+                    <dd data-vault-details-custom-field-list></dd>
+                </div>
             </dl>
         </div>
     </div>
 </div>
 
+<?php if (can_access_vault()): ?>
 <div class="company-modal vault-modal" data-vault-modal="edit" <?= $openModal === 'edit' ? '' : 'hidden' ?>>
-    <div class="company-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-edit-title">
+    <div class="company-modal-dialog vault-credential-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-edit-title">
         <header class="modal-head">
             <div>
                 <span class="eyebrow">Cofre</span>
@@ -692,26 +795,63 @@ $credentialDetailsAttributes = static function (array $credential): string {
             </label>
             <label class="field <?= isset($formErrors['category_id']) ? 'has-error' : '' ?>">
                 <span>Tipo de credencial</span>
-                <select name="category_id" data-vault-edit-category>
-                    <option value="">Sem tipo</option>
-                    <?php foreach ($categories as $category): ?>
-                        <option value="<?= (int) $category['id'] ?>" <?= (int) ($formOld['category_id'] ?? 0) === (int) $category['id'] ? 'selected' : '' ?>>
-                            <?= e($category['name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+                <div class="vault-category-combobox" data-vault-category-combobox>
+                    <input type="text" value="<?= e($categoryNameById((int) ($formOld['category_id'] ?? 0))) ?>" placeholder="Digite para buscar..." autocomplete="off" data-vault-category-search-input>
+                    <select class="vault-native-category-select" name="category_id" data-vault-edit-category tabindex="-1" aria-hidden="true">
+                        <option value="">Sem tipo</option>
+                        <?php foreach ($categories as $category): ?>
+                            <option value="<?= (int) $category['id'] ?>" <?= (int) ($formOld['category_id'] ?? 0) === (int) $category['id'] ? 'selected' : '' ?>>
+                                <?= e($category['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="vault-category-options" data-vault-category-options hidden></div>
+                </div>
                 <?php if (isset($formErrors['category_id'])): ?><small><?= e($formErrors['category_id']) ?></small><?php endif; ?>
             </label>
+            <div class="field-wide vault-dynamic-custom-fields <?= isset($formErrors['custom_fields']) ? 'has-error' : '' ?>" data-vault-custom-fields data-vault-custom-values="<?= e(json_encode($formCustomFieldValues, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_APOS | JSON_HEX_QUOT)) ?>">
+                <?php if (isset($formErrors['custom_fields'])): ?><small><?= e($formErrors['custom_fields']) ?></small><?php endif; ?>
+            </div>
             <label class="field <?= isset($formErrors['username']) ? 'has-error' : '' ?>">
                 <span>Usuário</span>
                 <input type="text" name="username" value="<?= e($formOld['username'] ?? '') ?>" data-vault-edit-username>
                 <?php if (isset($formErrors['username'])): ?><small><?= e($formErrors['username']) ?></small><?php endif; ?>
             </label>
-            <label class="field <?= isset($formErrors['secret_value']) ? 'has-error' : '' ?>">
+            <div class="field vault-password-generator-field <?= isset($formErrors['secret_value']) ? 'has-error' : '' ?>">
                 <span>Nova senha / segredo</span>
-                <input type="password" name="secret_value" placeholder="Deixe vazio para manter a senha atual">
+                <div class="vault-password-input-row">
+                    <input type="password" name="secret_value" placeholder="Deixe vazio para manter a senha atual" data-vault-generated-password>
+                    <button class="btn btn-muted compact-btn" type="button" data-vault-password-generator-toggle aria-expanded="false">
+                        <?= icon('key-round') ?><span>Gerar</span>
+                    </button>
+                </div>
                 <?php if (isset($formErrors['secret_value'])): ?><small><?= e($formErrors['secret_value']) ?></small><?php endif; ?>
-            </label>
+                <div class="vault-password-generator-panel" data-vault-password-generator hidden>
+                    <div class="vault-password-generator-head">
+                        <strong>Gerador de senha</strong>
+                        <span>Personalize e gere uma senha segura.</span>
+                    </div>
+                    <div class="vault-password-generator-controls">
+                        <fieldset class="vault-password-length-options">
+                            <legend>Tamanho</legend>
+                            <label><input type="radio" name="password_length_edit" value="8"><span>8</span></label>
+                            <label><input type="radio" name="password_length_edit" value="12" checked><span>12</span></label>
+                            <label><input type="radio" name="password_length_edit" value="16"><span>16</span></label>
+                        </fieldset>
+                        <fieldset class="vault-password-option-grid">
+                            <legend>Caracteres</legend>
+                            <label><input type="checkbox" data-vault-password-option="uppercase" checked><span>ABCD</span></label>
+                            <label><input type="checkbox" data-vault-password-option="lowercase" checked><span>abcd</span></label>
+                            <label><input type="checkbox" data-vault-password-option="symbols" checked><span>!@#$</span></label>
+                            <label><input type="checkbox" data-vault-password-option="numbers" checked><span>1234</span></label>
+                        </fieldset>
+                    </div>
+                    <button class="btn btn-primary compact-btn" type="button" data-vault-password-generate>
+                        <?= icon('refresh-cw') ?><span>Gerar senha</span>
+                    </button>
+                    <small data-vault-password-generator-message hidden></small>
+                </div>
+            </div>
             <label class="field field-wide <?= isset($formErrors['service_url']) ? 'has-error' : '' ?>">
                 <span>URL</span>
                 <input type="text" name="service_url" value="<?= e($formOld['service_url'] ?? '') ?>" data-vault-edit-service-url>
@@ -729,3 +869,4 @@ $credentialDetailsAttributes = static function (array $credential): string {
         </form>
     </div>
 </div>
+<?php endif; ?>

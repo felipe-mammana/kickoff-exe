@@ -37,8 +37,10 @@ class ApiToken
     public static function findActiveByPlainToken(string $plainToken): ?array
     {
         try {
+            User::ensureRoleColumn();
+
             $stmt = db()->prepare(
-                'SELECT t.*, u.name AS user_name, u.email AS user_email, u.is_admin
+                'SELECT t.*, u.name AS user_name, u.email AS user_email, u.role AS user_role, u.is_admin
                  FROM api_tokens t
                  INNER JOIN users u ON u.id = t.user_id
                  WHERE t.token_hash = :token_hash
@@ -82,6 +84,12 @@ class ApiToken
     public static function generatePlainToken(): string
     {
         return 'exe_' . bin2hex(random_bytes(32));
+    }
+
+    public static function revokeAllForUser(int $userId): void
+    {
+        $stmt = db()->prepare('UPDATE api_tokens SET revoked_at = NOW() WHERE user_id = :user_id AND revoked_at IS NULL');
+        $stmt->execute(['user_id' => $userId]);
     }
 
     private static function hash(string $plainToken): string

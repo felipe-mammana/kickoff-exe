@@ -6,7 +6,7 @@ class MachineController
 {
     public static function create(): void
     {
-        require_auth();
+        require_editor();
         $companyId = (int) ($_GET['company_id'] ?? 0);
         $company = Company::find($companyId);
 
@@ -22,13 +22,13 @@ class MachineController
             'photos' => [],
             'errors' => [],
             'action' => '/?route=machines.store',
-            'deviceTypes' => Machine::deviceTypes(),
+            'deviceTypes' => Machine::configuredDeviceTypes(),
         ]);
     }
 
     public static function store(): void
     {
-        require_auth();
+        require_editor();
         verify_csrf();
 
         [$data, $errors] = self::validatedData();
@@ -41,7 +41,7 @@ class MachineController
                 'photos' => [],
                 'errors' => $errors,
                 'action' => '/?route=machines.store',
-                'deviceTypes' => Machine::deviceTypes(),
+                'deviceTypes' => Machine::configuredDeviceTypes($data['device_type'] ?? null),
             ]);
             return;
         }
@@ -95,7 +95,7 @@ class MachineController
 
     public static function edit(): void
     {
-        require_admin();
+        require_editor();
         $machine = self::requireMachine();
         $photos = MachinePhoto::byMachine((int) $machine['id']);
 
@@ -106,13 +106,13 @@ class MachineController
             'photos' => $photos,
             'errors' => [],
             'action' => '/?route=machines.update&id=' . (int) $machine['id'],
-            'deviceTypes' => Machine::deviceTypes(),
+            'deviceTypes' => Machine::configuredDeviceTypes($machine['device_type'] ?? null),
         ]);
     }
 
     public static function update(): void
     {
-        require_admin();
+        require_editor();
         verify_csrf();
         $machine = self::requireMachine();
 
@@ -126,7 +126,7 @@ class MachineController
                 'photos' => MachinePhoto::byMachine((int) $machine['id']),
                 'errors' => $errors,
                 'action' => '/?route=machines.update&id=' . (int) $machine['id'],
-                'deviceTypes' => Machine::deviceTypes(),
+                'deviceTypes' => Machine::configuredDeviceTypes($data['device_type'] ?? ($machine['device_type'] ?? null)),
             ]);
             return;
         }
@@ -261,7 +261,7 @@ class MachineController
 
     public static function revealCredential(): void
     {
-        require_admin();
+        require_auth();
 
         if (!is_post()) {
             ApiResponse::error('method_not_allowed', 'Método não permitido.', 405);
@@ -299,7 +299,7 @@ class MachineController
             'affected_record_id' => $machineId,
             'company_id' => (int) $machine['company_id'],
             'machine_id' => $machineId,
-            'description' => 'Administrador visualizou credencial do dispositivo.',
+            'description' => 'Usuário visualizou credencial do dispositivo.',
             'new_data' => [
                 'field' => $field,
                 'field_label' => $allowedFields[$field],
@@ -442,15 +442,19 @@ class MachineController
                 continue;
             }
 
-            if ($_FILES[$inputName]['size'][$i] > MAX_UPLOAD_BYTES) {
-                flash('danger', 'Uma foto excede o limite de 5MB.');
+            $uploadSettings = AppSetting::deviceSettings();
+            $maxUploadBytes = (int) $uploadSettings['photo_max_mb'] * 1024 * 1024;
+            $allowedImageMimes = (array) $uploadSettings['photo_mimes'];
+
+            if ($_FILES[$inputName]['size'][$i] > $maxUploadBytes) {
+                flash('danger', 'Uma foto excede o limite de ' . format_file_size($maxUploadBytes) . '.');
                 continue;
             }
 
             $tmpName = $_FILES[$inputName]['tmp_name'][$i];
             $mime = $finfo->file($tmpName);
 
-            if (!in_array($mime, ALLOWED_IMAGE_MIMES, true)) {
+            if (!in_array($mime, $allowedImageMimes, true)) {
                 flash('danger', 'Formato de imagem inválido. Use JPG, PNG ou WEBP.');
                 continue;
             }
@@ -580,15 +584,7 @@ class MachineController
 
     private static function requiredFieldsForType(string $type): array
     {
-        $map = [
-            'notebook' => ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'machine_password'],
-            'cpu' => ['tag', 'old_hostname', 'new_hostname', 'employee_name', 'department', 'machine_password'],
-            'roteador' => ['tag', 'admin_user', 'admin_password', 'ip_address'],
-            'access_point' => ['install_location', 'tag'],
-            'modem' => ['tag', 'admin_user', 'admin_password', 'carrier'],
-            'impressora' => ['tag', 'brand', 'printer_connection_type'],
-            'outros' => ['tag'],
-        ];
+        $map = (array) AppSetting::deviceSettings()['required_fields'];
 
         return $map[$type] ?? $map['notebook'];
     }

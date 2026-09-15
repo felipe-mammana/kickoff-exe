@@ -1,6 +1,9 @@
 .env
 .env.*
 config/local.php
+config/microsoft.local.php
+config/crypto.local.php
+storage/crypto-backups/
 *.log
 *.tmp
 Thumbs.db
@@ -16,3 +19,4 @@ security-reports/
 server_upload_clean/
 public/downloads/
 *.docx
+storage/protected-audit/

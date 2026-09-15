@@ -17,7 +17,7 @@ class ApiRouter
         $allowedMethods = [];
 
         foreach ($routes as $route) {
-            [$routeMethod, $pattern, $handler, $requiresAuth, $requiresAdmin] = array_pad($route, 5, false);
+            [$routeMethod, $pattern, $handler, $requiresAuth, $permission] = array_pad($route, 5, false);
 
             if (!preg_match('#^' . $pattern . '$#', $path, $matches)) {
                 continue;
@@ -45,8 +45,12 @@ class ApiRouter
                 }
             }
 
-            if ($requiresAdmin && !ApiAuth::isAdmin()) {
+            if ($permission === 'admin' && !ApiAuth::isAdmin()) {
                 ApiResponse::error('forbidden', 'Acesso restrito a administradores.', 403);
+            }
+
+            if ($permission === 'editor' && !ApiAuth::canEdit()) {
+                ApiResponse::error('forbidden', 'Acesso restrito a administradores e editores.', 403);
             }
 
             $params = array_filter(

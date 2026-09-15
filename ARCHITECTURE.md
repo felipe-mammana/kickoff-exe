@@ -1,5 +1,8 @@
 # Arquitetura — EXE Inventário TI
 
+> Revisao atual: [guia tecnico e operacional](docs/guia-tecnico-operacional.md#arquitetura).
+> Este arquivo contem notas historicas; confira o guia e o codigo instalado.
+
 ## Visão geral
 MVC próprio em PHP.
 

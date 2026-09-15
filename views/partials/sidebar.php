@@ -14,11 +14,20 @@
             <span class="nav-icon"><?= icon('layout-dashboard') ?></span>
             <span>Dashboard</span>
         </a>
+        <a class="<?= $isCompany ? 'active' : '' ?>" href="/?route=companies.index">
+            <span class="nav-icon"><?= icon('building-2') ?></span>
+            <span>Empresas</span>
+        </a>
+        <?php if (can_access_vault()): ?>
+        <a class="<?= $isVault ? 'active' : '' ?>" href="/?route=vault.index">
+            <span class="nav-icon"><?= icon('lock') ?></span>
+            <span>Cofre</span>
+        </a>
+        <?php endif; ?>
+        <?php if (can_access_vault()): ?>
+            <a class="<?= $route === 'sessions.index' ? 'active' : '' ?>" href="/?route=sessions.index"><span class="nav-icon"><?= icon('monitor') ?></span><span>Sessões</span></a>
+        <?php endif; ?>
         <?php if (is_admin()): ?>
-            <a class="<?= $isCompany ? 'active' : '' ?>" href="/?route=companies.index">
-                <span class="nav-icon"><?= icon('building-2') ?></span>
-                <span>Empresas</span>
-            </a>
             <a class="<?= $isAudit ? 'active' : '' ?>" href="/?route=audit.index">
                 <span class="nav-icon"><?= icon('file-clock') ?></span>
                 <span>Logs do sistema</span>
@@ -27,22 +36,18 @@
                 <span class="nav-icon"><?= icon('users') ?></span>
                 <span>Usuários</span>
             </a>
-            <a class="<?= $isVault ? 'active' : '' ?>" href="/?route=vault.index">
-                <span class="nav-icon"><?= icon('lock') ?></span>
-                <span>Cofre</span>
-            </a>
-            <a class="<?= $isSettings ? 'active' : '' ?>" href="/?route=settings.index">
-                <span class="nav-icon"><?= icon('settings') ?></span>
-                <span>Configurações</span>
-            </a>
         <?php endif; ?>
+        <a class="<?= $isSettings ? 'active' : '' ?>" href="/?route=settings.index">
+            <span class="nav-icon"><?= icon('settings') ?></span>
+            <span>Configurações</span>
+        </a>
     </nav>
 
     <div class="sidebar-profile">
         <div class="avatar"><?= e(strtoupper(substr((string) current_user()['name'], 0, 1))) ?></div>
         <div>
             <strong><?= e(current_user()['name']) ?></strong>
-            <small><?= is_admin() ? 'Administrador' : 'Usuário' ?></small>
+            <small><?= e(User::roleLabel(user_role())) ?></small>
         </div>
     </div>
 </aside>

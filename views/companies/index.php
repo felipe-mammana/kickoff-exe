@@ -9,7 +9,9 @@
         <h1>Empresas cadastradas</h1>
         <p>Gerencie organizações, padrões de etiqueta e inventários vinculados.</p>
     </div>
-    <button class="btn btn-primary" type="button" data-company-modal-open><?= icon('plus') ?><span>Cadastrar nova empresa</span></button>
+    <?php if (can_edit_records()): ?>
+        <button class="btn btn-primary" type="button" data-company-modal-open><?= icon('plus') ?><span>Cadastrar nova empresa</span></button>
+    <?php endif; ?>
 </section>
 
 <section class="company-filter-panel">
@@ -52,7 +54,9 @@
         <div class="empty-state compact">
             <h3>Nenhuma empresa cadastrada</h3>
             <p>Cadastre a primeira empresa para iniciar o inventario.</p>
-            <button class="btn btn-primary" type="button" data-company-modal-open><?= icon('plus') ?><span>Cadastrar empresa</span></button>
+            <?php if (can_edit_records()): ?>
+                <button class="btn btn-primary" type="button" data-company-modal-open><?= icon('plus') ?><span>Cadastrar empresa</span></button>
+            <?php endif; ?>
         </div>
     <?php else: ?>
         <div class="inventory-table-wrap">
@@ -93,7 +97,9 @@
                             <td data-label="Ações">
                                 <div class="table-actions">
                                     <a class="icon-btn" href="/?route=companies.show&id=<?= (int) $company['id'] ?>" aria-label="Ver empresa"><?= icon('eye') ?></a>
-                                    <a class="icon-btn" href="/?route=companies.edit&id=<?= (int) $company['id'] ?>" aria-label="Editar empresa"><?= icon('edit-3') ?></a>
+                                    <?php if (can_edit_records()): ?>
+                                        <a class="icon-btn" href="/?route=companies.edit&id=<?= (int) $company['id'] ?>" aria-label="Editar empresa"><?= icon('edit-3') ?></a>
+                                    <?php endif; ?>
                                 </div>
                                 <small class="row-tap-hint"><?= icon('chevron-right') ?> Toque no card para ver detalhes</small>
                             </td>
@@ -105,6 +111,7 @@
     <?php endif; ?>
 </section>
 
+<?php if (can_edit_records()): ?>
 <div class="company-modal" data-company-modal hidden>
     <div class="company-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="company-modal-title">
         <div class="gallery-head">
@@ -142,3 +149,4 @@
         </form>
     </div>
 </div>
+<?php endif; ?>

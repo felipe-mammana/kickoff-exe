@@ -6,7 +6,7 @@ class VaultController
 {
     public static function index(): void
     {
-        require_admin();
+        require_vault_access();
 
         $searchMode = (string) ($_GET['search_mode'] ?? 'company');
         if (!in_array($searchMode, ['company', 'credential'], true)) {
@@ -32,7 +32,7 @@ class VaultController
 
     public static function show(): void
     {
-        require_admin();
+        require_vault_access();
 
         $companyId = (int) ($_GET['id'] ?? 0);
         $company = Company::find($companyId);
@@ -46,16 +46,16 @@ class VaultController
         $categoryId = (int) ($_GET['category_id'] ?? 0);
         $selectedParent = $parentId > 0 ? VaultCategory::find($parentId) : null;
         $selectedCategory = $categoryId > 0 ? VaultCategory::find($categoryId) : null;
-        if ($selectedParent && empty($selectedParent['is_active'])) {
+        if ($selectedParent && (empty($selectedParent['is_active']) || !VaultCategory::isVisibleForCompany($selectedParent, $companyId))) {
             $selectedParent = null;
         }
-        if ($selectedCategory && empty($selectedCategory['is_active'])) {
+        if ($selectedCategory && (empty($selectedCategory['is_active']) || !VaultCategory::isVisibleForCompany($selectedCategory, $companyId))) {
             $selectedCategory = null;
             $categoryId = 0;
         }
         if ($selectedCategory && !empty($selectedCategory['parent_id'])) {
             $selectedParent = VaultCategory::find((int) $selectedCategory['parent_id']);
-            if ($selectedParent && empty($selectedParent['is_active'])) {
+            if ($selectedParent && (empty($selectedParent['is_active']) || !VaultCategory::isVisibleForCompany($selectedParent, $companyId))) {
                 $selectedParent = null;
             }
         }
@@ -71,6 +71,8 @@ class VaultController
             'query' => trim((string) ($_GET['query'] ?? '')),
         ];
 
+        $categories = VaultCategory::allWithCounts($companyId);
+
         view('vault/show', [
             'title' => 'Cofre - ' . $company['name'],
             'company' => $company,
@@ -85,19 +87,21 @@ class VaultController
             'credentials' => VaultCredential::filtered($filters),
             'attachments' => $effectiveCategoryId > 0 ? CompanyAttachment::byCompanyAndCategory($companyId, $effectiveCategoryId) : [],
             'attachmentCategoryId' => $effectiveCategoryId > 0 ? $effectiveCategoryId : null,
-            'categories' => VaultCategory::allWithCounts($companyId),
+            'categories' => $categories,
+            'vaultCustomFieldConfig' => self::customFieldConfig($categories),
             'rootCategories' => VaultCategory::withCountsByParent(null, $companyId),
             'childCategories' => $selectedParent ? VaultCategory::withCountsByParent((int) $selectedParent['id'], $companyId) : [],
             'selectedParent' => $selectedParent,
             'selectedCategory' => $selectedCategory,
             'iconOptions' => VaultCategory::iconOptions(),
+            'vaultSettings' => AppSetting::vaultSettings(),
         ]);
         unset($_SESSION['vault_category_errors'], $_SESSION['vault_category_old']);
     }
 
     public static function store(): void
     {
-        require_admin();
+        require_vault_access();
         verify_csrf();
 
         $company = self::requireCompany((int) ($_POST['company_id'] ?? 0));
@@ -131,7 +135,7 @@ class VaultController
 
     public static function update(): void
     {
-        require_admin();
+        require_vault_access();
         verify_csrf();
 
         $credential = self::requireCredential((int) ($_POST['id'] ?? 0));
@@ -177,7 +181,7 @@ class VaultController
 
     public static function deactivate(): void
     {
-        require_admin();
+        require_vault_access();
         verify_csrf();
 
         $credential = self::requireCredential((int) ($_POST['id'] ?? 0));
@@ -199,7 +203,7 @@ class VaultController
 
     public static function reveal(): void
     {
-        require_admin();
+        require_vault_access();
 
         if (!is_post()) {
             ApiResponse::error('method_not_allowed', 'Método não permitido.', 405);
@@ -221,7 +225,7 @@ class VaultController
                 ApiResponse::error('password_required', 'Confirme sua senha para revelar esta credencial.', 403);
             }
 
-            if (!password_verify($password, (string) $currentUser['password_hash'])) {
+            if (!PasswordSecurity::confirm($currentUser, $password)) {
                 AuditLog::record([
                     'action_type' => 'vault_credential_reveal_password_failed',
                     'affected_table' => 'users',
@@ -232,6 +236,10 @@ class VaultController
             }
         }
 
+        if (AppSetting::vaultRequiresRevealConfirmation() && empty($_POST['confirm_reveal'])) {
+            ApiResponse::error('confirmation_required', 'Confirme a revelação da senha para continuar.', 403);
+        }
+
         $credential = self::requireCredential((int) ($_POST['id'] ?? 0));
         $value = CredentialCrypto::decrypt((string) ($credential['secret_value'] ?? ''));
         if ($value === null || $value === '' || $value === '[credencial inválida]') {
@@ -239,22 +247,25 @@ class VaultController
         }
 
         VaultCredential::markRevealed((int) $credential['id'], (int) current_user()['id']);
-        AuditLog::record([
-            'action_type' => 'vault_credential_revealed',
-            'affected_table' => 'vault_credentials',
-            'affected_record_id' => (int) $credential['id'],
-            'company_id' => (int) $credential['company_id'],
-            'description' => 'Administrador revelou credencial do cofre.',
-            'new_data' => [
-                'credential_id' => (int) $credential['id'],
-                'title' => $credential['title'] ?? null,
+        if (AppSetting::vaultAuditsSecretAccess()) {
+            AuditLog::record([
+                'action_type' => 'vault_credential_revealed',
+                'required' => true,
+                'affected_table' => 'vault_credentials',
+                'affected_record_id' => (int) $credential['id'],
                 'company_id' => (int) $credential['company_id'],
-                'category_id' => $credential['category_id'] ?? null,
-                'category_name' => $credential['category_name'] ?? null,
-                'username' => $credential['username'] ?? null,
-                'secret_value' => '[protegido]',
-            ],
-        ]);
+                'description' => 'Usuário revelou credencial do cofre.',
+                'new_data' => [
+                    'credential_id' => (int) $credential['id'],
+                    'title' => $credential['title'] ?? null,
+                    'company_id' => (int) $credential['company_id'],
+                    'category_id' => $credential['category_id'] ?? null,
+                    'category_name' => $credential['category_name'] ?? null,
+                    'username' => $credential['username'] ?? null,
+                    'secret_value' => '[protegido]',
+                ],
+            ]);
+        }
 
         ApiResponse::ok([
             'id' => (int) $credential['id'],
@@ -265,11 +276,11 @@ class VaultController
 
     public static function storeCategory(): void
     {
-        require_admin();
+        require_vault_access();
         verify_csrf();
 
         $company = self::requireCompany((int) ($_POST['company_id'] ?? 0));
-        [$data, $errors] = self::validatedCategoryData();
+        [$data, $errors] = self::validatedCategoryData((int) $company['id']);
 
         if ($errors) {
             $_SESSION['vault_category_errors'] = $errors;
@@ -280,6 +291,7 @@ class VaultController
         }
 
         $userId = (int) current_user()['id'];
+        $data['company_id'] = (int) $company['id'];
         $data['created_by'] = $userId;
         $data['updated_by'] = $userId;
         $categoryId = VaultCategory::create($data);
@@ -339,6 +351,7 @@ class VaultController
             'username' => self::nullable('username'),
             'secret_value' => $secret !== '' ? $secret : null,
             'notes' => self::nullable('notes'),
+            'custom_fields' => null,
             'is_active' => 1,
         ];
 
@@ -351,7 +364,7 @@ class VaultController
         }
 
         $category = $data['category_id'] !== null ? VaultCategory::find((int) $data['category_id']) : null;
-        if ($data['category_id'] !== null && (!$category || empty($category['is_active']))) {
+        if ($data['category_id'] !== null && (!$category || empty($category['is_active']) || !VaultCategory::isVisibleForCompany($category, (int) $company['id']))) {
             $errors['category_id'] = 'Tipo de credencial inválido.';
         }
 
@@ -373,10 +386,14 @@ class VaultController
             $errors['notes'] = 'Deve ter no máximo 5000 caracteres.';
         }
 
+        [$customFields, $customFieldErrors] = self::validatedCustomFields($data['category_id']);
+        $data['custom_fields'] = $customFields ? json_encode($customFields, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
+        $errors += $customFieldErrors;
+
         return [$data, $errors];
     }
 
-    private static function validatedCategoryData(): array
+    private static function validatedCategoryData(int $companyId): array
     {
         $parentId = (int) ($_POST['parent_id'] ?? 0);
         $name = trim((string) ($_POST['name'] ?? ''));
@@ -402,7 +419,7 @@ class VaultController
         }
 
         $parent = $data['parent_id'] !== null ? VaultCategory::find((int) $data['parent_id']) : null;
-        if ($data['parent_id'] !== null && (!$parent || empty($parent['is_active']))) {
+        if ($data['parent_id'] !== null && (!$parent || empty($parent['is_active']) || !VaultCategory::isVisibleForCompany($parent, $companyId))) {
             $errors['parent_id'] = 'Categoria pai inválida.';
         }
 
@@ -433,6 +450,11 @@ class VaultController
 
     private static function oldData(array $data): array
     {
+        if (isset($data['custom_fields']) && is_string($data['custom_fields'])) {
+            $decoded = json_decode($data['custom_fields'], true);
+            $data['custom_fields'] = is_array($decoded) ? $decoded : [];
+        }
+
         unset($data['secret_value']);
 
         return $data;
@@ -441,6 +463,9 @@ class VaultController
     private static function auditData(array $data): array
     {
         $clean = $data;
+        foreach (['notes', 'custom_fields'] as $field) {
+            if (array_key_exists($field, $clean)) $clean[$field] = '[protegido]';
+        }
         if (array_key_exists('secret_value', $clean)) {
             $clean['secret_value'] = '[protegido]';
         }
@@ -457,6 +482,7 @@ class VaultController
             'username' => 'Usuário',
             'secret_value' => 'Senha',
             'notes' => 'Observações',
+            'custom_fields' => 'Campos personalizados',
             'is_active' => 'Status',
         ];
 
@@ -466,12 +492,138 @@ class VaultController
             $newValue = (string) ($new[$field] ?? '');
 
             if ($oldValue !== $newValue) {
-                $protected = $field === 'secret_value';
+                $protected = in_array($field, ['secret_value', 'notes', 'custom_fields'], true);
                 $changes['old'][$label] = $protected ? '[protegido]' : $oldValue;
                 $changes['new'][$label] = $protected ? '[protegido]' : $newValue;
             }
         }
 
         return $changes['old'] ? $changes : [];
+    }
+
+    private static function customFieldConfig(array $categories): array
+    {
+        $config = [];
+
+        foreach ($categories as $category) {
+            $categoryId = (int) ($category['id'] ?? 0);
+            if ($categoryId <= 0) {
+                continue;
+            }
+
+            $fields = self::customFieldDefinitionsForCategory($categoryId);
+            if ($fields) {
+                $config[(string) $categoryId] = $fields;
+            }
+        }
+
+        return $config;
+    }
+
+    private static function validatedCustomFields(?int $categoryId): array
+    {
+        $definitions = self::customFieldDefinitionsForCategory($categoryId);
+        $input = $_POST['custom_fields'] ?? [];
+        $input = is_array($input) ? $input : [];
+        $values = [];
+        $errors = [];
+
+        foreach ($definitions as $field) {
+            $key = (string) ($field['key'] ?? '');
+            if ($key === '') {
+                continue;
+            }
+
+            $label = (string) ($field['label'] ?? 'Campo');
+            $type = (string) ($field['type'] ?? 'text');
+            $value = trim((string) ($input[$key] ?? ''));
+
+            if (!empty($field['required']) && $value === '') {
+                $errors['custom_fields'] = 'Preencha os campos personalizados obrigatórios.';
+                continue;
+            }
+
+            if ($value === '') {
+                continue;
+            }
+
+            $maxLength = $type === 'textarea' ? 5000 : 255;
+            if (strlen($value) > $maxLength) {
+                $errors['custom_fields'] = $label . ' deve ter no máximo ' . $maxLength . ' caracteres.';
+                continue;
+            }
+
+            if ($type === 'email' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                $errors['custom_fields'] = $label . ' deve ser um e-mail válido.';
+                continue;
+            }
+
+            if ($type === 'url' && filter_var($value, FILTER_VALIDATE_URL) === false) {
+                $errors['custom_fields'] = $label . ' deve ser uma URL válida.';
+                continue;
+            }
+
+            if ($type === 'number') {
+                $number = str_replace(',', '.', $value);
+                if (!is_numeric($number)) {
+                    $errors['custom_fields'] = $label . ' deve ser um número válido.';
+                    continue;
+                }
+                $value = $number;
+            }
+
+            $values[$key] = $value;
+        }
+
+        return [$values, $errors];
+    }
+
+    private static function customFieldDefinitionsForCategory(?int $categoryId): array
+    {
+        if ($categoryId === null || $categoryId <= 0) {
+            return [];
+        }
+
+        $category = VaultCategory::find($categoryId);
+        if (!$category || empty($category['is_active'])) {
+            return [];
+        }
+
+        $parent = !empty($category['parent_id']) ? VaultCategory::find((int) $category['parent_id']) : null;
+        $settings = AppSetting::vaultSettings();
+
+        foreach ((array) ($settings['default_categories'] ?? []) as $defaultCategory) {
+            if ($parent) {
+                if (!self::sameName((string) ($defaultCategory['name'] ?? ''), (string) ($parent['name'] ?? ''))) {
+                    continue;
+                }
+
+                foreach ((array) ($defaultCategory['children'] ?? []) as $child) {
+                    if (self::sameName((string) ($child['name'] ?? ''), (string) ($category['name'] ?? ''))) {
+                        return (array) ($child['fields'] ?? []);
+                    }
+                }
+
+                return [];
+            }
+
+            if (self::sameName((string) ($defaultCategory['name'] ?? ''), (string) ($category['name'] ?? ''))) {
+                return (array) ($defaultCategory['fields'] ?? []);
+            }
+        }
+
+        return [];
+    }
+
+    private static function sameName(string $left, string $right): bool
+    {
+        $left = trim($left);
+        $right = trim($right);
+
+        if (function_exists('mb_strtolower')) {
+            return mb_strtolower($left) === mb_strtolower($right);
+        }
+
+        return strtolower($left) === strtolower($right);
     }
 }

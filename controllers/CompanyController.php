@@ -6,7 +6,7 @@ class CompanyController
 {
     public static function index(): void
     {
-        require_admin();
+        require_auth();
 
         view('companies/index', [
             'title' => 'Empresas',
@@ -16,7 +16,7 @@ class CompanyController
 
     public static function create(): void
     {
-        require_admin();
+        require_editor();
 
         view('companies/form', [
             'title' => 'Nova empresa',
@@ -28,7 +28,7 @@ class CompanyController
 
     public static function store(): void
     {
-        require_admin();
+        require_editor();
         verify_csrf();
 
         [$data, $errors] = self::validatedData();
@@ -63,7 +63,7 @@ class CompanyController
 
     public static function show(): void
     {
-        require_admin();
+        require_auth();
         $company = self::requireCompany();
 
         view('companies/show', [
@@ -76,7 +76,7 @@ class CompanyController
 
     public static function edit(): void
     {
-        require_admin();
+        require_editor();
         $company = self::requireCompany();
 
         view('companies/form', [
@@ -89,7 +89,7 @@ class CompanyController
 
     public static function update(): void
     {
-        require_admin();
+        require_editor();
         verify_csrf();
         $company = self::requireCompany();
 
@@ -194,11 +194,11 @@ class CompanyController
 
     public static function storeAttachment(): void
     {
-        require_admin();
+        require_editor();
         verify_csrf();
 
         $company = self::requireCompanyById((int) ($_POST['company_id'] ?? 0));
-        $categoryId = self::validatedAttachmentCategoryId();
+        $categoryId = self::validatedAttachmentCategoryId((int) $company['id']);
         $redirectUrl = self::attachmentRedirectUrl((int) $company['id'], $categoryId);
 
         if (empty($_FILES['attachment']) || !is_array($_FILES['attachment'])) {
@@ -219,7 +219,8 @@ class CompanyController
 
         $originalName = safe_original_filename((string) ($file['name'] ?? 'arquivo'));
         $extension = strtolower((string) pathinfo($originalName, PATHINFO_EXTENSION));
-        $allowedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt', 'png', 'jpg', 'jpeg', 'webp', 'zip'];
+        $uploadSettings = AppSetting::deviceSettings();
+        $allowedExtensions = (array) $uploadSettings['attachment_extensions'];
 
         if (!in_array($extension, $allowedExtensions, true)) {
             flash('danger', 'Tipo de arquivo não permitido.');
@@ -227,8 +228,9 @@ class CompanyController
         }
 
         $size = (int) ($file['size'] ?? 0);
-        if ($size <= 0 || $size > COMPANY_ATTACHMENT_MAX_BYTES) {
-            flash('danger', 'O anexo deve ter no máximo ' . format_file_size(COMPANY_ATTACHMENT_MAX_BYTES) . '.');
+        $maxAttachmentBytes = (int) $uploadSettings['attachment_max_mb'] * 1024 * 1024;
+        if ($size <= 0 || $size > $maxAttachmentBytes) {
+            flash('danger', 'O anexo deve ter no máximo ' . format_file_size($maxAttachmentBytes) . '.');
             redirect($redirectUrl);
         }
 
@@ -284,7 +286,7 @@ class CompanyController
 
     public static function downloadAttachment(): void
     {
-        require_admin();
+        require_auth();
 
         $attachment = self::requireAttachment((int) ($_GET['id'] ?? 0));
         $path = self::attachmentPath((string) $attachment['disk_name']);
@@ -407,7 +409,7 @@ class CompanyController
         return $path;
     }
 
-    private static function validatedAttachmentCategoryId(): ?int
+    private static function validatedAttachmentCategoryId(int $companyId): ?int
     {
         $categoryId = (int) ($_POST['category_id'] ?? 0);
         if ($categoryId <= 0) {
@@ -415,7 +417,7 @@ class CompanyController
         }
 
         $category = VaultCategory::find($categoryId);
-        return $category && !empty($category['is_active']) ? $categoryId : null;
+        return $category && !empty($category['is_active']) && VaultCategory::isVisibleForCompany($category, $companyId) ? $categoryId : null;
     }
 
     private static function isAttachmentMimeAllowed(string $extension, string $mime, string $path): bool

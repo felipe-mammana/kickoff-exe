@@ -36,6 +36,12 @@ spl_autoload_register(static function (string $class): void {
 });
 
 if (PHP_SAPI !== 'cli') {
+    $maintenanceLock = fopen(STORAGE_PATH . '/app-maintenance.lock', 'c');
+    if (!$maintenanceLock || !flock($maintenanceLock, LOCK_SH | LOCK_NB)) {
+        http_response_code(503);
+        header('Retry-After: 60');
+        exit('Manutencao temporaria. Tente novamente em instantes.');
+    }
     apply_security_headers();
 
     ini_set('session.use_strict_mode', '1');

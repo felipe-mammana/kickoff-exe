@@ -19,6 +19,28 @@ $route = $_GET['route'] ?? 'dashboard';
 
 try {
     switch ($route) {
+        case 'sessions.index':
+            SessionController::index();
+            break;
+        case 'sessions.terminate':
+            SessionController::terminate();
+            break;
+        case 'account.challenge':
+            AccountChallengeController::index();
+            break;
+        case 'settings.auditFiles':
+            ProtectedAuditController::index();
+            break;
+        case 'settings.auditFiles':
+            ProtectedAuditController::index();
+            break;
+        case 'settings.microsoft.index':
+        case 'settings.microsoft.connect':
+        case 'settings.microsoft.callback':
+        case 'settings.microsoft.test':
+        case 'settings.microsoft.disconnect':
+            MicrosoftMailController::dispatch(substr($route, strlen('settings.microsoft.')));
+            break;
         case 'login':
             AuthController::login();
             break;
@@ -157,6 +179,12 @@ try {
         case 'settings.maintenance':
             SettingsController::maintenance();
             break;
+        case 'settings.devices':
+            SettingsController::devices();
+            break;
+        case 'settings.vault':
+            SettingsController::vault();
+            break;
         case 'settings.audit':
             SettingsController::audit();
             break;
@@ -166,11 +194,26 @@ try {
         case 'settings.audit.cleanup':
             SettingsController::cleanupAuditLogs();
             break;
+        case 'settings.devices.update':
+            SettingsController::updateDeviceSettings();
+            break;
+        case 'settings.vault.update':
+            SettingsController::updateVaultSettings();
+            break;
         case 'settings.profile.update':
             SettingsController::updateProfile();
             break;
         case 'settings.password.update':
             SettingsController::updatePassword();
+            break;
+        case 'settings.email.confirm':
+            SettingsController::confirmEmailChange();
+            break;
+        case 'settings.email.resend':
+            SettingsController::resendEmailChange();
+            break;
+        case 'settings.email.cancel':
+            SettingsController::cancelEmailChange();
             break;
         case 'settings.preferences.update':
             SettingsController::updatePreferences();
@@ -195,6 +238,12 @@ try {
             break;
         case 'settings.2fa.email.test':
             SettingsController::sendTwoFactorTestEmail();
+            break;
+        case 'settings.2fa.email.prepare':
+            SettingsController::prepareEmailTwoFactor();
+            break;
+        case 'settings.2fa.email.enable':
+            SettingsController::enableEmailTwoFactor();
             break;
         case 'settings.2fa.enable':
             SettingsController::enableTwoFactor();

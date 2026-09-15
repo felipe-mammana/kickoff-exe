@@ -23,6 +23,7 @@ class ApiAuth
                 'name' => (string) $token['user_name'],
                 'email' => (string) $token['user_email'],
                 'is_admin' => (int) $token['is_admin'],
+                'role' => (string) ($token['user_role'] ?? (!empty($token['is_admin']) ? 'admin' : 'viewer')),
             ];
 
             return self::$user;
@@ -54,9 +55,19 @@ class ApiAuth
 
     public static function isAdmin(): bool
     {
+        return self::role() === 'admin';
+    }
+
+    public static function canEdit(): bool
+    {
+        return in_array(self::role(), ['admin', 'editor'], true);
+    }
+
+    private static function role(): string
+    {
         $user = self::user();
 
-        return !empty($user['is_admin']);
+        return is_array($user) ? User::roleFromUser($user) : 'viewer';
     }
 
     private static function bearerToken(): ?string

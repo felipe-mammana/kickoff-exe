@@ -29,7 +29,7 @@
     <section class="empty-state">
         <h2>Nenhuma empresa cadastrada</h2>
         <p>Cadastre uma empresa para iniciar o inventario.</p>
-        <?php if (is_admin()): ?>
+        <?php if (can_edit_records()): ?>
             <a class="btn btn-primary" href="/?route=companies.create"><?= icon('plus') ?><span>Cadastrar empresa</span></a>
         <?php endif; ?>
     </section>
@@ -88,7 +88,9 @@
                     <p><?= count($machines) ?> registro(s) encontrados</p>
                 </div>
                 <div class="panel-actions">
-                    <a class="icon-btn primary-action" href="/?route=machines.create&company_id=<?= (int) $company['id'] ?>" aria-label="Cadastrar dispositivo" title="Cadastrar dispositivo"><?= icon('plus') ?></a>
+                    <?php if (can_edit_records()): ?>
+                        <a class="icon-btn primary-action" href="/?route=machines.create&company_id=<?= (int) $company['id'] ?>" aria-label="Cadastrar dispositivo" title="Cadastrar dispositivo"><?= icon('plus') ?></a>
+                    <?php endif; ?>
                     <a class="icon-btn export-btn <?= !$machines ? 'disabled' : '' ?>" href="<?= e(export_url('devices', 'csv', array_merge(['company_id' => (int) $company['id']], $filters))) ?>" data-export-link data-export-format="CSV" aria-label="Exportar CSV" title="Exportar CSV" aria-disabled="<?= !$machines ? 'true' : 'false' ?>">
                         <?= icon('file-spreadsheet') ?>
                     </a>
@@ -163,7 +165,9 @@
                 <div class="empty-state compact">
                     <h3>Nenhum dispositivo encontrado</h3>
                     <p>Adicione o primeiro equipamento desta empresa.</p>
-                    <a class="btn btn-primary" href="/?route=machines.create&company_id=<?= (int) $company['id'] ?>"><?= icon('plus') ?><span>Cadastrar dispositivo</span></a>
+                    <?php if (can_edit_records()): ?>
+                        <a class="btn btn-primary" href="/?route=machines.create&company_id=<?= (int) $company['id'] ?>"><?= icon('plus') ?><span>Cadastrar dispositivo</span></a>
+                    <?php endif; ?>
                 </div>
             <?php else: ?>
                 <div class="inventory-table-wrap">
@@ -249,7 +253,7 @@
                                     <td data-label="Ações">
                                         <div class="table-actions">
                                             <a class="icon-btn" href="/?route=machines.show&id=<?= (int) $machine['id'] ?>" aria-label="Ver"><?= icon('eye') ?></a>
-                                            <?php if (is_admin()): ?>
+                                            <?php if (can_edit_records()): ?>
                                                 <a class="icon-btn" href="/?route=machines.edit&id=<?= (int) $machine['id'] ?>" aria-label="Editar"><?= icon('edit-3') ?></a>
                                             <?php endif; ?>
                                         </div>

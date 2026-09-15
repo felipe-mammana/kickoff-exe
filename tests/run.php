@@ -13,7 +13,10 @@ $dbPass = getenv('DB_PASS') ?: ($localConfig['DB_PASS'] ?? '');
 $dbCharset = getenv('DB_CHARSET') ?: ($localConfig['DB_CHARSET'] ?? 'utf8mb4');
 $testDb = getenv('TEST_DB_NAME') ?: ($localConfig['TEST_DB_NAME'] ?? 'inventario_ti_test');
 
-if (!preg_match('/^[A-Za-z0-9_]+$/', $testDb)) {
+if (!preg_match('/^[A-Za-z0-9_]+$/', $testDb)
+    || $testDb === (getenv('DB_NAME') ?: ($localConfig['DB_NAME'] ?? 'inventario_ti'))
+    || stripos($testDb, 'test') === false
+) {
     fwrite(STDERR, "Nome de banco de teste invalido: {$testDb}\n");
     exit(1);
 }
@@ -82,23 +85,33 @@ try {
     $adminId = User::create([
         'name' => 'Admin Teste',
         'email' => 'admin.teste@example.com',
-        'password' => 'SenhaForte123',
-        'is_admin' => 1,
+        'password' => 'SenhaForte123!',
+        'role' => 'admin',
+        'is_active' => 1,
+    ]);
+    $editorId = User::create([
+        'name' => 'Editor Teste',
+        'email' => 'editor.teste@example.com',
+        'password' => 'SenhaForte123!',
+        'role' => 'editor',
         'is_active' => 1,
     ]);
     $userId = User::create([
         'name' => 'Usuario Teste',
         'email' => 'usuario.teste@example.com',
-        'password' => 'SenhaForte123',
-        'is_admin' => 0,
+        'password' => 'SenhaForte123!',
+        'role' => 'viewer',
         'is_active' => 1,
     ]);
 
     $admin = User::find($adminId);
+    $editor = User::find($editorId);
     $standardUser = User::find($userId);
-    check('Usuario admin e criado ativo', $admin !== null && (int) $admin['is_admin'] === 1 && (int) $admin['is_active'] === 1);
-    check('Senha de usuario fica em hash', password_verify('SenhaForte123', (string) $admin['password_hash']));
-    check('Hash nao armazena senha em texto puro', (string) $admin['password_hash'] !== 'SenhaForte123');
+    check('Usuario admin e criado ativo', $admin !== null && User::roleFromUser($admin) === 'admin' && (int) $admin['is_admin'] === 1 && (int) $admin['is_active'] === 1);
+    check('Usuario editor e criado sem permissao de administrador', $editor !== null && User::roleFromUser($editor) === 'editor' && (int) $editor['is_admin'] === 0);
+    check('Usuario padrao fica como visualizador', $standardUser !== null && User::roleFromUser($standardUser) === 'viewer');
+    check('Senha de usuario fica em hash', password_verify('SenhaForte123!', (string) $admin['password_hash']));
+    check('Hash nao armazena senha em texto puro', (string) $admin['password_hash'] !== 'SenhaForte123!');
     check('E-mail duplicado e detectado', User::duplicateEmailExists('admin.teste@example.com') === true);
 
     User::setActive($userId, false);
@@ -109,6 +122,7 @@ try {
         'name' => $standardUser['name'],
         'email' => $standardUser['email'],
         'is_admin' => 0,
+        'role' => 'viewer',
     ], 'session_token' => $inactiveSessionToken];
     check('Usuario inativo nao permanece autenticado na sessao', current_user() === null);
 
@@ -129,6 +143,39 @@ try {
         'name' => $admin['name'],
         'email' => $admin['email'],
         'is_admin' => 1,
+        'role' => 'admin',
+    ], 'session_token' => $adminSessionToken];
+    check('Administrador pode editar e apagar registros', can_edit_records() === true && can_delete_records() === true);
+
+    $editorSessionToken = bin2hex(random_bytes(32));
+    User::setActiveSession($editorId, $editorSessionToken);
+    $_SESSION = ['user' => [
+        'id' => $editorId,
+        'name' => $editor['name'],
+        'email' => $editor['email'],
+        'is_admin' => 0,
+        'role' => 'editor',
+    ], 'session_token' => $editorSessionToken];
+    check('Editor pode editar mas nao apagar registros', can_edit_records() === true && can_delete_records() === false);
+
+    $viewerSessionToken = bin2hex(random_bytes(32));
+    User::setActiveSession($userId, $viewerSessionToken);
+    $_SESSION = ['user' => [
+        'id' => $userId,
+        'name' => $standardUser['name'],
+        'email' => $standardUser['email'],
+        'is_admin' => 0,
+        'role' => 'viewer',
+    ], 'session_token' => $viewerSessionToken];
+    check('Usuario visualizador nao edita nem apaga registros', can_edit_records() === false && can_delete_records() === false);
+
+    User::setActiveSession($adminId, $adminSessionToken);
+    $_SESSION = ['user' => [
+        'id' => $adminId,
+        'name' => $admin['name'],
+        'email' => $admin['email'],
+        'is_admin' => 1,
+        'role' => 'admin',
     ], 'session_token' => $adminSessionToken];
 
     $twoFactorSecret = 'JBSWY3DPEHPK3PXP';
@@ -139,10 +186,10 @@ try {
     $updatedProfile = User::find($adminId);
     check('Perfil do usuario pode ser atualizado', $updatedProfile !== null && $updatedProfile['name'] === 'Admin Atualizado' && $updatedProfile['email'] === 'admin.atualizado@example.com');
     User::updateProfile($adminId, 'Admin Teste', 'admin.teste@example.com');
-    User::updatePassword($adminId, 'NovaSenha123');
+    User::updatePassword($adminId, 'NovaSenha123!');
     $updatedPasswordUser = User::find($adminId);
-    check('Usuario pode alterar propria senha', $updatedPasswordUser !== null && password_verify('NovaSenha123', (string) $updatedPasswordUser['password_hash']));
-    User::updatePassword($adminId, 'SenhaForte123');
+    check('Usuario pode alterar propria senha', $updatedPasswordUser !== null && password_verify('NovaSenha123!', (string) $updatedPasswordUser['password_hash']));
+    User::updatePassword($adminId, 'SenhaForte123!');
     User::updatePreferences($adminId, [
         'preferred_theme' => 'dark',
         'sidebar_default' => 'collapsed',
@@ -175,6 +222,10 @@ try {
     User::disableTwoFactor($adminId);
     $adminWithoutTwoFactor = User::find($adminId);
     check('2FA pode ser desativado', $adminWithoutTwoFactor !== null && (int) $adminWithoutTwoFactor['two_factor_enabled'] === 0 && empty($adminWithoutTwoFactor['two_factor_secret']));
+    User::enableEmailTwoFactor($adminId);
+    $adminWithEmailTwoFactor = User::find($adminId);
+    check('2FA por email fica ativo sem segredo de autenticador', $adminWithEmailTwoFactor !== null && (int) $adminWithEmailTwoFactor['two_factor_enabled'] === 1 && User::twoFactorSecret($adminWithEmailTwoFactor) === null);
+    User::disableTwoFactor($adminId);
 
     $newSessionToken = bin2hex(random_bytes(32));
     User::setActiveSession($adminId, $newSessionToken);
@@ -257,6 +308,27 @@ try {
     check('Categoria do cofre aceita subcategoria', (int) ($vaultSubcategory['parent_id'] ?? 0) === $vaultCategoryId);
     check('Categorias principais do cofre nao misturam subcategorias', count(VaultCategory::withCountsByParent(null, $companyId)) === 1);
     check('Subcategorias do cofre abrem dentro da principal', count(VaultCategory::withCountsByParent($vaultCategoryId, $companyId)) === 1);
+    $otherCompanyId = Company::create([
+        'name' => 'Empresa Isolada',
+        'tag_pattern' => 'ISO',
+        'is_active' => 1,
+        'created_by' => $adminId,
+        'updated_by' => $adminId,
+    ]);
+    $companyOnlyCategoryId = VaultCategory::create([
+        'company_id' => $companyId,
+        'parent_id' => null,
+        'name' => 'Categoria exclusiva',
+        'slug' => 'categoria-exclusiva',
+        'description' => 'Visivel somente na empresa original.',
+        'icon' => 'folder',
+        'is_active' => 1,
+        'created_by' => $adminId,
+        'updated_by' => $adminId,
+    ]);
+    check('Categoria criada na empresa fica visivel nela', in_array($companyOnlyCategoryId, array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::withCountsByParent(null, $companyId)), true));
+    check('Categoria criada na empresa nao aparece em outra empresa', !in_array($companyOnlyCategoryId, array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::withCountsByParent(null, $otherCompanyId)), true));
+    check('Categoria criada na empresa nao vira padrao global', !in_array($companyOnlyCategoryId, array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::allWithCounts()), true));
     check('Base de icones do cofre contem opcoes variadas', count(VaultCategory::iconOptions()) >= 24 && array_key_exists('server', VaultCategory::iconOptions()));
     $attachmentId = CompanyAttachment::create([
         'company_id' => $companyId,
@@ -298,12 +370,14 @@ try {
         'username' => 'admin',
         'secret_value' => CredentialCrypto::encrypt('senha-cofre'),
         'notes' => 'Acesso principal',
+        'custom_fields' => json_encode(['ip_de_acesso' => '192.168.0.1', 'lan' => '10.0.0.0/24']),
         'is_active' => 1,
         'created_by' => $adminId,
         'updated_by' => $adminId,
     ]);
     $vaultCredential = VaultCredential::find($vaultCredentialId);
     check('Credencial do cofre fica criptografada no banco', CredentialCrypto::isEncrypted($vaultCredential['secret_value'] ?? null));
+    check('Credencial do cofre salva campos personalizados', VaultCredential::customFields($vaultCredential)['ip_de_acesso'] === '192.168.0.1');
     check('Credencial do cofre aparece na busca filtrada', count(VaultCredential::filtered(['company_id' => $companyId, 'query' => 'Firewall'])) === 1);
     VaultCredential::update($vaultCredentialId, [
         'category_id' => $vaultCategoryId,
@@ -312,11 +386,13 @@ try {
         'username' => 'admin',
         'secret_value' => $vaultCredential['secret_value'],
         'notes' => 'Acesso principal',
+        'custom_fields' => json_encode(['ip_de_acesso' => '192.168.0.254']),
         'is_active' => 1,
         'updated_by' => $adminId,
     ]);
     $vaultCredentialUpdated = VaultCredential::find($vaultCredentialId);
     check('Edicao do cofre preserva senha criptografada quando valor nao muda', ($vaultCredentialUpdated['secret_value'] ?? '') === ($vaultCredential['secret_value'] ?? null));
+    check('Edicao do cofre atualiza campos personalizados', VaultCredential::customFields($vaultCredentialUpdated)['ip_de_acesso'] === '192.168.0.254');
     check('Credencial do cofre aparece na categoria principal', count(VaultCredential::filtered(['company_id' => $companyId, 'category_id' => $vaultCategoryId])) === 1);
     db()->prepare('UPDATE vault_categories SET is_active = 0 WHERE id = :id')->execute(['id' => $vaultSubcategoryId]);
     $_POST = [
@@ -497,6 +573,11 @@ try {
     $recentAuditExists = db()->prepare('SELECT COUNT(*) FROM audit_logs WHERE description = :description');
     $recentAuditExists->execute(['description' => $recentAuditDescription]);
     check('Retencao de auditoria remove logs antigos', $deletedAuditLogs >= 1 && (int) $oldAuditExists->fetchColumn() === 0 && (int) $recentAuditExists->fetchColumn() === 1);
+    require __DIR__ . '/password_security_database.php';
+    require __DIR__ . '/account_security.php';
+    require __DIR__ . '/vault_backup_security.php';
+    require __DIR__ . '/audit_recovery.php';
+    require __DIR__ . '/session_presence.php';
 } catch (Throwable $exception) {
     $failed++;
     echo "[ERRO] Excecao inesperada: " . $exception->getMessage() . "\n";

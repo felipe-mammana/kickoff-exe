@@ -9,6 +9,11 @@ class AuditLog
         'login_failed',
         'login_rate_limited',
         'login_2fa_failed',
+        'login_2fa_rate_limited',
+        'user_email_changed',
+        'user_password_confirmation_failed',
+        'password_confirmation_failed',
+        'password_confirmation_blocked',
         'login_inactive_user',
         'company_deleted',
         'company_attachment_deleted',
@@ -68,8 +73,8 @@ class AuditLog
                 'company_id' => $data['company_id'] ?? null,
                 'machine_id' => $data['machine_id'] ?? null,
                 'description' => self::limitString($data['description'], 255) ?? 'Evento registrado.',
-                'old_data' => self::encode($data['old_data'] ?? null),
-                'new_data' => self::encode($data['new_data'] ?? null),
+                'old_data' => self::encode(AuditRedactor::clean($data['old_data'] ?? null)),
+                'new_data' => self::encode(AuditRedactor::clean($data['new_data'] ?? null)),
                 'ip_address' => self::limitString(client_ip(), 45),
                 'session_identifier' => self::limitString(session_id(), 128),
             ];
@@ -86,8 +91,12 @@ class AuditLog
             );
 
             $stmt->execute($values);
+            ProtectedAuditFiles::append($values);
         } catch (Throwable $exception) {
-            error_log('Audit log failed: ' . $exception->getMessage());
+            error_log('Audit log persistence failed.');
+            if (!empty($data['required'])) {
+                throw new RuntimeException('Registro de auditoria indisponivel. Operacao interrompida.');
+            }
         }
     }
 

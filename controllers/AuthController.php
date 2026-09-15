@@ -56,16 +56,25 @@ class AuthController
                 view('auth/login', ['title' => 'Login']);
                 return;
             } elseif ($user && password_verify($password, $user['password_hash'])) {
+                if (password_needs_rehash($user['password_hash'], PasswordSecurity::algorithm(), PasswordSecurity::options())) {
+                    $hash = PasswordSecurity::hash($password);
+                    $stmt = db()->prepare('UPDATE users SET password_hash = :hash WHERE id = :id AND password_hash = :old');
+                    $stmt->execute(['hash' => $hash, 'id' => $user['id'], 'old' => $user['password_hash']]);
+                    if ($stmt->rowCount() !== 1) {
+                        redirect('/?route=login');
+                        return;
+                    }
+                    $user['password_hash'] = $hash;
+                }
                 LoginAttempt::clear($email, $ipAddress);
 
                 if (!empty($user['two_factor_enabled'])) {
+                    self::clearPendingTwoFactor();
+                    session_regenerate_id(true);
                     $_SESSION['pending_2fa_user_id'] = (int) $user['id'];
                     $_SESSION['pending_2fa_started_at'] = time();
-                    view('auth/login', [
-                        'title' => 'Login',
-                        'requiresTwoFactor' => true,
-                        'twoFactorUserEmail' => $user['email'],
-                    ]);
+                    $_SESSION['pending_2fa_fingerprint'] = User::authenticationFingerprint($user);
+                    self::renderTwoFactor($user);
                     return;
                 }
 
@@ -86,15 +95,12 @@ class AuthController
             flash('danger', 'E-mail ou senha inválidos.');
         }
 
-        $pendingUser = !empty($_SESSION['pending_2fa_user_id'])
-            ? User::find((int) $_SESSION['pending_2fa_user_id'])
-            : null;
-        view('auth/login', [
-            'title' => 'Login',
-            'requiresTwoFactor' => $pendingUser !== null,
-            'twoFactorUserEmail' => $pendingUser['email'] ?? null,
-            'emailCodeSent' => !empty($_SESSION['pending_2fa_email_code_hash']),
-        ]);
+        $pendingUser = self::pendingTwoFactorUser();
+        if ($pendingUser) {
+            self::renderTwoFactor($pendingUser);
+        } else {
+            view('auth/login', ['title' => 'Login']);
+        }
     }
 
     public static function logout(): void
@@ -120,12 +126,7 @@ class AuthController
     public static function cancelTwoFactor(): void
     {
         verify_csrf();
-        unset(
-            $_SESSION['pending_2fa_user_id'],
-            $_SESSION['pending_2fa_started_at'],
-            $_SESSION['pending_2fa_email_code_hash'],
-            $_SESSION['pending_2fa_email_code_expires_at']
-        );
+        self::clearPendingTwoFactor();
         flash('success', 'Verificação 2FA cancelada.');
         redirect('/?route=login');
     }
@@ -134,23 +135,33 @@ class AuthController
     {
         verify_csrf();
 
-        $user = User::find((int) ($_SESSION['pending_2fa_user_id'] ?? 0));
-        $startedAt = (int) ($_SESSION['pending_2fa_started_at'] ?? 0);
-        if (!$user || empty($user['is_active']) || time() - $startedAt > 300) {
-            unset($_SESSION['pending_2fa_user_id'], $_SESSION['pending_2fa_started_at']);
+        $user = self::pendingTwoFactorUser();
+        if (!$user) {
             flash('danger', 'Validação 2FA expirada. Faça login novamente.');
             redirect('/?route=login');
         }
 
+        $retryAfter = SecurityRateLimit::retryAfter('2fa-login', (int) $user['id']);
+        if ($retryAfter > 0) {
+            self::blockTwoFactor($user, $retryAfter);
+            return;
+        }
+        $limit = SecurityRateLimit::emailSend((int) $user['id']);
+        if (!$limit['allowed']) {
+            http_response_code(429);
+            header('Retry-After: ' . $limit['retry_after']);
+            flash('danger', 'Aguarde ' . $limit['retry_after'] . ' segundos antes de solicitar outro e-mail.');
+            self::renderTwoFactor($user);
+            return;
+        }
         $code = EmailCode::generate();
-        $_SESSION['pending_2fa_email_code_hash'] = password_hash($code, PASSWORD_DEFAULT);
-        $_SESSION['pending_2fa_email_code_expires_at'] = time() + 600;
-
-        if (!EmailCode::sendLoginCode($user, $code)) {
-            unset($_SESSION['pending_2fa_email_code_hash'], $_SESSION['pending_2fa_email_code_expires_at']);
+        $expiresAt = (int) $_SESSION['pending_2fa_started_at'] + 300;
+        if (!EmailCode::sendLoginCode($user, $code, max(1, $expiresAt - time()))) {
             flash('danger', 'Não foi possível enviar o código por e-mail. Verifique a configuração de e-mail do servidor.');
             redirect('/?route=login');
         }
+        $_SESSION['pending_2fa_email_code_hash'] = password_hash($code, PASSWORD_DEFAULT);
+        $_SESSION['pending_2fa_email_code_expires_at'] = $expiresAt;
 
         AuditLog::record([
             'user_id' => (int) $user['id'],
@@ -163,33 +174,32 @@ class AuthController
         ]);
 
         flash('success', 'Código enviado para o e-mail cadastrado.');
-        view('auth/login', [
-            'title' => 'Login',
-            'requiresTwoFactor' => true,
-            'twoFactorUserEmail' => $user['email'],
-            'emailCodeSent' => true,
-        ]);
+        self::renderTwoFactor($user);
     }
 
     private static function verifyTwoFactorLogin(): void
     {
-        $user = User::find((int) ($_SESSION['pending_2fa_user_id'] ?? 0));
-        $startedAt = (int) ($_SESSION['pending_2fa_started_at'] ?? 0);
-        $code = (string) ($_POST['two_factor_code'] ?? '');
+        $user = self::pendingTwoFactorUser();
+        $code = preg_replace('/\s+/', '', (string) ($_POST['two_factor_code'] ?? '')) ?? '';
 
-        if (!$user || empty($user['is_active']) || time() - $startedAt > 300) {
-            unset($_SESSION['pending_2fa_user_id'], $_SESSION['pending_2fa_started_at']);
+        if (!$user) {
             flash('danger', 'Validação 2FA expirada. Faça login novamente.');
             view('auth/login', ['title' => 'Login']);
             return;
         }
 
+        $limit = SecurityRateLimit::hit('2fa-login', (int) $user['id']);
+        if (!$limit['allowed']) {
+            self::blockTwoFactor($user, $limit['retry_after']);
+            return;
+        }
         $secret = User::twoFactorSecret($user);
         $emailCodeHash = $_SESSION['pending_2fa_email_code_hash'] ?? null;
         $emailCodeExpiresAt = (int) ($_SESSION['pending_2fa_email_code_expires_at'] ?? 0);
         $emailCodeValid = is_string($emailCodeHash)
-            && $emailCodeExpiresAt >= time()
-            && password_verify(preg_replace('/\s+/', '', $code) ?? '', $emailCodeHash);
+            && $emailCodeExpiresAt > time()
+            && preg_match('/^[0-9]{6}$/D', $code)
+            && password_verify($code, $emailCodeHash);
 
         if ((!$secret || !TwoFactorAuth::verify($secret, $code)) && !$emailCodeValid) {
             AuditLog::record([
@@ -201,36 +211,89 @@ class AuthController
                 'affected_record_id' => (int) $user['id'],
                 'description' => 'Código 2FA inválido no login.',
             ]);
-            flash('danger', 'Código de autenticação inválido.');
-            view('auth/login', [
-                'title' => 'Login',
-                'requiresTwoFactor' => true,
-                'twoFactorUserEmail' => $user['email'],
-                'emailCodeSent' => is_string($emailCodeHash),
-            ]);
+            if ($limit['remaining'] === 0) {
+                self::blockTwoFactor($user, $limit['retry_after']);
+                return;
+            }
+            flash('danger', 'Código inválido. Restam ' . $limit['remaining'] . ' tentativa(s).');
+            self::renderTwoFactor($user);
             return;
         }
 
+        SecurityRateLimit::clear('2fa-login', (int) $user['id']);
+        self::clearPendingTwoFactor();
+        self::completeLogin($user);
+    }
+
+    private static function clearPendingTwoFactor(): void
+    {
         unset(
             $_SESSION['pending_2fa_user_id'],
             $_SESSION['pending_2fa_started_at'],
+            $_SESSION['pending_2fa_fingerprint'],
             $_SESSION['pending_2fa_email_code_hash'],
             $_SESSION['pending_2fa_email_code_expires_at']
         );
-        self::completeLogin($user);
+    }
+
+    private static function pendingTwoFactorUser(): ?array
+    {
+        $user = User::find((int) ($_SESSION['pending_2fa_user_id'] ?? 0));
+        if (!$user || empty($user['is_active']) || empty($user['two_factor_enabled'])
+            || (int) ($_SESSION['pending_2fa_started_at'] ?? 0) + 300 <= time()
+            || !hash_equals(User::authenticationFingerprint($user), (string) ($_SESSION['pending_2fa_fingerprint'] ?? ''))
+        ) {
+            self::clearPendingTwoFactor();
+            return null;
+        }
+        return $user;
+    }
+
+    private static function renderTwoFactor(array $user): void
+    {
+        view('auth/login', [
+            'title' => 'Login', 'requiresTwoFactor' => true,
+            'twoFactorUserEmail' => $user['email'],
+            'twoFactorHasAuthenticator' => User::twoFactorSecret($user) !== null,
+            'emailCodeSent' => !empty($_SESSION['pending_2fa_email_code_hash']),
+            'emailRetryAfter' => max(
+                SecurityRateLimit::retryAfter('email-send', (int) $user['id'], 1),
+                SecurityRateLimit::retryAfter('email-send-window', (int) $user['id'])
+            ),
+        ]);
+    }
+
+    private static function blockTwoFactor(array $user, int $retryAfter): void
+    {
+        self::clearPendingTwoFactor();
+        http_response_code(429);
+        header('Retry-After: ' . $retryAfter);
+        AuditLog::record([
+            'user_id' => (int) $user['id'], 'user_name' => $user['name'], 'user_email' => $user['email'],
+            'action_type' => 'login_2fa_rate_limited', 'affected_table' => 'users',
+            'affected_record_id' => (int) $user['id'],
+            'description' => 'Verificação 2FA bloqueada por excesso de tentativas.',
+        ]);
+        flash('danger', 'Limite de tentativas do 2FA atingido. Aguarde ' . $retryAfter . ' segundos e entre novamente.');
+        view('auth/login', ['title' => 'Login']);
     }
 
     private static function completeLogin(array $user): void
     {
         session_regenerate_id(true);
         $sessionToken = bin2hex(random_bytes(32));
-        User::setActiveSession((int) $user['id'], $sessionToken);
+        if (!User::setActiveSession((int) $user['id'], $sessionToken, $user)) {
+            $_SESSION = [];
+            flash('danger', 'A conta foi alterada durante a autenticação. Entre novamente.');
+            redirect('/?route=login');
+        }
         $_SESSION['session_token'] = $sessionToken;
         $_SESSION['user'] = [
             'id' => (int) $user['id'],
             'name' => $user['name'],
             'email' => $user['email'],
             'is_admin' => (int) ($user['is_admin'] ?? 0),
+            'role' => User::roleFromUser($user),
             'two_factor_enabled' => (int) ($user['two_factor_enabled'] ?? 0),
         ];
         AuditLog::record([

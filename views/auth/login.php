@@ -16,7 +16,7 @@
             <div class="auth-card-head">
                 <div>
                     <h2><?= !empty($requiresTwoFactor) ? 'Verificação 2FA' : 'Acessar sistema' ?></h2>
-                    <p><?= !empty($requiresTwoFactor) ? 'Informe o código do seu aplicativo autenticador.' : 'Entre para continuar o inventário.' ?></p>
+                    <p><?= !empty($requiresTwoFactor) ? (!empty($twoFactorHasAuthenticator) ? 'Informe o código do autenticador ou solicite por e-mail.' : 'Solicite e informe o código enviado por e-mail.') : 'Entre para continuar o inventário.' ?></p>
                 </div>
             </div>
 
@@ -25,7 +25,7 @@
                     <p class="field-hint">Conta: <strong><?= e($twoFactorUserEmail) ?></strong></p>
                 <?php endif; ?>
                 <div class="two-factor-login-actions" aria-label="Opções de verificação">
-                    <button class="btn btn-muted btn-full" type="submit" formaction="/?route=login.2fa.email" formnovalidate>
+                    <button class="btn btn-muted btn-full" type="submit" formaction="/?route=login.2fa.email" formnovalidate data-email-cooldown="<?= (int) ($emailRetryAfter ?? 0) ?>">
                         <?= icon('mail') ?><span>Enviar código por e-mail</span>
                     </button>
                     <button class="btn btn-muted btn-full" type="submit" formaction="/?route=login.2fa.cancel" formnovalidate>
@@ -33,9 +33,15 @@
                     </button>
                 </div>
                 <label class="field">
-                    <span>Código 2FA</span>
+                    <span><?= !empty($twoFactorHasAuthenticator) ? 'Código 2FA' : 'Código do e-mail' ?></span>
                     <input type="text" name="two_factor_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus>
-                    <small><?= !empty($emailCodeSent) ? 'Use o código do aplicativo autenticador ou o código enviado por e-mail.' : 'Use o aplicativo autenticador ou solicite um código por e-mail.' ?></small>
+                    <small class="field-hint">
+                        <?php if (!empty($twoFactorHasAuthenticator)): ?>
+                            <?= !empty($emailCodeSent) ? 'Use o código do aplicativo autenticador ou o código enviado por e-mail.' : 'Use o aplicativo autenticador ou solicite um código por e-mail.' ?>
+                        <?php else: ?>
+                            <?= !empty($emailCodeSent) ? 'Use o código enviado para seu e-mail.' : 'Clique em enviar código por e-mail para receber o acesso.' ?>
+                        <?php endif; ?>
+                    </small>
                 </label>
             <?php else: ?>
                 <label class="field">

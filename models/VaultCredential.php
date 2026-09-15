@@ -4,6 +4,26 @@ declare(strict_types=1);
 
 class VaultCredential
 {
+    private static bool $customFieldsColumnEnsured = false;
+
+    public static function encryptMetadata(array $data): array
+    {
+        foreach (['notes', 'custom_fields'] as $field) {
+            if (isset($data[$field]) && $data[$field] !== '') {
+                $data[$field] = CredentialCrypto::encrypt((string) $data[$field]);
+            }
+        }
+        return $data;
+    }
+
+    public static function decryptMetadata(array $data): array
+    {
+        foreach (['notes', 'custom_fields'] as $field) {
+            if (isset($data[$field])) $data[$field] = CredentialCrypto::decrypt((string) $data[$field]);
+        }
+        return $data;
+    }
+
     public static function stats(): array
     {
         $row = db()->query(
@@ -90,6 +110,8 @@ class VaultCredential
 
     public static function filtered(array $filters = [], int $limit = 100): array
     {
+        self::ensureCustomFieldsColumn();
+
         $sql =
             'SELECT
                 v.id,
@@ -98,6 +120,7 @@ class VaultCredential
                 v.username,
                 v.service_url,
                 v.notes,
+                v.custom_fields,
                 v.updated_at,
                 c.id AS company_id,
                 c.name AS company_name,
@@ -148,11 +171,13 @@ class VaultCredential
         $stmt->bindValue('limit', max(1, min($limit, 300)), PDO::PARAM_INT);
         $stmt->execute();
 
-        return $stmt->fetchAll();
+        return array_map([self::class, 'decryptMetadata'], $stmt->fetchAll());
     }
 
     public static function find(int $id): ?array
     {
+        self::ensureCustomFieldsColumn();
+
         $stmt = db()->prepare(
             'SELECT
                 v.*,
@@ -168,18 +193,22 @@ class VaultCredential
         $stmt->execute(['id' => $id]);
         $credential = $stmt->fetch();
 
-        return $credential ?: null;
+        return $credential ? self::decryptMetadata($credential) : null;
     }
 
     public static function create(array $data): int
     {
+        self::ensureCustomFieldsColumn();
+        $data['custom_fields'] = $data['custom_fields'] ?? null;
+        $data = self::encryptMetadata($data);
+
         $stmt = db()->prepare(
             'INSERT INTO vault_credentials (
                 company_id, category_id, title, service_url, username, secret_value,
-                notes, is_active, created_by, updated_by
+                notes, custom_fields, is_active, created_by, updated_by
             ) VALUES (
                 :company_id, :category_id, :title, :service_url, :username, :secret_value,
-                :notes, :is_active, :created_by, :updated_by
+                :notes, :custom_fields, :is_active, :created_by, :updated_by
             )'
         );
         $stmt->execute($data);
@@ -189,7 +218,11 @@ class VaultCredential
 
     public static function update(int $id, array $data): void
     {
+        self::ensureCustomFieldsColumn();
+
         $data['id'] = $id;
+        $data['custom_fields'] = $data['custom_fields'] ?? null;
+        $data = self::encryptMetadata($data);
         $stmt = db()->prepare(
             'UPDATE vault_credentials SET
                 category_id = :category_id,
@@ -198,6 +231,7 @@ class VaultCredential
                 username = :username,
                 secret_value = :secret_value,
                 notes = :notes,
+                custom_fields = :custom_fields,
                 is_active = :is_active,
                 updated_by = :updated_by
              WHERE id = :id'
@@ -277,12 +311,15 @@ class VaultCredential
 
     public static function recent(int $limit = 8): array
     {
+        self::ensureCustomFieldsColumn();
+
         $stmt = db()->prepare(
             'SELECT
                 v.id,
                 v.title,
                 v.username,
                 v.service_url,
+                v.custom_fields,
                 v.last_revealed_at,
                 v.updated_at,
                 c.name AS company_name,
@@ -299,5 +336,39 @@ class VaultCredential
         $stmt->execute();
 
         return $stmt->fetchAll();
+    }
+
+    public static function customFields(array $credential): array
+    {
+        $raw = $credential['custom_fields'] ?? null;
+        if (!is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private static function ensureCustomFieldsColumn(): void
+    {
+        if (self::$customFieldsColumnEnsured) {
+            return;
+        }
+
+        $stmt = db()->prepare(
+            'SELECT COUNT(*)
+             FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = "vault_credentials"
+               AND COLUMN_NAME = "custom_fields"'
+        );
+        $stmt->execute();
+
+        if ((int) $stmt->fetchColumn() === 0) {
+            db()->exec('ALTER TABLE vault_credentials ADD custom_fields TEXT NULL AFTER notes');
+        }
+
+        self::$customFieldsColumnEnsured = true;
     }
 }

@@ -45,6 +45,12 @@ if (!column_exists('users', 'is_admin')) {
     echo "Coluna users.is_admin criada." . PHP_EOL;
 }
 
+if (!column_exists('users', 'role')) {
+    db()->exec("ALTER TABLE users ADD COLUMN role ENUM('admin','editor','viewer') NOT NULL DEFAULT 'viewer' AFTER password_hash");
+    db()->exec("UPDATE users SET role = CASE WHEN is_admin = 1 THEN 'admin' ELSE 'viewer' END");
+    echo "Coluna users.role criada." . PHP_EOL;
+}
+
 if (!column_exists('users', 'is_active')) {
     db()->exec('ALTER TABLE users ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER is_admin');
     echo "Coluna users.is_active criada." . PHP_EOL;

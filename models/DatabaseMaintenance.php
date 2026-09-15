@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 class DatabaseMaintenance
 {
-    private const CLEAN_SKIP_TABLES = ['audit_logs', 'api_rate_limits', 'api_tokens', 'login_attempts'];
+    private const CLEAN_SKIP_TABLES = ['audit_logs', 'api_rate_limits', 'api_tokens', 'login_attempts', 'security_rate_limits', 'session_presence'];
 
     public static function status(): array
     {
@@ -93,6 +93,8 @@ class DatabaseMaintenance
         if ($sql === false || trim($sql) === '') {
             throw new RuntimeException('Arquivo SQL vazio ou ilegível.');
         }
+
+        if (str_starts_with($sql, 'enc:')) $sql = EncryptedBackup::decrypt($sql, 'sql');
 
         $statements = self::splitSqlStatements($sql);
         $executed = 0;

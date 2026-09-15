@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(120) NOT NULL,
     email VARCHAR(160) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    role ENUM('admin','editor','viewer') NOT NULL DEFAULT 'viewer',
     is_admin TINYINT(1) NOT NULL DEFAULT 0,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     two_factor_enabled TINYINT(1) NOT NULL DEFAULT 0,
@@ -131,6 +132,13 @@ CREATE TABLE IF NOT EXISTS api_tokens (
     CONSTRAINT fk_api_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS security_rate_limits (
+    scope_key CHAR(64) PRIMARY KEY,
+    attempts INT UNSIGNED NOT NULL DEFAULT 0,
+    expires_at DATETIME NOT NULL,
+    INDEX idx_security_rate_limits_expiry (expires_at)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS login_attempts (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(160) NOT NULL,
@@ -160,6 +168,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
 
 CREATE TABLE IF NOT EXISTS vault_categories (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    company_id INT UNSIGNED NULL,
     parent_id INT UNSIGNED NULL,
     name VARCHAR(120) NOT NULL,
     slug VARCHAR(140) NOT NULL UNIQUE,
@@ -170,8 +179,10 @@ CREATE TABLE IF NOT EXISTS vault_categories (
     updated_by INT UNSIGNED NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_vault_categories_company (company_id),
     INDEX idx_vault_categories_parent (parent_id),
     INDEX idx_vault_categories_active (is_active),
+    CONSTRAINT fk_vault_categories_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
     CONSTRAINT fk_vault_categories_parent FOREIGN KEY (parent_id) REFERENCES vault_categories(id) ON DELETE SET NULL,
     CONSTRAINT fk_vault_categories_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT fk_vault_categories_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
@@ -205,6 +216,7 @@ CREATE TABLE IF NOT EXISTS vault_credentials (
     username VARCHAR(190) NULL,
     secret_value TEXT NOT NULL,
     notes TEXT NULL,
+    custom_fields TEXT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     last_revealed_at TIMESTAMP NULL,
     created_by INT UNSIGNED NULL,

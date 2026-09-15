@@ -1,5 +1,8 @@
 # Segurança — EXE Inventário TI
 
+> Controles e limites atuais: [guia tecnico e operacional](docs/guia-tecnico-operacional.md#seguranca).
+> Nao interpretar notas historicas como certificacao ou prova de controles universais.
+
 Esta e uma análise estática; valide achados com testes antes de classificá-los como exploráveis.
 
 ## Proteções existentes

@@ -1,5 +1,8 @@
 # Desenvolvimento — EXE Inventário TI
 
+> Instalacao e requisitos atuais: [guia tecnico](docs/guia-tecnico-operacional.md#instalacao-local).
+> PHP 7.4 nao e compativel com o codigo atual; use os requisitos do guia.
+
 ## Antes de alterar
 Leia CONTEXT.md, ARCHITECTURE.md e SECURITY.md; depois abra os arquivos reais, schema e migrations relacionados.
 

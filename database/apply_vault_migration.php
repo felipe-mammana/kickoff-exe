@@ -77,6 +77,7 @@ $pdo->exec(
         username VARCHAR(190) NULL,
         secret_value TEXT NOT NULL,
         notes TEXT NULL,
+        custom_fields TEXT NULL,
         is_active TINYINT(1) NOT NULL DEFAULT 1,
         last_revealed_at TIMESTAMP NULL,
         created_by INT UNSIGNED NULL,

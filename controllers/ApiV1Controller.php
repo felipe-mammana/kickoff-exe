@@ -47,20 +47,20 @@ class ApiV1Controller
                 ['method' => 'GET', 'path' => '/api/v1/me', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/device-types', 'auth' => true],
                 ['method' => 'GET', 'path' => '/api/v1/companies', 'auth' => true],
-                ['method' => 'POST', 'path' => '/api/v1/companies', 'auth' => true, 'admin' => true],
+                ['method' => 'POST', 'path' => '/api/v1/companies', 'auth' => true, 'permission' => 'editor'],
                 ['method' => 'GET', 'path' => '/api/v1/companies/{id}', 'auth' => true],
-                ['method' => 'PUT', 'path' => '/api/v1/companies/{id}', 'auth' => true, 'admin' => true],
-                ['method' => 'PATCH', 'path' => '/api/v1/companies/{id}', 'auth' => true, 'admin' => true],
-                ['method' => 'DELETE', 'path' => '/api/v1/companies/{id}', 'auth' => true, 'admin' => true],
+                ['method' => 'PUT', 'path' => '/api/v1/companies/{id}', 'auth' => true, 'permission' => 'editor'],
+                ['method' => 'PATCH', 'path' => '/api/v1/companies/{id}', 'auth' => true, 'permission' => 'editor'],
+                ['method' => 'DELETE', 'path' => '/api/v1/companies/{id}', 'auth' => true, 'permission' => 'admin'],
                 ['method' => 'GET', 'path' => '/api/v1/companies/{id}/machines', 'auth' => true],
-                ['method' => 'POST', 'path' => '/api/v1/companies/{id}/machines', 'auth' => true],
+                ['method' => 'POST', 'path' => '/api/v1/companies/{id}/machines', 'auth' => true, 'permission' => 'editor'],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}', 'auth' => true],
-                ['method' => 'PUT', 'path' => '/api/v1/machines/{id}', 'auth' => true, 'admin' => true],
-                ['method' => 'PATCH', 'path' => '/api/v1/machines/{id}', 'auth' => true, 'admin' => true],
-                ['method' => 'DELETE', 'path' => '/api/v1/machines/{id}', 'auth' => true, 'admin' => true],
+                ['method' => 'PUT', 'path' => '/api/v1/machines/{id}', 'auth' => true, 'permission' => 'editor'],
+                ['method' => 'PATCH', 'path' => '/api/v1/machines/{id}', 'auth' => true, 'permission' => 'editor'],
+                ['method' => 'DELETE', 'path' => '/api/v1/machines/{id}', 'auth' => true, 'permission' => 'admin'],
                 ['method' => 'GET', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
-                ['method' => 'POST', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true],
-                ['method' => 'DELETE', 'path' => '/api/v1/machine-photos/{id}', 'auth' => true, 'admin' => true],
+                ['method' => 'POST', 'path' => '/api/v1/machines/{id}/photos', 'auth' => true, 'permission' => 'editor'],
+                ['method' => 'DELETE', 'path' => '/api/v1/machine-photos/{id}', 'auth' => true, 'permission' => 'admin'],
             ],
         ]);
     }
@@ -180,6 +180,7 @@ class ApiV1Controller
             'id' => (int) $user['id'],
             'name' => (string) $user['name'],
             'email' => (string) $user['email'],
+            'role' => User::roleFromUser($user),
             'is_admin' => (bool) $user['is_admin'],
             'auth' => [
                 'type' => $token ? 'bearer_token' : 'session',
@@ -730,6 +731,9 @@ class ApiV1Controller
             ApiResponse::error('upload_path_unavailable', 'Diretorio de upload indisponivel.', 500);
         }
 
+        $uploadSettings = AppSetting::deviceSettings();
+        $maxUploadBytes = (int) $uploadSettings['photo_max_mb'] * 1024 * 1024;
+        $allowedImageMimes = (array) $uploadSettings['photo_mimes'];
         $finfo = new finfo(FILEINFO_MIME_TYPE);
 
         foreach ($files as $index => $file) {
@@ -742,15 +746,15 @@ class ApiV1Controller
                 continue;
             }
 
-            if ((int) $file['size'] > MAX_UPLOAD_BYTES) {
-                $errors[] = 'Uma foto excede o limite de 5MB.';
+            if ((int) $file['size'] > $maxUploadBytes) {
+                $errors[] = 'Uma foto excede o limite de ' . format_file_size($maxUploadBytes) . '.';
                 continue;
             }
 
             $tmpName = (string) $file['tmp_name'];
             $mime = $finfo->file($tmpName);
 
-            if (!in_array($mime, ALLOWED_IMAGE_MIMES, true)) {
+            if (!in_array($mime, $allowedImageMimes, true)) {
                 $errors[] = 'Formato de imagem inválido. Use JPG, PNG ou WEBP.';
                 continue;
             }

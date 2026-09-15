@@ -9,9 +9,9 @@ class MaintenanceController
         require_admin();
 
         self::download(
-            'application/sql; charset=utf-8',
-            'exe-banco-limpo-' . date('Ymd-His') . '.sql',
-            DatabaseMaintenance::dumpSql(true)
+            'application/octet-stream',
+            'exe-banco-limpo-' . date('Ymd-His') . '.exe-sql',
+            EncryptedBackup::encrypt(DatabaseMaintenance::dumpSql(true), 'sql')
         );
     }
 
@@ -20,9 +20,9 @@ class MaintenanceController
         require_admin();
 
         self::download(
-            'application/zip',
-            'exe-backup-completo-' . date('Ymd-His') . '.zip',
-            DatabaseMaintenance::fullBackupZip()
+            'application/octet-stream',
+            'exe-backup-completo-' . date('Ymd-His') . '.exe-zip',
+            EncryptedBackup::encrypt(DatabaseMaintenance::fullBackupZip(), 'zip')
         );
     }
 
@@ -40,7 +40,7 @@ class MaintenanceController
         $originalName = safe_original_filename((string) ($file['name'] ?? 'backup.sql'));
         $extension = strtolower((string) pathinfo($originalName, PATHINFO_EXTENSION));
 
-        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || $extension !== 'sql') {
+        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !in_array($extension, ['sql', 'exe-sql'], true)) {
             flash('danger', 'Envie um arquivo .sql válido.');
             redirect('/?route=settings.maintenance');
         }

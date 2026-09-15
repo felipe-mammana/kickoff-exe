@@ -1,5 +1,8 @@
 # Banco de Dados — EXE Inventário TI
 
+> Migracoes e backup atuais: [guia tecnico](docs/guia-tecnico-operacional.md#banco-e-migracoes).
+> Backup "limpo" nao e anonimizado. Confira o guia antes de exportar ou restaurar.
+
 SGBD: MySQL/MariaDB, InnoDB.
 
 ## users
