@@ -53,8 +53,8 @@ $assetVersion = static function (string $path): string {
                 <?php require BASE_PATH . '/views/partials/topbar.php'; ?>
 
                 <main class="app-shell">
-                    <?php foreach (consume_flash() as $message): ?>
-                        <div class="alert alert-<?= e($message['type']) ?>"><?= e($message['message']) ?></div>
+                    <?php foreach (consume_flash() as $flashMessage): ?>
+                        <div class="alert alert-<?= e($flashMessage['type']) ?>"><?= e($flashMessage['message']) ?></div>
                     <?php endforeach; ?>
 
                     <?php require $viewFile; ?>
@@ -87,8 +87,8 @@ $assetVersion = static function (string $path): string {
         </div>
     <?php else: ?>
         <main class="auth-shell">
-            <?php foreach (consume_flash() as $message): ?>
-                <div class="alert alert-<?= e($message['type']) ?>"><?= e($message['message']) ?></div>
+            <?php foreach (consume_flash() as $flashMessage): ?>
+                <div class="alert alert-<?= e($flashMessage['type']) ?>"><?= e($flashMessage['message']) ?></div>
             <?php endforeach; ?>
 
             <?php require $viewFile; ?>

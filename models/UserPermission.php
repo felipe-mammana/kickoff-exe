@@ -106,6 +106,9 @@ class UserPermission
     public static function migrateLegacy(): int
     {
         self::ensureTable();
+        // MySQL DDL commits implicitly; initialize settings before the data transaction.
+        AppSetting::get('vault_exclusive_user_id', '0');
+        User::ensureRoleColumn();
         $count = 0;
         db()->beginTransaction();
         try {
