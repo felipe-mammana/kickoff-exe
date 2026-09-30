@@ -29,7 +29,7 @@ if ($openCategoryModalName === '1') {
 }
 $vaultSettings = is_array($vaultSettings ?? null) ? $vaultSettings : AppSetting::vaultSettings();
 $vaultCustomFieldConfig = is_array($vaultCustomFieldConfig ?? null) ? $vaultCustomFieldConfig : [];
-$allowPasswordCopy = !empty($vaultSettings['allow_password_copy']);
+$allowPasswordCopy = !empty($vaultSettings['allow_password_copy']) && can_permission('vault.copy');
 $credentialExpirationDays = (int) ($vaultSettings['credential_expiration_days'] ?? 0);
 $attachmentSettings = AppSetting::deviceSettings();
 $attachmentMaxBytes = (int) $attachmentSettings['attachment_max_mb'] * 1024 * 1024;
@@ -171,10 +171,23 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
             <?php endif; ?>
         </div>
         <div class="vault-panel-actions">
-            <?php if (can_access_vault()): ?>
+            <?php if (can_permission('vault.export')): ?>
+                <details class="vault-export-confirmation">
+                    <summary class="btn btn-muted"><?= icon('download') ?><span>Exportar</span></summary>
+                    <form method="post" action="/?route=vault.export">
+                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                        <input type="hidden" name="company_id" value="<?= (int) $company['id'] ?>">
+                        <label class="field"><span>Sua senha atual</span><input type="password" name="password" autocomplete="current-password" required></label>
+                        <button class="btn btn-primary" type="submit"><?= icon('download') ?><span>Baixar arquivo criptografado</span></button>
+                    </form>
+                </details>
+            <?php endif; ?>
+            <?php if (can_permission('vault.create')): ?>
                 <button class="btn btn-primary" type="button" data-vault-modal-open="create" data-vault-category-id="<?= (int) $credentialDefaultCategoryId ?>">
                     <?= icon('plus') ?><span>Nova credencial</span>
                 </button>
+            <?php endif; ?>
+            <?php if (can_permission('vault.configure')): ?>
                 <button class="btn btn-muted" type="button" data-vault-modal-open="category">
                     <?= icon('folder-plus') ?><span>Nova categoria</span>
                 </button>
@@ -219,7 +232,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                     <h3>Subcategorias</h3>
                 </div>
                 <div class="vault-panel-actions">
-                    <?php if (can_access_vault()): ?>
+                    <?php if (can_permission('vault.configure')): ?>
                         <button class="btn btn-primary" type="button" data-vault-modal-open="subcategory" data-vault-parent-id="<?= (int) $selectedParent['id'] ?>" data-vault-parent-name="<?= e($selectedParent['name']) ?>">
                             <?= icon('folder-plus') ?><span>Nova subcategoria</span>
                         </button>
@@ -367,7 +380,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                                     >
                                         <?= icon('eye') ?>
                                     </button>
-                                    <?php if (can_access_vault()): ?>
+                                    <?php if (can_permission('vault.edit')): ?>
                                         <button
                                             class="icon-btn"
                                             type="button"
@@ -385,7 +398,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                                             <?= icon('edit-3') ?>
                                         </button>
                                     <?php endif; ?>
-                                    <?php if (can_access_vault()): ?>
+                                    <?php if (can_permission('vault.delete')): ?>
                                         <form action="/?route=vault.deactivate" method="post" data-confirm="Desativar esta credencial?">
                                             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                                             <input type="hidden" name="id" value="<?= (int) $credential['id'] ?>">
@@ -413,14 +426,14 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                 <h2>Arquivos de <?= e($attachmentCategory['name']) ?></h2>
                 <p><?= count($attachments ?? []) ?> arquivo(s) vinculado(s)</p>
             </div>
-            <?php if (can_access_vault()): ?>
+            <?php if (can_permission('companies.edit')): ?>
                 <button class="btn btn-muted" type="button" data-attachment-form-toggle aria-expanded="false">
                     <?= icon('plus') ?><span>Adicionar anexo</span>
                 </button>
             <?php endif; ?>
         </div>
 
-        <?php if (can_access_vault()): ?>
+        <?php if (can_permission('companies.edit')): ?>
         <form class="company-attachment-form" action="/?route=companies.attachments.store" method="post" enctype="multipart/form-data" data-attachment-form-panel hidden>
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
             <input type="hidden" name="company_id" value="<?= (int) $company['id'] ?>">
@@ -479,7 +492,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                                         <a class="icon-btn" href="/?route=companies.attachments.download&id=<?= (int) $attachment['id'] ?>" aria-label="Baixar anexo" title="Baixar">
                                             <?= icon('download') ?>
                                         </a>
-                                        <?php if (can_access_vault()): ?>
+                                        <?php if (can_permission('companies.delete')): ?>
                                             <form action="/?route=companies.attachments.delete" method="post" data-confirm="Remover este anexo?">
                                                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                                                 <input type="hidden" name="id" value="<?= (int) $attachment['id'] ?>">
@@ -499,7 +512,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
     </section>
 <?php endif; ?>
 
-<?php if (can_access_vault()): ?>
+<?php if (can_permission('vault.create')): ?>
 <div class="company-modal vault-modal" data-vault-modal="create" <?= $openModal === 'create' ? '' : 'hidden' ?>>
     <div class="company-modal-dialog vault-credential-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-create-title">
         <header class="modal-head">
@@ -594,6 +607,8 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
     </div>
 </div>
 
+<?php endif; ?>
+<?php if (can_permission('vault.configure')): ?>
 <div class="company-modal vault-modal" data-vault-modal="category" <?= $openCategoryModalName === 'category' ? '' : 'hidden' ?>>
     <div class="company-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-category-title">
         <header class="modal-head">
@@ -735,9 +750,11 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                         <span class="vault-secret-cell" data-vault-secret-cell>
                             <input type="password" value="" placeholder="••••••••" readonly data-vault-secret-output>
                             <input type="hidden" value="<?= e(csrf_token()) ?>" data-vault-secret-csrf>
+                            <?php if (can_permission('vault.reveal')): ?>
                             <button class="password-toggle-icon" type="button" data-vault-secret-toggle data-vault-secret-id="" aria-label="Mostrar senha" title="Mostrar senha" data-vault-details-secret-toggle>
                                 <?= icon('eye') ?>
                             </button>
+                            <?php endif; ?>
                             <?php if ($allowPasswordCopy): ?>
                                 <button class="password-toggle-icon" type="button" data-vault-secret-copy data-vault-secret-id="" aria-label="Copiar senha" title="Copiar senha" data-vault-details-secret-copy>
                                     <?= icon('copy') ?>
@@ -775,7 +792,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
     </div>
 </div>
 
-<?php if (can_access_vault()): ?>
+<?php if (can_permission('vault.edit')): ?>
 <div class="company-modal vault-modal" data-vault-modal="edit" <?= $openModal === 'edit' ? '' : 'hidden' ?>>
     <div class="company-modal-dialog vault-credential-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-edit-title">
         <header class="modal-head">

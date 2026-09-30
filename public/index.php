@@ -18,7 +18,11 @@ if (ApiRouter::isApiRequest()) {
 $route = $_GET['route'] ?? 'dashboard';
 
 try {
+    UserPermission::enforce((string) $route);
     switch ($route) {
+        case 'vault.export':
+            VaultController::export();
+            break;
         case 'sessions.index':
             SessionController::index();
             break;

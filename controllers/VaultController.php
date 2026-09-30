@@ -4,8 +4,46 @@ declare(strict_types=1);
 
 class VaultController
 {
+    public static function export(): void
+    {
+        require_permission('vault.export');
+        require_vault_access();
+        if (!is_post()) { http_response_code(405); return; }
+        verify_csrf();
+        $company = self::requireCompany((int) ($_POST['company_id'] ?? 0));
+        $actor = User::find((int) current_user()['id']);
+        if (!PasswordSecurity::confirm($actor, (string) ($_POST['password'] ?? ''))) {
+            flash('danger', 'Senha incorreta ou limite de tentativas atingido.');
+            redirect('/?route=vault.show&id=' . (int) $company['id']);
+        }
+        $stmt = db()->prepare('SELECT id, title, username, service_url, secret_value, notes, custom_fields FROM vault_credentials WHERE company_id = ? AND is_active = 1 ORDER BY id LIMIT 5001');
+        $stmt->execute([(int) $company['id']]);
+        $rows = $stmt->fetchAll();
+        if (count($rows) > 5000) {
+            flash('danger', 'Exportacao excede o limite de 5000 credenciais. Nenhum arquivo foi gerado.');
+            redirect('/?route=vault.show&id=' . (int) $company['id']);
+        }
+        foreach ($rows as &$row) {
+            foreach (['secret_value', 'notes', 'custom_fields'] as $field) {
+                if ($row[$field] !== null) $row[$field] = CredentialCrypto::decrypt((string) $row[$field]);
+            }
+        }
+        unset($row);
+        $payload = EncryptedBackup::encrypt(json_encode(['company_id' => (int) $company['id'], 'exported_at' => gmdate('c'), 'credentials' => $rows], JSON_THROW_ON_ERROR), 'vault');
+        AuditLog::record(['required' => true, 'action_type' => 'vault_exported', 'affected_table' => 'vault_credentials',
+            'company_id' => (int) $company['id'], 'description' => 'Exportacao criptografada do cofre.',
+            'new_data' => ['count' => count($rows)]]);
+        header('Cache-Control: no-store, private, max-age=0');
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="cofre-' . (int) $company['id'] . '.exe-vault"');
+        header('X-Content-Type-Options: nosniff');
+        echo $payload;
+        exit;
+    }
+
     public static function index(): void
     {
+        require_permission('vault.view');
         require_vault_access();
 
         $searchMode = (string) ($_GET['search_mode'] ?? 'company');
@@ -32,6 +70,7 @@ class VaultController
 
     public static function show(): void
     {
+        require_permission('vault.view');
         require_vault_access();
 
         $companyId = (int) ($_GET['id'] ?? 0);
@@ -101,6 +140,7 @@ class VaultController
 
     public static function store(): void
     {
+        require_permission('vault.create');
         require_vault_access();
         verify_csrf();
 
@@ -135,6 +175,7 @@ class VaultController
 
     public static function update(): void
     {
+        require_permission('vault.edit');
         require_vault_access();
         verify_csrf();
 
@@ -181,6 +222,7 @@ class VaultController
 
     public static function deactivate(): void
     {
+        require_permission('vault.delete');
         require_vault_access();
         verify_csrf();
 
@@ -203,6 +245,11 @@ class VaultController
 
     public static function reveal(): void
     {
+        require_permission('vault.reveal');
+        if (($_POST['intent'] ?? '') === 'copy') {
+            require_permission('vault.copy');
+            if (empty(AppSetting::vaultSettings()['allow_password_copy'])) ApiResponse::error('forbidden', 'Copia desativada.', 403);
+        }
         require_vault_access();
 
         if (!is_post()) {
@@ -276,6 +323,7 @@ class VaultController
 
     public static function storeCategory(): void
     {
+        require_permission('vault.configure');
         require_vault_access();
         verify_csrf();
 

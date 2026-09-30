@@ -5,7 +5,7 @@ class ProtectedAuditController
 {
     public static function index(): void
     {
-        require_admin();
+        require_permission('audit.view');
         header('Cache-Control: no-store, private, max-age=0');
         $text = null;
         $error = '';

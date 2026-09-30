@@ -3,7 +3,7 @@
         <?= icon('layout-dashboard') ?>
         <span>Home</span>
     </a>
-    <?php if (can_edit_records() && $companyIdForNav && (empty($company) || !isset($company['is_active']) || !empty($company['is_active']))): ?>
+    <?php if (can_permission('machines.create') && $companyIdForNav && (empty($company) || !isset($company['is_active']) || !empty($company['is_active']))): ?>
         <a class="mobile-primary <?= $route === 'machines.create' ? 'active' : '' ?>" href="/?route=machines.create&company_id=<?= (int) $companyIdForNav ?>">
             <?= icon('plus') ?>
             <span>Add</span>
@@ -15,7 +15,7 @@
         <span>Cofre</span>
     </a>
     <?php endif; ?>
-    <?php if (is_admin()): ?>
+    <?php if (can_permission('audit.view')): ?>
         <a class="<?= $isAudit ? 'active' : '' ?>" href="/?route=audit.index">
             <?= icon('file-clock') ?>
             <span>Logs</span>

@@ -6,7 +6,7 @@ class MaintenanceController
 {
     public static function exportCleanDatabase(): void
     {
-        require_admin();
+        require_permission('settings.backup');
 
         self::download(
             'application/octet-stream',
@@ -17,7 +17,7 @@ class MaintenanceController
 
     public static function exportFullBackup(): void
     {
-        require_admin();
+        require_permission('settings.backup');
 
         self::download(
             'application/octet-stream',
@@ -28,7 +28,13 @@ class MaintenanceController
 
     public static function importDatabase(): void
     {
-        require_admin();
+        require_permission('settings.restore');
+        require_permission('users.permissions');
+        if (array_diff(UserPermission::keys(), UserPermission::delegation(current_user()))) {
+            http_response_code(403);
+            view('errors/403', ['title' => 'Acesso negado']);
+            return;
+        }
         verify_csrf();
 
         if (empty($_FILES['backup_sql']) || !is_array($_FILES['backup_sql'])) {
@@ -68,7 +74,7 @@ class MaintenanceController
 
     public static function cleanupOrphans(): void
     {
-        require_admin();
+        require_permission('settings.restore');
         verify_csrf();
 
         $result = DatabaseMaintenance::cleanupOrphanFiles();

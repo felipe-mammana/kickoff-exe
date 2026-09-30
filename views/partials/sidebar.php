@@ -10,28 +10,34 @@
     </div>
 
     <nav class="side-nav" aria-label="Menu principal">
+        <?php if (can_permission('reports.view')): ?>
         <a class="<?= $route === 'dashboard' ? 'active' : '' ?>" href="/">
             <span class="nav-icon"><?= icon('layout-dashboard') ?></span>
             <span>Dashboard</span>
         </a>
+        <?php endif; ?>
+        <?php if (can_permission('companies.view')): ?>
         <a class="<?= $isCompany ? 'active' : '' ?>" href="/?route=companies.index">
             <span class="nav-icon"><?= icon('building-2') ?></span>
             <span>Empresas</span>
         </a>
+        <?php endif; ?>
         <?php if (can_access_vault()): ?>
         <a class="<?= $isVault ? 'active' : '' ?>" href="/?route=vault.index">
             <span class="nav-icon"><?= icon('lock') ?></span>
             <span>Cofre</span>
         </a>
         <?php endif; ?>
-        <?php if (can_access_vault()): ?>
+        <?php if (can_permission('sessions.view')): ?>
             <a class="<?= $route === 'sessions.index' ? 'active' : '' ?>" href="/?route=sessions.index"><span class="nav-icon"><?= icon('monitor') ?></span><span>Sessões</span></a>
         <?php endif; ?>
-        <?php if (is_admin()): ?>
+        <?php if (can_permission('audit.view')): ?>
             <a class="<?= $isAudit ? 'active' : '' ?>" href="/?route=audit.index">
                 <span class="nav-icon"><?= icon('file-clock') ?></span>
                 <span>Logs do sistema</span>
             </a>
+        <?php endif; ?>
+        <?php if (can_permission('users.view')): ?>
             <a class="<?= $isUsers ? 'active' : '' ?>" href="/?route=users.index">
                 <span class="nav-icon"><?= icon('users') ?></span>
                 <span>Usuários</span>

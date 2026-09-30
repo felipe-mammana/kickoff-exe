@@ -273,7 +273,7 @@ foreach ($filters as $filterValue) {
                 <p>Ordem cronológica conforme retorno da auditoria.</p>
             </div>
         </div>
-        <div class="export-actions" data-export-actions>
+        <?php if (can_permission('audit.export')): ?><div class="export-actions" data-export-actions>
             <span class="status-chip neutral"><?= count($logs) ?> exibidos</span>
             <a class="btn btn-muted export-btn <?= !$logs ? 'disabled' : '' ?>" href="<?= e(export_url('audit', 'csv', $filters)) ?>" data-export-link data-export-format="CSV" aria-disabled="<?= !$logs ? 'true' : 'false' ?>">
                 <?= icon('file-spreadsheet') ?><span>Exportar CSV</span>
@@ -281,7 +281,7 @@ foreach ($filters as $filterValue) {
             <a class="btn btn-muted export-btn <?= !$logs ? 'disabled' : '' ?>" href="<?= e(export_url('audit', 'json', $filters)) ?>" data-export-link data-export-format="JSON" aria-disabled="<?= !$logs ? 'true' : 'false' ?>">
                 <?= icon('braces') ?><span>Exportar JSON</span>
             </a>
-        </div>
+        </div><?php endif; ?>
     </header>
 
     <?php if (!$logs): ?>

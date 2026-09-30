@@ -23,10 +23,10 @@ $companyAttachmentAccept = implode(',', array_map(static fn (string $extension):
     </div>
     <div class="heading-actions">
         <a class="btn btn-muted" href="/?route=companies.index"><?= icon('chevron-left') ?><span>Voltar</span></a>
-        <?php if (can_edit_records()): ?>
+        <?php if (can_permission('companies.edit')): ?>
             <a class="btn btn-primary" href="/?route=companies.edit&id=<?= (int) $company['id'] ?>"><?= icon('edit-3') ?><span>Editar</span></a>
         <?php endif; ?>
-        <?php if (can_delete_records()): ?>
+        <?php if (can_permission('companies.delete')): ?>
             <?php if (!empty($company['is_active'])): ?>
                 <form action="/?route=companies.deactivate&id=<?= (int) $company['id'] ?>" method="post" data-confirm="Desativar esta empresa?" data-confirm-variant="warning">
                     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
@@ -99,7 +99,7 @@ $companyAttachmentAccept = implode(',', array_map(static fn (string $extension):
                 </div>
                 <div class="panel-actions">
                     <span><?= count($attachments ?? []) ?> arquivo(s)</span>
-                    <?php if (can_edit_records()): ?>
+                    <?php if (can_permission('companies.edit')): ?>
                         <button class="btn btn-muted" type="button" data-attachment-form-toggle aria-expanded="false">
                             <?= icon('plus') ?><span>Adicionar anexo</span>
                         </button>
@@ -107,7 +107,7 @@ $companyAttachmentAccept = implode(',', array_map(static fn (string $extension):
                 </div>
             </header>
 
-            <?php if (can_edit_records()): ?>
+            <?php if (can_permission('companies.edit')): ?>
             <form class="company-attachment-form" action="/?route=companies.attachments.store" method="post" enctype="multipart/form-data" data-attachment-form-panel hidden>
                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                 <input type="hidden" name="company_id" value="<?= (int) $company['id'] ?>">
@@ -167,7 +167,7 @@ $companyAttachmentAccept = implode(',', array_map(static fn (string $extension):
                                             <a class="icon-btn" href="/?route=companies.attachments.download&id=<?= (int) $attachment['id'] ?>" aria-label="Baixar anexo" title="Baixar">
                                                 <?= icon('download') ?>
                                             </a>
-                                            <?php if (can_delete_records()): ?>
+                                            <?php if (can_permission('companies.delete')): ?>
                                                 <form action="/?route=companies.attachments.delete" method="post" data-confirm="Remover este anexo?">
                                                     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                                                     <input type="hidden" name="id" value="<?= (int) $attachment['id'] ?>">
@@ -201,7 +201,7 @@ $companyAttachmentAccept = implode(',', array_map(static fn (string $extension):
             </div>
         </article>
 
-        <?php if (can_delete_records() && !empty($company['is_active'])): ?>
+        <?php if (can_permission('companies.delete') && !empty($company['is_active'])): ?>
             <article class="danger-panel">
                 <h2><?= icon('warning') ?> Zona de risco</h2>
                 <p>A desativação remove a empresa dos fluxos principais sem apagar seu histórico.</p>
@@ -210,7 +210,7 @@ $companyAttachmentAccept = implode(',', array_map(static fn (string $extension):
                     <button class="btn btn-warning btn-full" type="submit"><?= icon('warning') ?><span>Desativar empresa</span></button>
                 </form>
             </article>
-        <?php elseif (can_delete_records()): ?>
+        <?php elseif (can_permission('companies.delete')): ?>
             <article class="danger-panel">
                 <h2><?= icon('check-circle') ?> Empresa inativa</h2>
                 <p>Reative a empresa para permitir novos cadastros de dispositivos.</p>

@@ -358,7 +358,7 @@ $isFreeTag = $currentTagPrefix === null;
                                             <?= ($photo['photo_type'] ?? 'general') === 'network_config' ? ' - Rede' : '' ?>
                                             : <?= e($photo['original_name']) ?>
                                         </span>
-                                        <?php if (can_delete_records()): ?>
+                                        <?php if (can_permission('machines.delete')): ?>
                                             <button class="link-danger" type="submit" form="delete-photo-<?= (int) $photo['id'] ?>"><?= icon('trash-2') ?><span>Remover</span></button>
                                         <?php endif; ?>
                                     </figcaption>
@@ -382,7 +382,7 @@ $isFreeTag = $currentTagPrefix === null;
     </div>
 </form>
 
-<?php if (can_delete_records()): ?>
+<?php if (can_permission('machines.delete')): ?>
     <?php foreach ($photos as $photo): ?>
         <form id="delete-photo-<?= (int) $photo['id'] ?>" action="/?route=machines.deletePhoto" method="post">
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">

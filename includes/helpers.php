@@ -92,9 +92,22 @@ function current_user(): ?array
 
 function can_access_vault(): bool
 {
-    $user = current_user();
-    return $user !== null && (int) AppSetting::get('vault_exclusive_user_id', '0') > 0
-        && (int) $user['id'] === (int) AppSetting::get('vault_exclusive_user_id', '0');
+    return can_permission('vault.view');
+}
+
+function can_permission(string $key): bool
+{
+    return UserPermission::allows(current_user(), $key);
+}
+
+function require_permission(string $key): void
+{
+    require_auth();
+    if (!can_permission($key)) {
+        http_response_code(403);
+        view('errors/403', ['title' => 'Acesso negado']);
+        exit;
+    }
 }
 
 function require_vault_access(): void

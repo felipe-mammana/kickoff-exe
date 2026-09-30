@@ -9,7 +9,7 @@
         <h1>Empresas cadastradas</h1>
         <p>Gerencie organizações, padrões de etiqueta e inventários vinculados.</p>
     </div>
-    <?php if (can_edit_records()): ?>
+    <?php if (can_permission('companies.create')): ?>
         <button class="btn btn-primary" type="button" data-company-modal-open><?= icon('plus') ?><span>Cadastrar nova empresa</span></button>
     <?php endif; ?>
 </section>
@@ -40,21 +40,21 @@
             <h2>Empresas</h2>
             <p><?= count($companies) ?> registro(s)</p>
         </div>
-        <div class="export-actions" data-export-actions>
+        <?php if (can_permission('reports.export')): ?><div class="export-actions" data-export-actions>
             <a class="btn btn-muted export-btn <?= !$companies ? 'disabled' : '' ?>" href="<?= e(export_url('companies', 'csv')) ?>" data-export-link data-export-base="<?= e(export_url('companies', 'csv')) ?>" data-export-format="CSV" aria-disabled="<?= !$companies ? 'true' : 'false' ?>">
                 <?= icon('file-spreadsheet') ?><span>Exportar CSV</span>
             </a>
             <a class="btn btn-muted export-btn <?= !$companies ? 'disabled' : '' ?>" href="<?= e(export_url('companies', 'json')) ?>" data-export-link data-export-base="<?= e(export_url('companies', 'json')) ?>" data-export-format="JSON" aria-disabled="<?= !$companies ? 'true' : 'false' ?>">
                 <?= icon('braces') ?><span>Exportar JSON</span>
             </a>
-        </div>
+        </div><?php endif; ?>
     </div>
 
     <?php if (!$companies): ?>
         <div class="empty-state compact">
             <h3>Nenhuma empresa cadastrada</h3>
             <p>Cadastre a primeira empresa para iniciar o inventario.</p>
-            <?php if (can_edit_records()): ?>
+            <?php if (can_permission('companies.create')): ?>
                 <button class="btn btn-primary" type="button" data-company-modal-open><?= icon('plus') ?><span>Cadastrar empresa</span></button>
             <?php endif; ?>
         </div>
@@ -97,7 +97,7 @@
                             <td data-label="Ações">
                                 <div class="table-actions">
                                     <a class="icon-btn" href="/?route=companies.show&id=<?= (int) $company['id'] ?>" aria-label="Ver empresa"><?= icon('eye') ?></a>
-                                    <?php if (can_edit_records()): ?>
+                                    <?php if (can_permission('companies.create')): ?>
                                         <a class="icon-btn" href="/?route=companies.edit&id=<?= (int) $company['id'] ?>" aria-label="Editar empresa"><?= icon('edit-3') ?></a>
                                     <?php endif; ?>
                                 </div>
@@ -111,7 +111,7 @@
     <?php endif; ?>
 </section>
 
-<?php if (can_edit_records()): ?>
+<?php if (can_permission('companies.create')): ?>
 <div class="company-modal" data-company-modal hidden>
     <div class="company-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="company-modal-title">
         <div class="gallery-head">

@@ -7,10 +7,17 @@ class DashboardController
     public static function index(): void
     {
         require_auth();
+        if (!can_permission('reports.view')) {
+            foreach (['vault.view' => 'vault.index', 'companies.view' => 'companies.index', 'users.view' => 'users.index', 'sessions.view' => 'sessions.index', 'audit.view' => 'audit.index'] as $permission => $route) {
+                if (can_permission($permission)) redirect('/?route=' . $route);
+            }
+            redirect('/?route=settings.account');
+        }
+        require_permission('reports.view');
 
-        $companies = Company::all(true);
+        $companies = can_permission('companies.view') ? Company::all(true) : [];
         $companyId = (int) ($_GET['company_id'] ?? ($companies[0]['id'] ?? 0));
-        $company = $companyId ? Company::find($companyId) : null;
+        $company = $companyId && can_permission('companies.view') ? Company::find($companyId) : null;
         if ($company && empty($company['is_active'])) {
             flash('danger', 'Empresa inativa não permite cadastro ou gestão de dispositivos pelo dashboard.');
             redirect('/');
@@ -25,9 +32,9 @@ class DashboardController
             'status' => trim((string) ($_GET['status'] ?? 'active')),
             'created_at' => trim((string) ($_GET['created_at'] ?? '')),
         ];
-        $machines = $company ? Machine::byCompany((int) $company['id'], $filters) : [];
+        $machines = $company && can_permission('machines.view') ? Machine::byCompany((int) $company['id'], $filters) : [];
         $photosByMachine = MachinePhoto::groupedByMachines(array_column($machines, 'id'));
-        $stats = $company ? Machine::stats((int) $company['id']) : ['total' => 0, 'tflux' => 0, 'antivirus' => 0, 'requesters' => 0];
+        $stats = $company && can_permission('machines.view') ? Machine::stats((int) $company['id']) : ['total' => 0, 'tflux' => 0, 'antivirus' => 0, 'requesters' => 0];
 
         view('companies/dashboard', [
             'title' => 'Dashboard',
