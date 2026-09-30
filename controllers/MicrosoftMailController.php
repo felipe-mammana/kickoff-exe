@@ -5,7 +5,7 @@ final class MicrosoftMailController
 {
     public static function dispatch(string $action): void
     {
-        require_admin();
+        require_permission('settings.manage');
         header('Cache-Control: no-store');
         header('Referrer-Policy: no-referrer');
         if ($action === 'index') {

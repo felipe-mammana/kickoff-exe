@@ -6,7 +6,7 @@ class MachineController
 {
     public static function create(): void
     {
-        require_editor();
+        require_permission('machines.create');
         $companyId = (int) ($_GET['company_id'] ?? 0);
         $company = Company::find($companyId);
 
@@ -28,7 +28,7 @@ class MachineController
 
     public static function store(): void
     {
-        require_editor();
+        require_permission('machines.create');
         verify_csrf();
 
         [$data, $errors] = self::validatedData();
@@ -81,7 +81,7 @@ class MachineController
 
     public static function show(): void
     {
-        require_auth();
+        require_permission('machines.view');
         $machine = self::requireMachine();
         $photos = MachinePhoto::byMachine((int) $machine['id']);
 
@@ -89,13 +89,13 @@ class MachineController
             'title' => self::machineTitle($machine),
             'machine' => $machine,
             'photos' => $photos,
-            'history' => AuditLog::byMachine((int) $machine['id']),
+            'history' => can_permission('audit.view') ? AuditLog::byMachine((int) $machine['id']) : [],
         ]);
     }
 
     public static function edit(): void
     {
-        require_editor();
+        require_permission('machines.edit');
         $machine = self::requireMachine();
         $photos = MachinePhoto::byMachine((int) $machine['id']);
 
@@ -112,7 +112,7 @@ class MachineController
 
     public static function update(): void
     {
-        require_editor();
+        require_permission('machines.edit');
         verify_csrf();
         $machine = self::requireMachine();
 
@@ -167,7 +167,7 @@ class MachineController
 
     public static function deactivate(): void
     {
-        require_admin();
+        require_permission('machines.delete');
         verify_csrf();
         $machine = self::requireMachine();
 
@@ -189,7 +189,7 @@ class MachineController
 
     public static function deletePhoto(): void
     {
-        require_admin();
+        require_permission('machines.delete');
         verify_csrf();
         $photo = MachinePhoto::find((int) ($_POST['photo_id'] ?? 0));
 
@@ -227,6 +227,7 @@ class MachineController
 
     public static function viewPhoto(): void
     {
+        require_permission('machines.view');
         if (!current_user() && !ApiAuth::authenticate()) {
             http_response_code(403);
             view('errors/403', ['title' => 'Acesso negado']);
@@ -261,7 +262,7 @@ class MachineController
 
     public static function revealCredential(): void
     {
-        require_auth();
+        require_permission('machines.reveal');
 
         if (!is_post()) {
             ApiResponse::error('method_not_allowed', 'Método não permitido.', 405);

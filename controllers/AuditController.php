@@ -6,7 +6,7 @@ class AuditController
 {
     public static function index(): void
     {
-        require_admin();
+        require_permission('audit.view');
 
         $filters = [
             'user_id' => trim((string) ($_GET['user_id'] ?? '')),

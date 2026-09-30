@@ -6,7 +6,7 @@ class SessionController
     public static function terminate(): void
     {
         require_auth();
-        if (!can_access_vault()) {
+        if (!can_permission('sessions.terminate')) {
             http_response_code(403);
             view('errors/403', ['title' => 'Acesso negado']);
             return;
@@ -72,7 +72,7 @@ class SessionController
     public static function index(): void
     {
         require_auth();
-        if (!can_access_vault()) {
+        if (!can_permission('sessions.view')) {
             http_response_code(403);
             view('errors/403', ['title' => 'Acesso negado']);
             return;

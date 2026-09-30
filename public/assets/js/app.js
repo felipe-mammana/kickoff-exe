@@ -1532,6 +1532,10 @@
                     option.checked = option.value === role;
                 });
                 syncRoleOptionCards(modal);
+                const permissions = JSON.parse(button.getAttribute('data-user-permissions') || '[]');
+                modal.querySelectorAll('input[name="permissions[]"]').forEach(function (input) {
+                    input.checked = permissions.includes(input.value);
+                });
                 setTimeout(function () {
                     name?.focus();
                 }, 50);
@@ -1558,6 +1562,31 @@
 
     document.querySelectorAll('[data-user-modal-close]').forEach(function (button) {
         button.addEventListener('click', closeUserModals);
+    });
+
+    document.querySelectorAll('[data-user-permissions]').forEach(function (panel) {
+        const form = panel.closest('form');
+        const presets = JSON.parse(panel.dataset.presets || '{}');
+        const options = Array.from(panel.querySelectorAll('input[type="checkbox"]'));
+        form.querySelectorAll('input[name="role"]').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                options.forEach(function (option) {
+                    if (!option.disabled) option.checked = (presets[radio.value] || []).includes(option.value);
+                });
+            });
+        });
+        options.forEach(function (option) {
+            option.addEventListener('change', function () {
+                const group = option.value.split('.')[0];
+                options.forEach(function (other) {
+                    if (other.disabled) return;
+                    if (option.checked && other.value === group + '.view') other.checked = true;
+                    if (option.checked && ['vault.copy', 'vault.export'].includes(option.value) && other.value === 'vault.reveal') other.checked = true;
+                    if (!option.checked && option.value === group + '.view' && other.value.startsWith(group + '.')) other.checked = false;
+                    if (!option.checked && option.value === 'vault.reveal' && ['vault.copy', 'vault.export'].includes(other.value)) other.checked = false;
+                });
+            });
+        });
     });
 
     document.querySelectorAll('[data-email-cooldown]').forEach(function (button) {
@@ -2035,12 +2064,12 @@
         });
     }
 
-    function fetchVaultSecret(cell, id, revealPassword, confirmedReveal) {
+    function fetchVaultSecret(cell, id, revealPassword, confirmedReveal, intent) {
         const output = cell?.querySelector('[data-vault-secret-output]');
         if (!cell || !output) {
             return Promise.reject(new Error('Campo de senha inválido.'));
         }
-        if (output.dataset.loaded === '1' && !revealPassword) {
+        if (output.dataset.loaded === '1' && !revealPassword && intent !== 'copy') {
             return Promise.resolve(output.value);
         }
 
@@ -2052,6 +2081,7 @@
         const payload = new URLSearchParams();
         payload.set('id', id);
         payload.set('csrf_token', csrf);
+        payload.set('intent', intent || 'reveal');
         if (revealPassword) {
             payload.set('reveal_password', revealPassword);
         }
@@ -2090,7 +2120,7 @@
                     }
 
                     cell.dataset.vaultRevealConfirmed = '1';
-                    return fetchVaultSecret(cell, id, revealPassword, true);
+                    return fetchVaultSecret(cell, id, revealPassword, true, intent);
                 }
 
                 throw error;
@@ -2101,7 +2131,7 @@
                 throw new Error('A senha é obrigatória para revelar esta credencial.');
             }
 
-            return fetchVaultSecret(cell, id, password, confirmedReveal);
+            return fetchVaultSecret(cell, id, password, confirmedReveal, intent);
         });
     }
 
@@ -2133,7 +2163,7 @@
         button.addEventListener('click', function () {
             const cell = button.closest('[data-vault-secret-cell]');
 
-            fetchVaultSecret(cell, button.getAttribute('data-vault-secret-id') || '').then(function (value) {
+            fetchVaultSecret(cell, button.getAttribute('data-vault-secret-id') || '', undefined, undefined, 'copy').then(function (value) {
                 copyText(value, button);
             }).catch(function (error) {
                 window.alert(error.message || 'Não foi possível copiar a senha.');

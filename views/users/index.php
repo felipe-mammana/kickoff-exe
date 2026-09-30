@@ -22,9 +22,9 @@ $viewerCount = count($users) - $adminCount - $editorCount;
 $roleIcons = ['admin' => 'settings', 'editor' => 'edit-3', 'viewer' => 'users'];
 $roleClasses = ['admin' => 'info', 'editor' => 'success', 'viewer' => 'neutral'];
 $roleDescriptions = [
-    'admin' => 'Acesso completo ao sistema.',
-    'editor' => 'Cria e edita, sem apagar.',
-    'viewer' => 'Visualiza e exporta relatórios.',
+    'admin' => 'Permissões administrativas iniciais.',
+    'editor' => 'Criação e edição como padrão.',
+    'viewer' => 'Consulta e relatórios como padrão.',
 ];
 $fieldError = static fn (string $field): string => isset($errors[$field]) ? '<small>' . e($errors[$field]) . '</small>' : '';
 $oldValue = static fn (string $field, string $default = ''): string => e((string) ($old[$field] ?? $default));
@@ -33,7 +33,7 @@ $roleOptions = static function (string $selectedRole, string $dataAttribute = ''
         $data = $dataAttribute !== '' ? ' ' . $dataAttribute : '';
 ?>
         <label class="role-option-card <?= $selectedRole === $roleKey ? 'is-selected' : '' ?>">
-            <input type="radio" name="role" value="<?= e($roleKey) ?>" <?= $selectedRole === $roleKey ? 'checked' : '' ?><?= $data ?>>
+            <input type="radio" name="role" value="<?= e($roleKey) ?>" <?= $selectedRole === $roleKey ? 'checked' : '' ?><?= $data ?> <?= !can_permission('users.permissions') ? 'disabled' : '' ?>>
             <span class="role-option-icon"><?= icon($roleIcons[$roleKey] ?? 'users') ?></span>
             <span>
                 <strong><?= e($roleLabel) ?></strong>
@@ -42,6 +42,30 @@ $roleOptions = static function (string $selectedRole, string $dataAttribute = ''
         </label>
 <?php
     endforeach;
+};
+$permissionOptions = static function (array $selected): void {
+    $ceiling = UserPermission::delegation(current_user());
+    $presets = [];
+    foreach (array_keys(User::ROLES) as $role) $presets[$role] = array_values(array_intersect(UserPermission::defaults($role), $ceiling));
+    ?>
+    <fieldset class="user-permissions" data-user-permissions data-presets="<?= e(json_encode($presets)) ?>">
+        <legend>Permissoes especificas</legend>
+        <input type="hidden" name="permissions_present" value="1">
+        <?php foreach (UserPermission::catalog() as $group => $area): ?>
+            <fieldset class="permission-area">
+                <legend><?= e($area['label']) ?></legend>
+                <div class="permission-options">
+                <?php foreach ($area['actions'] as $action => $label): $key = $group . '.' . $action; ?>
+                    <label><input type="checkbox" name="permissions[]" value="<?= e($key) ?>"
+                        <?= in_array($key, $selected, true) ? 'checked' : '' ?>
+                        <?= !can_permission('users.permissions') || !in_array($key, $ceiling, true) ? 'disabled' : '' ?>>
+                        <span><?= e($label) ?></span></label>
+                <?php endforeach; ?>
+                </div>
+            </fieldset>
+        <?php endforeach; ?>
+    </fieldset>
+    <?php
 };
 ?>
 
@@ -58,8 +82,10 @@ $roleOptions = static function (string $selectedRole, string $dataAttribute = ''
         <p>Contas com acesso ao inventário, separadas por perfil administrativo e operacional.</p>
     </div>
     <div class="header-actions">
-        <a class="btn btn-muted" href="/?route=audit.index"><?= icon('file-clock') ?><span>Ver logs</span></a>
+        <?php if (can_permission('audit.view')): ?><a class="btn btn-muted" href="/?route=audit.index"><?= icon('file-clock') ?><span>Ver logs</span></a><?php endif; ?>
+        <?php if (can_permission('users.create') && can_permission('users.permissions')): ?>
         <button class="btn btn-primary" type="button" data-user-modal-open="create"><?= icon('plus') ?><span>Novo usuário</span></button>
+        <?php endif; ?>
     </div>
 </section>
 
@@ -110,7 +136,7 @@ $roleOptions = static function (string $selectedRole, string $dataAttribute = ''
                 <p>Crie, edite, desative ou redefina senhas de acesso.</p>
             </div>
         </div>
-        <div class="export-actions" data-export-actions>
+        <?php if (can_permission('reports.export')): ?><div class="export-actions" data-export-actions>
             <span class="status-chip neutral"><?= count($users) ?> contas</span>
             <a class="btn btn-muted export-btn <?= !$users ? 'disabled' : '' ?>" href="<?= e(export_url('users', 'csv')) ?>" data-export-link data-export-format="CSV" aria-disabled="<?= !$users ? 'true' : 'false' ?>">
                 <?= icon('file-spreadsheet') ?><span>CSV</span>
@@ -118,7 +144,7 @@ $roleOptions = static function (string $selectedRole, string $dataAttribute = ''
             <a class="btn btn-muted export-btn <?= !$users ? 'disabled' : '' ?>" href="<?= e(export_url('users', 'json')) ?>" data-export-link data-export-format="JSON" aria-disabled="<?= !$users ? 'true' : 'false' ?>">
                 <?= icon('braces') ?><span>JSON</span>
             </a>
-        </div>
+        </div><?php endif; ?>
     </header>
 
     <?php if (!$users): ?>
@@ -174,6 +200,7 @@ $roleOptions = static function (string $selectedRole, string $dataAttribute = ''
                             </td>
                             <td data-label="Ações">
                                 <div class="row-actions">
+                                    <?php if (can_permission('users.edit') || can_permission('users.permissions')): ?>
                                     <button
                                         class="icon-btn"
                                         type="button"
@@ -182,9 +209,12 @@ $roleOptions = static function (string $selectedRole, string $dataAttribute = ''
                                         data-user-name="<?= e($user['name']) ?>"
                                         data-user-email="<?= e($user['email']) ?>"
                                         data-user-role="<?= e($role) ?>"
+                                        data-user-permissions="<?= e(json_encode(UserPermission::effective($user))) ?>"
                                         aria-label="Editar usuário"
                                         title="Editar usuário"
                                     ><?= icon('edit-3') ?></button>
+                                    <?php endif; ?>
+                                    <?php if (can_permission('users.edit')): ?>
                                     <button
                                         class="icon-btn"
                                         type="button"
@@ -202,6 +232,7 @@ $roleOptions = static function (string $selectedRole, string $dataAttribute = ''
                                             <?= icon($isActive ? 'trash-2' : 'check-circle') ?>
                                         </button>
                                     </form>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
@@ -244,6 +275,8 @@ $roleOptions = static function (string $selectedRole, string $dataAttribute = ''
                 </div>
                 <?= $openModal === 'create' ? $fieldError('role') : '' ?>
             </fieldset>
+            <?php $permissionOptions($openModal === 'create' ? ($old['permissions'] ?? UserPermission::defaults('viewer')) : UserPermission::defaults('viewer')); ?>
+            <?= $openModal === 'create' ? $fieldError('permissions') : '' ?>
             <fieldset class="user-password-fields">
                 <legend>Senha de acesso</legend>
             <label class="field <?= isset($errors['password']) && $openModal === 'create' ? 'has-error' : '' ?>">
@@ -298,6 +331,8 @@ $roleOptions = static function (string $selectedRole, string $dataAttribute = ''
                 </div>
                 <?= $openModal === 'edit' ? $fieldError('role') : '' ?>
             </fieldset>
+            <?php $permissionOptions($openModal === 'edit' ? ($old['permissions'] ?? []) : []); ?>
+            <?= $openModal === 'edit' ? $fieldError('permissions') : '' ?>
             <footer class="form-actions">
                 <button class="btn btn-muted" type="button" data-user-modal-close>Cancelar</button>
                 <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar</span></button>

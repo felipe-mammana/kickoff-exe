@@ -6,7 +6,7 @@ class CompanyController
 {
     public static function index(): void
     {
-        require_auth();
+        require_permission('companies.view');
 
         view('companies/index', [
             'title' => 'Empresas',
@@ -16,7 +16,7 @@ class CompanyController
 
     public static function create(): void
     {
-        require_editor();
+        require_permission('companies.create');
 
         view('companies/form', [
             'title' => 'Nova empresa',
@@ -28,7 +28,7 @@ class CompanyController
 
     public static function store(): void
     {
-        require_editor();
+        require_permission('companies.create');
         verify_csrf();
 
         [$data, $errors] = self::validatedData();
@@ -63,20 +63,20 @@ class CompanyController
 
     public static function show(): void
     {
-        require_auth();
+        require_permission('companies.view');
         $company = self::requireCompany();
 
         view('companies/show', [
             'title' => $company['name'],
             'company' => $company,
             'attachments' => CompanyAttachment::byCompany((int) $company['id']),
-            'history' => AuditLog::byCompany((int) $company['id']),
+            'history' => can_permission('audit.view') ? AuditLog::byCompany((int) $company['id']) : [],
         ]);
     }
 
     public static function edit(): void
     {
-        require_editor();
+        require_permission('companies.edit');
         $company = self::requireCompany();
 
         view('companies/form', [
@@ -89,7 +89,7 @@ class CompanyController
 
     public static function update(): void
     {
-        require_editor();
+        require_permission('companies.edit');
         verify_csrf();
         $company = self::requireCompany();
 
@@ -127,7 +127,7 @@ class CompanyController
 
     public static function deactivate(): void
     {
-        require_admin();
+        require_permission('companies.delete');
         verify_csrf();
         $company = self::requireCompany();
 
@@ -148,7 +148,7 @@ class CompanyController
 
     public static function reactivate(): void
     {
-        require_admin();
+        require_permission('companies.delete');
         verify_csrf();
         $company = self::requireCompany();
 
@@ -169,7 +169,7 @@ class CompanyController
 
     public static function destroy(): void
     {
-        require_admin();
+        require_permission('companies.delete');
         verify_csrf();
         $company = self::requireCompany();
 
@@ -194,7 +194,7 @@ class CompanyController
 
     public static function storeAttachment(): void
     {
-        require_editor();
+        require_permission('companies.edit');
         verify_csrf();
 
         $company = self::requireCompanyById((int) ($_POST['company_id'] ?? 0));
@@ -286,7 +286,7 @@ class CompanyController
 
     public static function downloadAttachment(): void
     {
-        require_auth();
+        require_permission('companies.view');
 
         $attachment = self::requireAttachment((int) ($_GET['id'] ?? 0));
         $path = self::attachmentPath((string) $attachment['disk_name']);
@@ -322,7 +322,7 @@ class CompanyController
 
     public static function deleteAttachment(): void
     {
-        require_admin();
+        require_permission('companies.delete');
         verify_csrf();
 
         $attachment = self::requireAttachment((int) ($_POST['id'] ?? 0));

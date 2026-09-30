@@ -26,9 +26,8 @@ class ExportController
             return;
         }
 
-        if (in_array($type, ['users', 'audit'], true)) {
-            require_admin();
-        }
+        require_permission($type === 'audit' ? 'audit.export' : 'reports.export');
+        require_permission(['companies' => 'companies.view', 'devices' => 'machines.view', 'users' => 'users.view', 'audit' => 'audit.view'][$type]);
 
         if ($format === 'docx') {
             $payload = self::devicesDocxPayload();

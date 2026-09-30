@@ -6,7 +6,7 @@ class UserController
 {
     public static function index(): void
     {
-        require_admin();
+        require_permission('users.view');
 
         view('users/index', [
             'title' => 'Usuários',
@@ -18,7 +18,7 @@ class UserController
 
     public static function store(): void
     {
-        require_admin();
+        require_permission('users.create');
         verify_csrf();
 
         [$data, $errors] = self::validatedData(true);
@@ -34,14 +34,25 @@ class UserController
             return;
         }
 
+        AccountChallengeController::requireProof(User::find((int) current_user()['id']), 'admin-create');
+        UserPermission::ensureTable();
+        db()->beginTransaction();
+        try {
         $userId = User::create($data);
+        UserPermission::save($userId, $data['permissions'], $data['permissions']);
         AuditLog::record([
+            'required' => true,
             'action_type' => 'user_created',
             'affected_table' => 'users',
             'affected_record_id' => $userId,
             'description' => 'Usuário cadastrado.',
-            'new_data' => self::auditData($data),
+            'new_data' => self::auditData($data) + ['permissions' => $data['permissions']],
         ]);
+        db()->commit();
+        } catch (Throwable $exception) {
+            if (db()->inTransaction()) db()->rollBack();
+            throw $exception;
+        }
 
         flash('success', 'Usuário cadastrado com sucesso.');
         redirect('/?route=users.index');
@@ -49,7 +60,7 @@ class UserController
 
     public static function update(): void
     {
-        require_admin();
+        require_permission(can_permission('users.permissions') ? 'users.permissions' : 'users.edit');
         verify_csrf();
 
         $user = self::requireUser();
@@ -76,8 +87,23 @@ class UserController
         }
 
         $changes = self::changedFields($user, $data);
-        if (strcasecmp((string) $user['email'], $data['email']) !== 0) AccountChallengeController::requireProof(User::find((int) current_user()['id']), 'admin-email');
+        $previousPermissions = UserPermission::effective($user);
+        $permissionsChanged = UserPermission::different($previousPermissions, $data['permissions']) || User::roleFromUser($user) !== $data['role'];
+        if ($permissionsChanged) AccountChallengeController::requireProof(User::find((int) current_user()['id']), 'admin-permissions');
+        elseif (strcasecmp((string) $user['email'], $data['email']) !== 0) AccountChallengeController::requireProof(User::find((int) current_user()['id']), 'admin-email');
+        UserPermission::ensureTable();
+        db()->beginTransaction();
+        try {
         User::update((int) $user['id'], $data);
+        if ($permissionsChanged) {
+            $delegation = array_values(array_intersect(UserPermission::delegation(current_user()), $data['permissions']));
+            UserPermission::save((int) $user['id'], $data['permissions'], $delegation);
+            AuditLog::record(['required' => true, 'action_type' => 'user_permissions_updated',
+                'affected_table' => 'users', 'affected_record_id' => (int) $user['id'],
+                'description' => 'Permissoes individuais alteradas.',
+                'old_data' => ['permissions' => $previousPermissions],
+                'new_data' => ['permissions' => $data['permissions']]]);
+        }
 
         if ($changes) {
             AuditLog::record([
@@ -88,6 +114,11 @@ class UserController
                 'old_data' => $changes['old'],
                 'new_data' => $changes['new'],
             ]);
+        }
+        db()->commit();
+        } catch (Throwable $exception) {
+            if (db()->inTransaction()) db()->rollBack();
+            throw $exception;
         }
 
         if ((int) $user['id'] === (int) current_user()['id']) {
@@ -103,7 +134,7 @@ class UserController
 
     public static function resetPassword(): void
     {
-        require_admin();
+        require_permission('users.edit');
         verify_csrf();
 
         $user = self::requireUser();
@@ -159,7 +190,7 @@ class UserController
 
     public static function setStatus(): void
     {
-        require_admin();
+        require_permission('users.edit');
         verify_csrf();
 
         $user = self::requireUser();
@@ -170,7 +201,7 @@ class UserController
             redirect('/?route=users.index');
         }
 
-        if (self::wouldRemoveLastAdmin($user, !empty($user['is_admin']), $active)) {
+        if (self::wouldRemoveLastAdmin($user, !empty($user['is_admin']), $active) || (!$active && UserPermission::lastManager($user))) {
             flash('danger', 'Mantenha ao menos um administrador ativo.');
             redirect('/?route=users.index');
         }
@@ -199,6 +230,13 @@ class UserController
             exit;
         }
 
+        $actor = current_user();
+        $ceiling = UserPermission::delegation($actor);
+        if ((int) $user['id'] !== (int) $actor['id'] && (array_diff(UserPermission::effective($user), $ceiling) || array_diff(UserPermission::delegation($user), $ceiling))) {
+            http_response_code(403);
+            view('errors/403', ['title' => 'Acesso negado']);
+            exit;
+        }
         return $user;
     }
 
@@ -242,6 +280,31 @@ class UserController
             }
         }
 
+        $baseline = $current ? UserPermission::effective($current) : UserPermission::defaults($data['role']);
+        $selected = isset($_POST['permissions_present']) ? ($_POST['permissions'] ?? []) : $baseline;
+        if (!is_array($selected) || count(array_filter($selected, 'is_string')) !== count($selected) || array_diff($selected, UserPermission::keys())) {
+            $errors['permissions'] = 'Selecao de permissoes invalida.';
+            $selected = $baseline;
+        }
+        $data['permissions'] = array_values(array_unique($selected));
+        if ($current && !can_permission('users.permissions')) $data['permissions'] = $selected = $baseline;
+        if ($current && !can_permission('users.edit') && ($data['name'] !== $current['name'] || $data['email'] !== $current['email'])) $errors['permissions'] = 'Sem permissao para alterar dados pessoais desta conta.';
+        if ($current && UserPermission::lastManager($current) && (!in_array('users.permissions', $selected, true) || !in_array('users.view', $selected, true))) $errors['permissions'] = 'Mantenha ao menos um gestor de permissoes ativo.';
+        $changed = $creating || UserPermission::different($baseline, $selected) || $data['role'] !== User::roleFromUser($current);
+        if ($changed) {
+            $actor = current_user();
+            if (!can_permission('users.permissions') || array_diff($selected, UserPermission::delegation($actor))) {
+                $errors['permissions'] = 'Voce nao pode conceder estas permissoes.';
+            }
+            if ($current && (int) $current['id'] === (int) $actor['id']) {
+                $errors['permissions'] = 'Outro gestor deve alterar suas permissoes.';
+            }
+        }
+        foreach ($selected as $key) {
+            [$group, $action] = explode('.', $key);
+            if ($group !== 'settings' && $action !== 'view' && !in_array($group . '.view', $selected, true)) $errors['permissions'] = 'Inclua o acesso de leitura da area selecionada.';
+            if (in_array($key, ['vault.copy', 'vault.export'], true) && !in_array('vault.reveal', $selected, true)) $errors['permissions'] = 'Copiar e exportar exigem revelar senhas.';
+        }
         return [$data, $errors];
     }
 

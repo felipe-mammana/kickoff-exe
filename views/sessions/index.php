@@ -16,8 +16,8 @@
                 <td><?= e($item['ip_address'] ?? 'Não registrado') ?></td>
                 <td><?= e(SessionPresence::browser((string) ($item['user_agent'] ?? ''))) ?></td>
                 <td><?= e($item['last_seen_at'] ?? 'Sem atividade registrada') ?></td>
-                <td><div class="session-action"><span><?= e($item['last_action'] ?? 'Nenhuma ação') ?></span><small><?= e($item['last_action_at'] ?? '') ?></small><a href="/?route=audit.index&amp;user_id=<?= (int) $item['id'] ?>"><?= icon('file-clock') ?>Ver auditoria</a></div></td>
-                <td><?php if ($item['has_session']): ?><form method="post" action="/?route=sessions.terminate"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="user_id" value="<?= (int) $item['id'] ?>"><button class="icon-btn" type="submit" title="Encerrar sessão" aria-label="Encerrar sessão de <?= e($item['name']) ?>"><?= icon('log-out') ?></button></form><?php endif; ?></td>
+                <td><div class="session-action"><span><?= e($item['last_action'] ?? 'Nenhuma ação') ?></span><small><?= e($item['last_action_at'] ?? '') ?></small><?php if (can_permission('audit.view')): ?><a href="/?route=audit.index&amp;user_id=<?= (int) $item['id'] ?>"><?= icon('file-clock') ?>Ver auditoria</a><?php endif; ?></div></td>
+                <td><?php if ($item['has_session'] && can_permission('sessions.terminate')): ?><form method="post" action="/?route=sessions.terminate"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="user_id" value="<?= (int) $item['id'] ?>"><button class="icon-btn" type="submit" title="Encerrar sessão" aria-label="Encerrar sessão de <?= e($item['name']) ?>"><?= icon('log-out') ?></button></form><?php endif; ?></td>
             </tr>
         <?php endforeach; ?>
         <?php if (!$sessions): ?><tr><td colspan="6">Nenhuma sessão encontrada.</td></tr><?php endif; ?>

@@ -6,7 +6,7 @@ class EmailCode
 {
     public static function sendAccountChangeCode(array $user, string $code, string $action): bool
     {
-        $label = ['password' => 'trocar sua senha', 'email' => 'trocar seu e-mail', 'disable-2fa' => 'desativar o 2FA'][$action] ?? 'alterar sua conta';
+        $label = ['password' => 'trocar sua senha', 'email' => 'trocar seu e-mail', 'disable-2fa' => 'desativar o 2FA', 'admin-permissions' => 'alterar permissoes de um usuario', 'admin-create' => 'criar um usuario', 'admin-email' => 'alterar o e-mail de um usuario', 'admin-reset' => 'redefinir a senha de um usuario'][$action] ?? 'alterar sua conta';
         return self::sendMail((string) $user['email'], APP_NAME . ' - confirmar alteracao de seguranca',
             'Codigo para ' . $label . ': ' . $code . '. Expira em ate 10 minutos. Nao compartilhe este codigo.',
             CodeEmailTemplate::render('Confirme a alteração', $code, 'Use este código para ' . $label . '. Se não solicitou, não autorize.', 'Expira em até 10 minutos.'));

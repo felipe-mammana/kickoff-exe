@@ -36,16 +36,19 @@ class SettingsController
 
     public static function maintenance(): void
     {
+        require_permission(can_permission('settings.restore') ? 'settings.restore' : 'settings.backup');
         self::render('maintenance');
     }
 
     public static function devices(): void
     {
+        require_permission('settings.manage');
         self::render('devices');
     }
 
     public static function vault(): void
     {
+        require_permission('vault.configure');
         require_vault_access();
         self::render('vault');
     }
@@ -83,10 +86,10 @@ class SettingsController
                 : null,
             'activeSessions' => self::activeSessions($user),
             'recentAccesses' => AuditLog::latestAccountAccesses((int) $user['id']),
-            'maintenanceStatus' => is_admin() ? DatabaseMaintenance::status() : null,
-            'auditRetentionDays' => is_admin() ? AppSetting::auditRetentionDays() : null,
-            'deviceSettings' => is_admin() ? AppSetting::deviceSettings() : null,
-            'vaultSettings' => is_admin() ? AppSetting::vaultSettings() : null,
+            'maintenanceStatus' => (can_permission('settings.backup') || can_permission('settings.restore')) ? DatabaseMaintenance::status() : null,
+            'auditRetentionDays' => can_permission('settings.manage') ? AppSetting::auditRetentionDays() : null,
+            'deviceSettings' => can_permission('settings.manage') ? AppSetting::deviceSettings() : null,
+            'vaultSettings' => can_permission('vault.configure') ? AppSetting::vaultSettings() : null,
             'deviceTypes' => Machine::deviceTypes(),
             'deviceFieldLabels' => AppSetting::deviceFieldLabels(),
             'vaultCustomFieldTypeLabels' => AppSetting::vaultCustomFieldTypeLabels(),
@@ -100,12 +103,13 @@ class SettingsController
 
     public static function audit(): void
     {
+        require_permission('settings.manage');
         self::render('audit');
     }
 
     public static function updateAuditSettings(): void
     {
-        require_admin();
+        require_permission('settings.manage');
         verify_csrf();
 
         $days = (int) ($_POST['audit_retention_days'] ?? 365);
@@ -128,7 +132,7 @@ class SettingsController
 
     public static function cleanupAuditLogs(): void
     {
-        require_admin();
+        require_permission('settings.manage');
         verify_csrf();
 
         $days = AppSetting::auditRetentionDays();
@@ -149,7 +153,7 @@ class SettingsController
 
     public static function updateDeviceSettings(): void
     {
-        require_admin();
+        require_permission('settings.manage');
         verify_csrf();
 
         $deviceTypes = Machine::deviceTypes();
@@ -209,6 +213,7 @@ class SettingsController
 
     public static function updateVaultSettings(): void
     {
+        require_permission('vault.configure');
         require_vault_access();
         verify_csrf();
 

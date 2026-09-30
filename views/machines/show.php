@@ -113,10 +113,10 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
 
     <div class="heading-actions">
         <a class="btn btn-muted" href="/?company_id=<?= (int) ($machine['company_id'] ?? 0) ?>"><?= icon('eye') ?><span>Voltar</span></a>
-        <?php if (can_edit_records()): ?>
+        <?php if (can_permission('machines.edit')): ?>
             <a class="btn btn-primary" href="/?route=machines.edit&id=<?= (int) ($machine['id'] ?? 0) ?>"><?= icon('edit-3') ?><span>Editar</span></a>
         <?php endif; ?>
-        <?php if (can_delete_records() && !empty($machine['is_active'])): ?>
+        <?php if (can_permission('machines.delete') && !empty($machine['is_active'])): ?>
             <form action="/?route=machines.deactivate&id=<?= (int) ($machine['id'] ?? 0) ?>" method="post">
                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                 <button class="btn btn-danger" type="submit"><?= icon('trash-2') ?><span>Desativar</span></button>
@@ -167,7 +167,7 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
                         <?php $credentialField = $credentialLabels[$label] ?? null; ?>
                         <dd class="<?= in_array($label, ['Etiqueta', 'IP', 'Gateway', 'IP de acesso'], true) ? 'mono' : '' ?>">
                             <span><?= e((string) $detailValue) ?></span>
-                            <?php if ($credentialField && !empty($machine[$credentialField])): ?>
+                            <?php if ($credentialField && !empty($machine[$credentialField]) && can_permission('machines.reveal')): ?>
                                 <button
                                     class="credential-reveal-btn"
                                     type="button"
@@ -271,7 +271,7 @@ if (in_array($type, ['notebook', 'cpu'], true)) {
             </article>
         <?php endif; ?>
 
-        <?php if (can_delete_records() && !empty($machine['is_active'])): ?>
+        <?php if (can_permission('machines.delete') && !empty($machine['is_active'])): ?>
             <article class="danger-panel">
                 <h2><?= icon('warning') ?> Zona de risco</h2>
                 <p>A desativação remove o dispositivo da listagem principal sem apagar seu histórico.</p>

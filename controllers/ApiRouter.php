@@ -45,12 +45,8 @@ class ApiRouter
                 }
             }
 
-            if ($permission === 'admin' && !ApiAuth::isAdmin()) {
-                ApiResponse::error('forbidden', 'Acesso restrito a administradores.', 403);
-            }
-
-            if ($permission === 'editor' && !ApiAuth::canEdit()) {
-                ApiResponse::error('forbidden', 'Acesso restrito a administradores e editores.', 403);
+            if (is_string($permission) && !UserPermission::allows(ApiAuth::user(), $permission)) {
+                ApiResponse::error('forbidden', 'Permissao insuficiente.', 403);
             }
 
             $params = array_filter(

@@ -142,7 +142,7 @@ try {
     check('HTTP: usuario entra normalmente', $client->login('security@example.test', $securityPassword)['status'] === 302);
     check('HTTP: login atualiza hash legado', !password_needs_rehash(User::find($securityUserId)['password_hash'], PasswordSecurity::algorithm(), PasswordSecurity::options()));
     $sessionsResponse = $client->request('sessions.index');
-    check('Sessoes: usuario do cofre autorizado e auditoria filtrada', $sessionsResponse['status'] === 200 && str_contains($sessionsResponse['body'], 'audit.index&amp;user_id=' . $securityUserId));
+    check('Sessoes: usuario do cofre autorizado sem atalho de auditoria nao permitida', $sessionsResponse['status'] === 200 && !str_contains($sessionsResponse['body'], 'audit.index&amp;user_id=' . $securityUserId));
     check('Sessoes: resposta nao pode ser armazenada em cache', stripos($sessionsResponse['headers'], 'no-store') !== false);
     $terminationUser = User::create(['name' => 'Termination Test', 'email' => 'terminate@example.test', 'password' => 'Termination-Test-123', 'role' => 'viewer', 'is_active' => 1]);
     User::setActiveSession($terminationUser, bin2hex(random_bytes(32)));
@@ -348,6 +348,7 @@ try {
         fclose($uiPipes[2]);
         check('Interface: confirmacoes funcionam no computador e celular', proc_close($ui) === 0);
     }
+    require __DIR__ . '/user_permissions.php';
     $securityTestCompleted = true;
 } finally {
     foreach (array_reverse($processes) as $process) {
