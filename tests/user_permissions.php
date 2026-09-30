@@ -58,6 +58,37 @@ if ($createdPermissionUser) {
     check('Permissoes: gestor nao concede acima do limite', UserPermission::effective($createdPermissionUser) === ['companies.view']);
 }
 $snapshot = UserPermission::effective(User::find($securityUserId));
+$vaultTestUser = User::create(['name' => 'Vault Permissions', 'email' => 'vault-permissions@example.test', 'password' => 'Vault-Permissions-123', 'role' => 'viewer', 'is_active' => 1]);
+UserPermission::save($vaultTestUser, ['vault.view'], []);
+$clients[] = $vaultPermissionClient = new AccountSecurityHttpClient($baseUrl);
+$vaultPermissionClient->login('vault-permissions@example.test', 'Vault-Permissions-123');
+$vaultPermissionClient->request('vault.index', ['vault_unlock' => 1, 'password' => 'Vault-Permissions-123']);
+check('Permissoes: cofre somente leitura abre', $vaultPermissionClient->request('vault.index')['status'] === 200);
+foreach (['vault.store', 'vault.update', 'vault.deactivate', 'vault.reveal', 'vault.categories.store', 'vault.export'] as $route) {
+    check('Permissoes: leitura nao autoriza ' . $route, $vaultPermissionClient->request($route, [])['status'] === 403);
+}
+UserPermission::save($vaultTestUser, ['vault.view', 'vault.reveal'], []);
+check('Permissoes: revelar nao concede copiar', $vaultPermissionClient->request('vault.reveal', ['intent' => 'copy'])['status'] === 403);
+UserPermission::save($vaultTestUser, ['vault.view', 'vault.reveal', 'vault.export'], []);
+$exportCompany = Company::create(['name' => 'Permission Export', 'tag_pattern' => 'export', 'is_active' => 1, 'created_by' => $securityAdminId, 'updated_by' => $securityAdminId]);
+$exportSecret = 'Export-Fixture-123!';
+VaultCredential::create(['company_id' => $exportCompany, 'category_id' => null, 'title' => 'Export fixture', 'service_url' => null, 'username' => 'fixture', 'secret_value' => CredentialCrypto::encrypt($exportSecret), 'notes' => null, 'custom_fields' => null, 'is_active' => 1, 'created_by' => $securityAdminId, 'updated_by' => $securityAdminId]);
+check('Permissoes: exportacao nao aceita GET', $vaultPermissionClient->request('vault.export')['status'] === 405);
+$response = $vaultPermissionClient->request('vault.export', ['company_id' => $exportCompany, 'password' => 'wrong']);
+check('Permissoes: exportacao exige senha correta', !str_contains($response['headers'], 'attachment;'));
+$response = $vaultPermissionClient->request('vault.export', ['company_id' => $exportCompany, 'password' => 'Vault-Permissions-123']);
+check('Permissoes: exportacao criptografada e sem cache', $response['status'] === 200 && str_starts_with($response['body'], 'enc:v2:') && !str_contains($response['body'], $exportSecret) && str_contains($response['headers'], 'no-store'));
+$exportContents = json_decode(EncryptedBackup::decrypt($response['body'], 'vault'), true);
+check('Permissoes: exportacao recupera segredo com chave local', $exportContents['credentials'][0]['secret_value'] === $exportSecret);
+UserPermission::save($vaultTestUser, ['sessions.view'], []);
+check('Permissoes: sessoes independem do acesso ao cofre', $vaultPermissionClient->request('sessions.index')['status'] === 200);
+check('Permissoes: visualizar sessoes nao autoriza encerrar', $vaultPermissionClient->request('sessions.terminate', ['user_id' => $securityAdminId])['status'] === 403);
+$migration = proc_open([PHP_BINARY, BASE_PATH . '/scripts/migrate_user_permissions.php'], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $migrationPipes, BASE_PATH);
+fclose($migrationPipes[0]);
+$migrationOutput = stream_get_contents($migrationPipes[1]) . stream_get_contents($migrationPipes[2]);
+fclose($migrationPipes[1]);
+fclose($migrationPipes[2]);
+check('Permissoes: migracao funciona em processo novo', proc_close($migration) === 0);
 UserPermission::migrateLegacy();
 check('Permissoes: migracao preserva usuario do cofre', !UserPermission::different($snapshot, UserPermission::effective(User::find($securityUserId))));
 check('Permissoes: migracao e idempotente', UserPermission::migrateLegacy() === 0);

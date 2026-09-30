@@ -1564,7 +1564,7 @@
         button.addEventListener('click', closeUserModals);
     });
 
-    document.querySelectorAll('[data-user-permissions]').forEach(function (panel) {
+    document.querySelectorAll('[data-user-permissions][data-presets]').forEach(function (panel) {
         const form = panel.closest('form');
         const presets = JSON.parse(panel.dataset.presets || '{}');
         const options = Array.from(panel.querySelectorAll('input[type="checkbox"]'));
