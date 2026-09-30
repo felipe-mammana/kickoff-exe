@@ -70,12 +70,15 @@ jobs:
               rm -f /tmp/kickoff-${GITHUB_SHA}.tar.gz
             "
 
-      - name: Testar homologacao
+           - name: Testar homologacao
         run: |
           sleep 2
 
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            http://10.10.10.10:8080)
+          STATUS=$(ssh \
+            -i ~/.ssh/id_ed25519_deploy \
+            -o StrictHostKeyChecking=yes \
+            deploy@10.10.10.10 \
+            "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080")
 
           echo "HTTP Homologacao: $STATUS"
 
