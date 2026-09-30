@@ -1,6 +1,9 @@
 name: Teste SRVGIT Runner
 
 on:
+  push:
+    branches:
+      - develop
   workflow_dispatch:
 
 permissions:
