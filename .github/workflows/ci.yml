@@ -1,0 +1,33 @@
+
+name: CI - Kickoff
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  validar-php:
+    name: Validar sintaxe PHP
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, curl, openssl
+          coverage: none
+
+      - name: Verificar sintaxe de todos os arquivos PHP
+        run: |
+          find . -type f -name '*.php' \
+            -not -path './.git/*' \
+            -print0 | xargs -0 -r -n1 php -l
