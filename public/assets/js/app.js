@@ -968,6 +968,21 @@
     const confirmIcon = confirmModal?.querySelector('[data-confirm-icon]');
     let pendingConfirmForm = null;
 
+    document.querySelectorAll('[data-toast]').forEach(function (toast) {
+        let timeout = window.setTimeout(hideToast, 5200);
+
+        function hideToast() {
+            if (!toast.isConnected || toast.classList.contains('is-hiding')) return;
+            toast.classList.add('is-hiding');
+            window.setTimeout(function () { toast.remove(); }, 230);
+        }
+
+        toast.querySelector('[data-toast-close]')?.addEventListener('click', function () {
+            window.clearTimeout(timeout);
+            hideToast();
+        });
+    });
+
     if (galleryModal && galleryModal.parentElement !== document.body) {
         document.body.appendChild(galleryModal);
     }
@@ -982,6 +997,9 @@
         }
         if (!modal.hidden) {
             document.body.classList.add('modal-open');
+            window.setTimeout(function () {
+                modal.querySelector('[data-user-form-errors]')?.scrollIntoView({ block: 'start' });
+            }, 50);
         }
     });
 

@@ -1145,6 +1145,10 @@ body.sidebar-collapsed .sidebar-profile {
     font-size: 0.9rem;
     font-weight: 700;
     animation: toast-in 220ms ease both;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
 }
 
 .toast-success {
@@ -1157,6 +1161,36 @@ body.sidebar-collapsed .sidebar-profile {
 
 .toast-info {
     border-color: color-mix(in srgb, var(--info) 44%, var(--border));
+}
+
+.toast-danger {
+    border-color: color-mix(in srgb, var(--danger) 52%, var(--border));
+}
+
+.toast .icon-btn {
+    flex: 0 0 auto;
+}
+
+.user-form-error-summary {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--danger) 52%, var(--border));
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+    color: var(--danger);
+}
+
+.user-form-error-summary div {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.user-form-error-summary span {
+    color: var(--text-muted);
+    font-size: 0.86rem;
 }
 
 .toast.is-hiding {

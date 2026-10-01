@@ -24,6 +24,7 @@ class UserController
         [$data, $errors] = self::validatedData(true);
 
         if ($errors) {
+            flash('danger', 'Não foi possível salvar. Revise os campos destacados no formulário.');
             view('users/index', [
                 'title' => 'Usuários',
                 'users' => User::all(),
@@ -76,6 +77,7 @@ class UserController
         }
 
         if ($errors) {
+            flash('danger', 'Não foi possível salvar. Revise a mensagem exibida no formulário.');
             view('users/index', [
                 'title' => 'Usuários',
                 'users' => User::all(),
@@ -128,7 +130,9 @@ class UserController
             $_SESSION['user']['is_admin'] = $data['role'] === 'admin' ? 1 : 0;
         }
 
-        flash('success', 'Usuário atualizado com sucesso.');
+        flash('success', $permissionsChanged
+            ? 'Acessos e dados do usuário atualizados com sucesso.'
+            : 'Dados do usuário atualizados com sucesso.');
         redirect('/?route=users.index');
     }
 

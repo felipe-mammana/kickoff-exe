@@ -15,7 +15,8 @@ foreach (['companies.index', 'machines.show&id=1', 'vault.index', 'audit.index',
     check('Permissoes: URL recusada ' . $route, $permissionClient->request($route)['status'] === 403);
 }
 check('Permissoes: configuracoes pessoais continuam disponiveis', $permissionClient->request('settings.account')['status'] === 200);
-check('Permissoes: autoatribuicao recusada', $permissionClient->request('users.update', ['id' => $permissionUserId, 'permissions_present' => 1, 'permissions' => UserPermission::keys()])['status'] === 403);
+$selfChangeResponse = $permissionClient->request('users.update', ['id' => $permissionUserId, 'permissions_present' => 1, 'permissions' => UserPermission::keys()]);
+check('Permissoes: autoatribuicao recusada', $selfChangeResponse['status'] === 403);
 check('Permissoes: POST sem acesso nao cria conta', $permissionClient->request('users.store', ['email' => 'forbidden@example.test'])['status'] === 403);
 
 $token = ApiToken::generatePlainToken();
@@ -40,6 +41,11 @@ $response = $adminClient->request('users.update', $update);
 check('Permissoes: alteracao aguarda segundo fator', str_contains($response['headers'], 'account.challenge') && UserPermission::effective(User::find($permissionUserId)) === []);
 approveAccountChange($adminClient, $mailFile, $securityAdminId);
 check('Permissoes: segundo fator aplica perfil personalizado', !UserPermission::different(UserPermission::effective(User::find($permissionUserId)), $grants) && User::roleFromUser(User::find($permissionUserId)) === 'viewer');
+$successNotice = $adminClient->request('users.index');
+check('Permissoes: sucesso fecha modal e exibe notificacao', $successNotice['status'] === 200
+    && str_contains($successNotice['body'], 'Acessos e dados do usuário atualizados com sucesso.')
+    && str_contains($successNotice['body'], 'data-toast')
+    && !preg_match('/data-user-modal="edit"(?![^>]*hidden)/', $successNotice['body']));
 check('Permissoes: viewer autorizado acessa usuarios', $permissionClient->request('users.index')['status'] === 200);
 check('Permissoes: nao pode assumir conta superior', $permissionClient->request('users.resetPassword', ['id' => $securityAdminId, 'password' => 'Hijack-Test-123', 'password_confirmation' => 'Hijack-Test-123'])['status'] === 403);
 $permissionClient->request('users.update', ['id' => $permissionUserId, 'role' => 'admin', 'permissions_present' => 1, 'permissions' => UserPermission::keys()]);

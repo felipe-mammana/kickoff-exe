@@ -258,6 +258,12 @@ $permissionOptions = static function (array $selected): void {
         </header>
         <form class="company-form modal-company-form" action="/?route=users.store" method="post" novalidate>
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+            <?php if ($openModal === 'create' && $errors): ?>
+                <div class="user-form-error-summary" role="alert" data-user-form-errors>
+                    <?= icon('alert-triangle') ?>
+                    <div><strong>Não foi possível salvar</strong><span>Revise os campos destacados abaixo.</span></div>
+                </div>
+            <?php endif; ?>
             <label class="field <?= isset($errors['name']) && $openModal === 'create' ? 'has-error' : '' ?>">
                 <span>Nome</span>
                 <input type="text" name="name" value="<?= $openModal === 'create' ? $oldValue('name') : '' ?>" required data-user-modal-focus>
@@ -314,6 +320,15 @@ $permissionOptions = static function (array $selected): void {
         <form class="company-form modal-company-form" action="/?route=users.update" method="post" novalidate>
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
             <input type="hidden" name="id" value="<?= $openModal === 'edit' ? (int) ($old['id'] ?? 0) : '' ?>" data-user-edit-id>
+            <?php if ($openModal === 'edit' && $errors): ?>
+                <div class="user-form-error-summary" role="alert" data-user-form-errors>
+                    <?= icon('alert-triangle') ?>
+                    <div>
+                        <strong>Não foi possível salvar</strong>
+                        <span><?= e((string) reset($errors)) ?></span>
+                    </div>
+                </div>
+            <?php endif; ?>
             <label class="field <?= isset($errors['name']) && $openModal === 'edit' ? 'has-error' : '' ?>">
                 <span>Nome</span>
                 <input type="text" name="name" value="<?= $openModal === 'edit' ? $oldValue('name') : '' ?>" required data-user-edit-name>
