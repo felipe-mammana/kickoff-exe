@@ -15,7 +15,8 @@ foreach (['companies.index', 'machines.show&id=1', 'vault.index', 'audit.index',
     check('Permissoes: URL recusada ' . $route, $permissionClient->request($route)['status'] === 403);
 }
 check('Permissoes: configuracoes pessoais continuam disponiveis', $permissionClient->request('settings.account')['status'] === 200);
-check('Permissoes: autoatribuicao recusada', $permissionClient->request('users.update', ['id' => $permissionUserId, 'permissions_present' => 1, 'permissions' => UserPermission::keys()])['status'] === 403);
+$selfChangeResponse = $permissionClient->request('users.update', ['id' => $permissionUserId, 'permissions_present' => 1, 'permissions' => UserPermission::keys()]);
+check('Permissoes: autoatribuicao recusada', $selfChangeResponse['status'] === 403);
 check('Permissoes: POST sem acesso nao cria conta', $permissionClient->request('users.store', ['email' => 'forbidden@example.test'])['status'] === 403);
 
 $token = ApiToken::generatePlainToken();
@@ -37,9 +38,18 @@ check('Permissoes: token reflete revogacao imediatamente', $apiCheck('/api/v1/co
 $grants = ['users.view', 'users.edit', 'users.permissions'];
 $update = ['id' => $permissionUserId, 'role' => 'viewer', 'permissions_present' => 1, 'permissions' => $grants];
 $response = $adminClient->request('users.update', $update);
-check('Permissoes: alteracao aguarda segundo fator', str_contains($response['headers'], 'account.challenge') && UserPermission::effective(User::find($permissionUserId)) === []);
-approveAccountChange($adminClient, $mailFile, $securityAdminId);
-check('Permissoes: segundo fator aplica perfil personalizado', !UserPermission::different(UserPermission::effective(User::find($permissionUserId)), $grants) && User::roleFromUser(User::find($permissionUserId)) === 'viewer');
+check('Permissoes: alteracao salva sem segundo fator', !str_contains($response['headers'], 'account.challenge')
+    && !UserPermission::different(UserPermission::effective(User::find($permissionUserId)), $grants)
+    && User::roleFromUser(User::find($permissionUserId)) === 'viewer');
+$profileUpdate = $adminClient->request('users.update', $update + ['name' => 'Permissions Test', 'email' => 'permissions-updated@example.test']);
+check('Permissoes: edicao administrativa nao solicita codigo por email',
+    !str_contains($profileUpdate['headers'], 'account.challenge')
+    && User::find($permissionUserId)['email'] === 'permissions-updated@example.test');
+$successNotice = $adminClient->request('users.index');
+check('Permissoes: sucesso fecha modal e exibe notificacao', $successNotice['status'] === 200
+    && str_contains($successNotice['body'], 'Acessos e dados do usuário atualizados com sucesso.')
+    && str_contains($successNotice['body'], 'data-toast')
+    && !preg_match('/data-user-modal="edit"(?![^>]*hidden)/', $successNotice['body']));
 check('Permissoes: viewer autorizado acessa usuarios', $permissionClient->request('users.index')['status'] === 200);
 check('Permissoes: nao pode assumir conta superior', $permissionClient->request('users.resetPassword', ['id' => $securityAdminId, 'password' => 'Hijack-Test-123', 'password_confirmation' => 'Hijack-Test-123'])['status'] === 403);
 $permissionClient->request('users.update', ['id' => $permissionUserId, 'role' => 'admin', 'permissions_present' => 1, 'permissions' => UserPermission::keys()]);
@@ -48,11 +58,12 @@ $entry = db()->query("SELECT old_data, new_data FROM audit_logs WHERE action_typ
 check('Permissoes: auditoria registra antes e depois', $entry && str_contains($entry['new_data'], 'users.permissions') && !str_contains($entry['old_data'], 'users.permissions'));
 
 $creation = ['name' => 'Created Permissions', 'email' => 'created-permissions@example.test', 'role' => 'viewer', 'password' => 'Created-Permissions-123', 'password_confirmation' => 'Created-Permissions-123', 'permissions_present' => 1, 'permissions' => ['companies.view']];
-$adminClient->request('users.store', $creation);
-check('Permissoes: criacao nao acontece antes da confirmacao', !User::duplicateEmailExists($creation['email']));
-approveAccountChange($adminClient, $mailFile, $securityAdminId);
+$creationResponse = $adminClient->request('users.store', $creation);
 $createdPermissionUser = db()->query("SELECT * FROM users WHERE email = 'created-permissions@example.test'")->fetch();
-check('Permissoes: criacao salva apenas selecao explicita', $createdPermissionUser && UserPermission::effective($createdPermissionUser) === ['companies.view']);
+check('Permissoes: criacao salva sem segundo fator e apenas a selecao explicita',
+    !str_contains($creationResponse['headers'], 'account.challenge')
+    && $createdPermissionUser
+    && UserPermission::effective($createdPermissionUser) === ['companies.view']);
 if ($createdPermissionUser) {
     $permissionClient->request('users.update', ['id' => $createdPermissionUser['id'], 'role' => 'admin', 'permissions_present' => 1, 'permissions' => UserPermission::keys()]);
     check('Permissoes: gestor nao concede acima do limite', UserPermission::effective($createdPermissionUser) === ['companies.view']);

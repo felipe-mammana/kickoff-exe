@@ -24,6 +24,7 @@ class UserController
         [$data, $errors] = self::validatedData(true);
 
         if ($errors) {
+            flash('danger', 'Não foi possível salvar. Revise os campos destacados no formulário.');
             view('users/index', [
                 'title' => 'Usuários',
                 'users' => User::all(),
@@ -34,7 +35,6 @@ class UserController
             return;
         }
 
-        AccountChallengeController::requireProof(User::find((int) current_user()['id']), 'admin-create');
         UserPermission::ensureTable();
         db()->beginTransaction();
         try {
@@ -76,6 +76,7 @@ class UserController
         }
 
         if ($errors) {
+            flash('danger', 'Não foi possível salvar. Revise a mensagem exibida no formulário.');
             view('users/index', [
                 'title' => 'Usuários',
                 'users' => User::all(),
@@ -89,8 +90,6 @@ class UserController
         $changes = self::changedFields($user, $data);
         $previousPermissions = UserPermission::effective($user);
         $permissionsChanged = UserPermission::different($previousPermissions, $data['permissions']) || User::roleFromUser($user) !== $data['role'];
-        if ($permissionsChanged) AccountChallengeController::requireProof(User::find((int) current_user()['id']), 'admin-permissions');
-        elseif (strcasecmp((string) $user['email'], $data['email']) !== 0) AccountChallengeController::requireProof(User::find((int) current_user()['id']), 'admin-email');
         UserPermission::ensureTable();
         db()->beginTransaction();
         try {
@@ -128,7 +127,9 @@ class UserController
             $_SESSION['user']['is_admin'] = $data['role'] === 'admin' ? 1 : 0;
         }
 
-        flash('success', 'Usuário atualizado com sucesso.');
+        flash('success', $permissionsChanged
+            ? 'Acessos e dados do usuário atualizados com sucesso.'
+            : 'Dados do usuário atualizados com sucesso.');
         redirect('/?route=users.index');
     }
 

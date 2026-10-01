@@ -29,6 +29,8 @@ jobs:
             --exclude='.git' \
             --exclude='.github' \
             --exclude='config/local.php' \
+            --exclude='config/crypto.local.php' \
+            --exclude='config/microsoft.local.php' \
             --exclude='storage' \
             -czf /tmp/kickoff-${GITHUB_SHA}.tar.gz .
 
@@ -58,6 +60,14 @@ jobs:
               ln -s \
                 /srv/projetos/kickoff/homologacao/shared/config/local.php \
                 \$RELEASE/config/local.php
+
+              ln -s \
+                /srv/projetos/kickoff/homologacao/shared/config/crypto.local.php \
+                \$RELEASE/config/crypto.local.php
+
+              ln -s \
+                /srv/projetos/kickoff/homologacao/shared/config/microsoft.local.php \
+                \$RELEASE/config/microsoft.local.php
 
               ln -s \
                 /srv/projetos/kickoff/homologacao/shared/storage \

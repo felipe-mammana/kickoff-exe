@@ -53,9 +53,17 @@ $assetVersion = static function (string $path): string {
                 <?php require BASE_PATH . '/views/partials/topbar.php'; ?>
 
                 <main class="app-shell">
-                    <?php foreach (consume_flash() as $flashMessage): ?>
-                        <div class="alert alert-<?= e($flashMessage['type']) ?>"><?= e($flashMessage['message']) ?></div>
-                    <?php endforeach; ?>
+                    <?php $flashMessages = consume_flash(); ?>
+                    <?php if ($flashMessages): ?>
+                        <div class="toast-stack" data-toast-stack aria-live="polite" aria-atomic="false">
+                            <?php foreach ($flashMessages as $flashMessage): ?>
+                                <div class="toast toast-<?= e($flashMessage['type']) ?>" role="status" data-toast>
+                                    <span><?= e($flashMessage['message']) ?></span>
+                                    <button class="icon-btn compact" type="button" data-toast-close aria-label="Fechar notificação"><?= icon('x') ?></button>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
 
                     <?php require $viewFile; ?>
                 </main>
@@ -87,9 +95,17 @@ $assetVersion = static function (string $path): string {
         </div>
     <?php else: ?>
         <main class="auth-shell">
-            <?php foreach (consume_flash() as $flashMessage): ?>
-                <div class="alert alert-<?= e($flashMessage['type']) ?>"><?= e($flashMessage['message']) ?></div>
-            <?php endforeach; ?>
+            <?php $flashMessages = consume_flash(); ?>
+            <?php if ($flashMessages): ?>
+                <div class="toast-stack" data-toast-stack aria-live="polite" aria-atomic="false">
+                    <?php foreach ($flashMessages as $flashMessage): ?>
+                        <div class="toast toast-<?= e($flashMessage['type']) ?>" role="status" data-toast>
+                            <span><?= e($flashMessage['message']) ?></span>
+                            <button class="icon-btn compact" type="button" data-toast-close aria-label="Fechar notificação"><?= icon('x') ?></button>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
 
             <?php require $viewFile; ?>
         </main>
