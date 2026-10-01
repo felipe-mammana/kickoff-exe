@@ -38,9 +38,9 @@ check('Permissoes: token reflete revogacao imediatamente', $apiCheck('/api/v1/co
 $grants = ['users.view', 'users.edit', 'users.permissions'];
 $update = ['id' => $permissionUserId, 'role' => 'viewer', 'permissions_present' => 1, 'permissions' => $grants];
 $response = $adminClient->request('users.update', $update);
-check('Permissoes: alteracao aguarda segundo fator', str_contains($response['headers'], 'account.challenge') && UserPermission::effective(User::find($permissionUserId)) === []);
-approveAccountChange($adminClient, $mailFile, $securityAdminId);
-check('Permissoes: segundo fator aplica perfil personalizado', !UserPermission::different(UserPermission::effective(User::find($permissionUserId)), $grants) && User::roleFromUser(User::find($permissionUserId)) === 'viewer');
+check('Permissoes: alteracao salva sem segundo fator', !str_contains($response['headers'], 'account.challenge')
+    && !UserPermission::different(UserPermission::effective(User::find($permissionUserId)), $grants)
+    && User::roleFromUser(User::find($permissionUserId)) === 'viewer');
 $successNotice = $adminClient->request('users.index');
 check('Permissoes: sucesso fecha modal e exibe notificacao', $successNotice['status'] === 200
     && str_contains($successNotice['body'], 'Acessos e dados do usuário atualizados com sucesso.')
@@ -54,11 +54,12 @@ $entry = db()->query("SELECT old_data, new_data FROM audit_logs WHERE action_typ
 check('Permissoes: auditoria registra antes e depois', $entry && str_contains($entry['new_data'], 'users.permissions') && !str_contains($entry['old_data'], 'users.permissions'));
 
 $creation = ['name' => 'Created Permissions', 'email' => 'created-permissions@example.test', 'role' => 'viewer', 'password' => 'Created-Permissions-123', 'password_confirmation' => 'Created-Permissions-123', 'permissions_present' => 1, 'permissions' => ['companies.view']];
-$adminClient->request('users.store', $creation);
-check('Permissoes: criacao nao acontece antes da confirmacao', !User::duplicateEmailExists($creation['email']));
-approveAccountChange($adminClient, $mailFile, $securityAdminId);
+$creationResponse = $adminClient->request('users.store', $creation);
 $createdPermissionUser = db()->query("SELECT * FROM users WHERE email = 'created-permissions@example.test'")->fetch();
-check('Permissoes: criacao salva apenas selecao explicita', $createdPermissionUser && UserPermission::effective($createdPermissionUser) === ['companies.view']);
+check('Permissoes: criacao salva sem segundo fator e apenas a selecao explicita',
+    !str_contains($creationResponse['headers'], 'account.challenge')
+    && $createdPermissionUser
+    && UserPermission::effective($createdPermissionUser) === ['companies.view']);
 if ($createdPermissionUser) {
     $permissionClient->request('users.update', ['id' => $createdPermissionUser['id'], 'role' => 'admin', 'permissions_present' => 1, 'permissions' => UserPermission::keys()]);
     check('Permissoes: gestor nao concede acima do limite', UserPermission::effective($createdPermissionUser) === ['companies.view']);

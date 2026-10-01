@@ -35,7 +35,6 @@ class UserController
             return;
         }
 
-        AccountChallengeController::requireProof(User::find((int) current_user()['id']), 'admin-create');
         UserPermission::ensureTable();
         db()->beginTransaction();
         try {
@@ -91,8 +90,9 @@ class UserController
         $changes = self::changedFields($user, $data);
         $previousPermissions = UserPermission::effective($user);
         $permissionsChanged = UserPermission::different($previousPermissions, $data['permissions']) || User::roleFromUser($user) !== $data['role'];
-        if ($permissionsChanged) AccountChallengeController::requireProof(User::find((int) current_user()['id']), 'admin-permissions');
-        elseif (strcasecmp((string) $user['email'], $data['email']) !== 0) AccountChallengeController::requireProof(User::find((int) current_user()['id']), 'admin-email');
+        if (!$permissionsChanged && strcasecmp((string) $user['email'], $data['email']) !== 0) {
+            AccountChallengeController::requireProof(User::find((int) current_user()['id']), 'admin-email');
+        }
         UserPermission::ensureTable();
         db()->beginTransaction();
         try {
