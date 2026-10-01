@@ -4,7 +4,7 @@ declare(strict_types=1);
 class AccountChallengeController
 {
     private static ?string $approved = null;
-    private const ACTIONS = ['password' => 'updatePassword', 'email' => 'updateProfile', 'disable-2fa' => 'disableTwoFactor', 'replace-totp' => 'enableTwoFactor', 'replace-email-2fa' => 'enableEmailTwoFactor', 'admin-reset' => 'resetPassword', 'admin-email' => 'update', 'admin-permissions' => 'update', 'admin-create' => 'store'];
+    private const ACTIONS = ['password' => 'updatePassword', 'email' => 'updateProfile', 'disable-2fa' => 'disableTwoFactor', 'replace-totp' => 'enableTwoFactor', 'replace-email-2fa' => 'enableEmailTwoFactor', 'admin-reset' => 'resetPassword'];
 
     public static function requireProof(array $user, string $action): void
     {

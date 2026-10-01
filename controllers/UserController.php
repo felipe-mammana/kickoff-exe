@@ -90,9 +90,6 @@ class UserController
         $changes = self::changedFields($user, $data);
         $previousPermissions = UserPermission::effective($user);
         $permissionsChanged = UserPermission::different($previousPermissions, $data['permissions']) || User::roleFromUser($user) !== $data['role'];
-        if (!$permissionsChanged && strcasecmp((string) $user['email'], $data['email']) !== 0) {
-            AccountChallengeController::requireProof(User::find((int) current_user()['id']), 'admin-email');
-        }
         UserPermission::ensureTable();
         db()->beginTransaction();
         try {

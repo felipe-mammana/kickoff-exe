@@ -41,6 +41,10 @@ $response = $adminClient->request('users.update', $update);
 check('Permissoes: alteracao salva sem segundo fator', !str_contains($response['headers'], 'account.challenge')
     && !UserPermission::different(UserPermission::effective(User::find($permissionUserId)), $grants)
     && User::roleFromUser(User::find($permissionUserId)) === 'viewer');
+$profileUpdate = $adminClient->request('users.update', $update + ['name' => 'Permissions Test', 'email' => 'permissions-updated@example.test']);
+check('Permissoes: edicao administrativa nao solicita codigo por email',
+    !str_contains($profileUpdate['headers'], 'account.challenge')
+    && User::find($permissionUserId)['email'] === 'permissions-updated@example.test');
 $successNotice = $adminClient->request('users.index');
 check('Permissoes: sucesso fecha modal e exibe notificacao', $successNotice['status'] === 200
     && str_contains($successNotice['body'], 'Acessos e dados do usuário atualizados com sucesso.')
