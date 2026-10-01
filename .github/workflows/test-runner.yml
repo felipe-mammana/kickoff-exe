@@ -1,0 +1,22 @@
+name: Teste SRVGIT Runner
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  teste:
+    runs-on: [self-hosted, Linux, X64, deploy]
+
+    steps:
+      - name: Identificar servidor
+        run: |
+          echo "Runner funcionando"
+          hostname
+          whoami
+          ip -br addr

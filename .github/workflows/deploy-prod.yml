@@ -1,0 +1,122 @@
+name: CD - Producao
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-prod:
+    name: Deploy Producao
+    runs-on: [self-hosted, Linux, X64, deploy]
+
+    environment:
+      name: production
+
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+
+      - name: Validar sintaxe PHP
+        run: |
+          find . -type f -name '*.php' \
+            -not -path './.git/*' \
+            -print0 | xargs -0 -r -n1 php -l
+
+      - name: Criar pacote da release
+        run: |
+          tar \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='config/local.php' \
+            --exclude='storage' \
+            -czf /tmp/kickoff-${GITHUB_SHA}.tar.gz .
+
+      - name: Enviar release para SRV-APP
+        run: |
+          scp \
+            -i ~/.ssh/id_ed25519_deploy \
+            -o StrictHostKeyChecking=yes \
+            /tmp/kickoff-${GITHUB_SHA}.tar.gz \
+            deploy@10.10.10.10:/tmp/
+
+      - name: Publicar producao
+        run: |
+          ssh \
+            -i ~/.ssh/id_ed25519_deploy \
+            -o StrictHostKeyChecking=yes \
+            deploy@10.10.10.10 "
+              set -e
+
+              RELEASE=/srv/projetos/kickoff/producao/releases/${GITHUB_SHA}
+
+              mkdir -p \$RELEASE
+              tar -xzf /tmp/kickoff-${GITHUB_SHA}.tar.gz -C \$RELEASE
+
+              mkdir -p \$RELEASE/config
+
+              ln -sfn \
+                /srv/projetos/kickoff/producao/shared/config/local.php \
+                \$RELEASE/config/local.php
+
+              ln -sfn \
+                /srv/projetos/kickoff/producao/shared/storage \
+                \$RELEASE/storage
+
+              readlink -f /srv/projetos/kickoff/producao/current \
+                > /tmp/kickoff-previous-release
+
+              ln -sfn \
+                \$RELEASE \
+                /srv/projetos/kickoff/producao/current
+
+              rm -f /tmp/kickoff-${GITHUB_SHA}.tar.gz
+            "
+
+      - name: Testar producao
+        run: |
+          sleep 2
+
+          STATUS=$(ssh \
+            -i ~/.ssh/id_ed25519_deploy \
+            -o StrictHostKeyChecking=yes \
+            deploy@10.10.10.10 \
+            "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8081")
+
+          echo "HTTP Producao: $STATUS"
+
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "302" ]; then
+            echo "Falha no teste. Executando rollback..."
+
+            ssh \
+              -i ~/.ssh/id_ed25519_deploy \
+              -o StrictHostKeyChecking=yes \
+              deploy@10.10.10.10 '
+                PREVIOUS=$(cat /tmp/kickoff-previous-release)
+
+                if [ -n "$PREVIOUS" ] && [ -d "$PREVIOUS" ]; then
+                  ln -sfn "$PREVIOUS" /srv/projetos/kickoff/producao/current
+                  echo "Rollback realizado para: $PREVIOUS"
+                else
+                  echo "ERRO: release anterior nao encontrada"
+                fi
+              '
+
+            exit 1
+          fi
+
+          echo "Teste de producao aprovado."
+
+      - name: Limpar arquivos temporarios
+        if: always()
+        run: |
+          rm -f /tmp/kickoff-${GITHUB_SHA}.tar.gz
+
+          ssh \
+            -i ~/.ssh/id_ed25519_deploy \
+            -o StrictHostKeyChecking=yes \
+            deploy@10.10.10.10 \
+            "rm -f /tmp/kickoff-previous-release"
