@@ -44,6 +44,32 @@ assert_absent() {
   fi
 }
 
+assert_exists() {
+  path=$1
+  description=$2
+  if [ -e "$path" ] || [ -L "$path" ]; then
+    pass "$description"
+  else
+    fail "$description (ausente: $path)"
+  fi
+}
+
+assert_link_target() {
+  link_path=$1
+  expected_target=$2
+  description=$3
+  if [ -L "$link_path" ] && [ "$(readlink "$link_path")" = "$expected_target" ]; then
+    pass "$description"
+  else
+    fail "$description"
+  fi
+}
+
+find_quarantine() {
+  find "$BASE/releases" -mindepth 1 -maxdepth 1 \
+    -name ".quarantine-$SHA-*" -print -quit
+}
+
 setup_case() {
   case_name=$1
   CASE_DIR="$TEST_ROOT/$case_name"
@@ -92,6 +118,54 @@ create_package() {
   tar -czf "$PACKAGE" -C "$payload" .
 }
 
+create_link_or_special_package() {
+  entry_type=$1
+  payload="$CASE_DIR/payload"
+  rm -rf -- "$payload"
+  mkdir -p "$payload/public"
+  printf '<?php echo "new";\n' > "$payload/public/index.php"
+
+  case "$entry_type" in
+    symlink) ln -s ../../outside "$payload/public/dangerous-link" ;;
+    hardlink) ln "$payload/public/index.php" "$payload/public/dangerous-hardlink" ;;
+    fifo) mkfifo "$payload/public/dangerous-fifo" ;;
+    *) printf 'tipo de pacote desconhecido: %s\n' "$entry_type" >&2; return 1 ;;
+  esac
+
+  tar -czf "$PACKAGE" -C "$payload" .
+}
+
+create_path_package() {
+  entry_type=$1
+  python3 - "$PACKAGE" "$entry_type" <<'PY'
+import io
+import sys
+import tarfile
+
+package, entry_type = sys.argv[1:]
+with tarfile.open(package, "w:gz") as archive:
+    index = b'<?php echo "new";\n'
+    index_info = tarfile.TarInfo("public/index.php")
+    index_info.size = len(index)
+    archive.addfile(index_info, io.BytesIO(index))
+
+    names = {
+        "traversal": "../outside",
+        "absolute": "/tmp/kickoff-outside",
+        "control": ".deploy-ready",
+    }
+    payload = b"dangerous\n"
+    info = tarfile.TarInfo(names[entry_type])
+    info.size = len(payload)
+    archive.addfile(info, io.BytesIO(payload))
+PY
+}
+
+reset_current_to_old() {
+  rm -f -- "$BASE/current"
+  ln -s "$OLD_RELEASE" "$BASE/current"
+}
+
 run_deploy() {
   PATH="$BIN:$PATH" \
   HEALTH_STATUS="${HEALTH_STATUS:-200}" \
@@ -130,8 +204,13 @@ test_failure_after_activation() {
     fail 'falha de health check retorna erro'
   fi
   assert_eq "$OLD_RELEASE" "$(readlink -f "$BASE/current")" 'health check falho restaura release anterior'
-  assert_absent "$RELEASE" 'rollback remove release nova com falha'
+  assert_exists "$RELEASE" 'rollback preserva release nova completa para diagnostico/retry'
+  assert_exists "$RELEASE/.deploy-manifest.sha256" 'rollback preserva manifesto da release'
   assert_absent "$PACKAGE" 'rollback remove pacote temporario'
+
+  create_package yes
+  run_deploy >/dev/null
+  assert_eq "$RELEASE" "$(readlink -f "$BASE/current")" 'retry reutiliza release completa preservada'
 }
 
 test_success_and_idempotent_retry() {
@@ -141,6 +220,7 @@ test_success_and_idempotent_retry() {
   run_deploy >/dev/null
   assert_eq "$RELEASE" "$(readlink -f "$BASE/current")" 'sucesso ativa release nova'
   assert_eq "$SHA" "$(cat "$RELEASE/.deploy-ready")" 'sucesso grava marcador da release'
+  assert_exists "$RELEASE/.deploy-manifest.sha256" 'sucesso grava manifesto de integridade'
   assert_absent "$PACKAGE" 'sucesso remove pacote temporario'
 
   create_package yes
@@ -157,7 +237,112 @@ test_retry_replaces_partial_release() {
 
   run_deploy >/dev/null
   assert_eq "$RELEASE" "$(readlink -f "$BASE/current")" 'retry substitui release parcial e ativa SHA'
-  assert_absent "$RELEASE/incomplete" 'retry remove conteudo parcial anterior'
+  quarantine=$(find_quarantine)
+  assert_exists "$quarantine/incomplete" 'retry preserva release parcial em quarentena'
+  assert_absent "$RELEASE/incomplete" 'nova release nao contem arquivo parcial'
+}
+
+test_active_invalid_release_is_never_removed() {
+  setup_case active_invalid
+  mkdir -p "$RELEASE/public"
+  printf 'nao remover\n' > "$RELEASE/incomplete"
+  rm -f -- "$BASE/current"
+  ln -s "$RELEASE" "$BASE/current"
+  create_package yes
+
+  if run_deploy >/dev/null 2>&1; then
+    fail 'release ativa invalida bloqueia deploy'
+  else
+    pass 'release ativa invalida bloqueia deploy'
+  fi
+  assert_exists "$RELEASE/incomplete" 'release ativa invalida nao e removida'
+  assert_eq "$RELEASE" "$(readlink -f "$BASE/current")" 'current ativo permanece inalterado'
+  assert_absent "$PACKAGE" 'falha segura remove somente pacote temporario'
+}
+
+test_active_release_alias_is_never_removed() {
+  setup_case active_alias
+  ln -s "$OLD_RELEASE" "$RELEASE"
+  create_package yes
+
+  if run_deploy >/dev/null 2>&1; then
+    fail 'alias da release ativa bloqueia deploy'
+  else
+    pass 'alias da release ativa bloqueia deploy'
+  fi
+  assert_exists "$RELEASE" 'symlink que referencia release ativa nao e removido'
+  assert_eq "$OLD_RELEASE" "$(readlink -f "$BASE/current")" 'alias nao altera current'
+}
+
+test_dangerous_archive_is_rejected() {
+  entry_type=$1
+  setup_case "archive_$entry_type"
+  case "$entry_type" in
+    symlink|hardlink|fifo) create_link_or_special_package "$entry_type" ;;
+    traversal|absolute|control) create_path_package "$entry_type" ;;
+  esac
+
+  if run_deploy >/dev/null 2>&1; then
+    fail "pacote perigoso $entry_type e rejeitado"
+  else
+    pass "pacote perigoso $entry_type e rejeitado"
+  fi
+  assert_eq "$OLD_RELEASE" "$(readlink -f "$BASE/current")" "pacote $entry_type preserva current"
+  assert_absent "$RELEASE" "pacote $entry_type nao cria release final"
+  assert_absent "$PACKAGE" "pacote $entry_type e removido da area temporaria"
+}
+
+test_invalid_shared_link_is_quarantined() {
+  link_name=$1
+  setup_case "invalid_${link_name//./_}"
+  expected_target="$BASE/shared/config/$link_name"
+  create_package yes
+  run_deploy >/dev/null
+  reset_current_to_old
+
+  rm -f -- "$RELEASE/config/$link_name"
+  ln -s "$BASE/shared/config/wrong-target" "$RELEASE/config/$link_name"
+  create_package yes
+  run_deploy >/dev/null
+
+  quarantine=$(find_quarantine)
+  assert_exists "$quarantine" "release com link $link_name invalido e preservada em quarentena"
+  assert_link_target "$RELEASE/config/$link_name" "$expected_target" "nova release restaura link $link_name correto"
+}
+
+test_tampered_reused_release_is_quarantined() {
+  setup_case tampered_inactive
+  create_package yes
+  run_deploy >/dev/null
+  reset_current_to_old
+  printf 'alterado\n' > "$RELEASE/public/index.php"
+  create_package yes
+
+  run_deploy >/dev/null
+  quarantine=$(find_quarantine)
+  assert_eq 'alterado' "$(tr -d '\r\n' < "$quarantine/public/index.php")" 'release adulterada e preservada em quarentena'
+  assert_eq '<?php echo "new";' "$(tr -d '\r\n' < "$RELEASE/public/index.php")" 'release adulterada e reconstruida do pacote'
+}
+
+test_tampered_active_release_is_preserved() {
+  setup_case tampered_active
+  create_package yes
+  run_deploy >/dev/null
+  printf 'alterado ativo\n' > "$RELEASE/public/index.php"
+  create_package yes
+
+  if run_deploy >/dev/null 2>&1; then
+    fail 'release ativa adulterada bloqueia retry'
+  else
+    pass 'release ativa adulterada bloqueia retry'
+  fi
+  assert_eq "$RELEASE" "$(readlink -f "$BASE/current")" 'release ativa adulterada continua ativa para recuperacao manual'
+  assert_eq 'alterado ativo' "$(tr -d '\r\n' < "$RELEASE/public/index.php")" 'conteudo da release ativa nao e excluido'
+  if [ -z "$(find_quarantine)" ]; then
+    pass 'release ativa adulterada nao e movida para quarentena'
+  else
+    fail 'release ativa adulterada nao e movida para quarentena'
+  fi
 }
 
 test_signal_after_activation_rolls_back() {
@@ -191,7 +376,7 @@ test_signal_after_activation_rolls_back() {
   wait "$deploy_pid" && status=0 || status=$?
   assert_eq "$expected_status" "$status" "SIG$signal apos ativacao retorna status esperado"
   assert_eq "$OLD_RELEASE" "$(readlink -f "$BASE/current")" "SIG$signal apos ativacao executa rollback"
-  assert_absent "$RELEASE" "SIG$signal remove release nova"
+  assert_exists "$RELEASE" "SIG$signal preserva release nova completa"
 }
 
 if [ ! -f "$DEPLOY_SCRIPT" ]; then
@@ -203,6 +388,18 @@ test_failure_before_activation
 test_failure_after_activation
 test_success_and_idempotent_retry
 test_retry_replaces_partial_release
+test_active_invalid_release_is_never_removed
+test_active_release_alias_is_never_removed
+test_dangerous_archive_is_rejected symlink
+test_dangerous_archive_is_rejected hardlink
+test_dangerous_archive_is_rejected fifo
+test_dangerous_archive_is_rejected traversal
+test_dangerous_archive_is_rejected absolute
+test_dangerous_archive_is_rejected control
+test_invalid_shared_link_is_quarantined crypto.local.php
+test_invalid_shared_link_is_quarantined microsoft.local.php
+test_tampered_reused_release_is_quarantined
+test_tampered_active_release_is_preserved
 test_signal_after_activation_rolls_back TERM 143
 test_signal_after_activation_rolls_back HUP 129
 

@@ -14,15 +14,17 @@ HEALTH_TIMEOUT=${DEPLOY_HEALTH_TIMEOUT:-15}
 
 RELEASE="$RELEASES/$SHA"
 STAGING="$RELEASES/.$SHA.staging.$$"
+STAGING_OWNER="$STAGING.owner"
 TEMP_LINK="$BASE/.current-$SHA.$$"
 RESTORE_LINK="$BASE/.rollback-$SHA.$$"
 LOCK_DIR="$BASE/.deploy-lock"
 HEALTH_BODY_FILE=""
+ARCHIVE_LIST_FILE=""
+ARCHIVE_VERBOSE_FILE=""
+MANIFEST_CHECK_FILE=""
 PREVIOUS=""
 ACTIVATED=0
-CREATED_RELEASE=0
 LOCK_ACQUIRED=0
-ROLLBACK_OK=0
 TEST_CHILD_PID=""
 
 log() {
@@ -40,15 +42,32 @@ canonical_link() {
 
 is_current_target() {
   expected=$1
-  [ -L "$CURRENT" ] && [ "$(canonical_link "$CURRENT")" = "$expected" ]
+  expected_resolved=$(canonical_link "$expected")
+  [ -n "$expected_resolved" ] \
+    && [ -L "$CURRENT" ] \
+    && [ "$(canonical_link "$CURRENT")" = "$expected_resolved" ]
 }
 
 remove_release_tree() {
   target=$1
-  case "$target" in
-    "$RELEASES"/*) rm -rf -- "$target" ;;
-    *) fail "recusa ao remover caminho fora de releases: $target" ;;
-  esac
+
+  [ "$target" = "$STAGING" ] \
+    || fail "recusa ao remover caminho que nao e o staging desta execucao: $target"
+  [ "$(dirname -- "$target")" = "$RELEASES" ] \
+    || fail "recusa ao remover caminho fora de releases: $target"
+  [ -d "$target" ] && [ ! -L "$target" ] \
+    || fail "staging ausente, invalido ou simbolico: $target"
+  [ -f "$STAGING_OWNER" ] && [ ! -L "$STAGING_OWNER" ] \
+    || fail "marcador de propriedade do staging ausente"
+  [ "$(cat "$STAGING_OWNER")" = "$SHA:$$" ] \
+    || fail "marcador de propriedade do staging invalido"
+
+  if is_current_target "$target"; then
+    fail "recusa ao remover staging apontado por current"
+  fi
+
+  rm -rf --one-file-system -- "$target"
+  rm -f -- "$STAGING_OWNER"
 }
 
 cleanup_artifacts() {
@@ -61,8 +80,20 @@ cleanup_artifacts() {
   if [ -n "$HEALTH_BODY_FILE" ]; then
     rm -f -- "$HEALTH_BODY_FILE"
   fi
-  if [ -e "$STAGING" ]; then
+  if [ -n "$ARCHIVE_LIST_FILE" ]; then
+    rm -f -- "$ARCHIVE_LIST_FILE"
+  fi
+  if [ -n "$ARCHIVE_VERBOSE_FILE" ]; then
+    rm -f -- "$ARCHIVE_VERBOSE_FILE"
+  fi
+  if [ -n "$MANIFEST_CHECK_FILE" ]; then
+    rm -f -- "$MANIFEST_CHECK_FILE"
+  fi
+  if [ -e "$STAGING" ] || [ -L "$STAGING" ]; then
     remove_release_tree "$STAGING" || true
+  fi
+  if [ ! -e "$STAGING" ] && [ ! -L "$STAGING" ]; then
+    rm -f -- "$STAGING_OWNER"
   fi
   if ! rm -f -- "$PACKAGE"; then
     log "AVISO: nao foi possivel remover o pacote temporario: $PACKAGE"
@@ -97,23 +128,16 @@ rollback_current() {
     return 1
   fi
 
-  ROLLBACK_OK=1
   log "Rollback executado com sucesso."
 }
 
 on_exit() {
   status=$?
-  trap - EXIT INT TERM
+  trap - EXIT HUP INT TERM
 
   if [ "$status" -ne 0 ] && [ "$ACTIVATED" -eq 1 ]; then
     if ! rollback_current; then
       printf 'ERRO CRITICO: falha ao restaurar %s; verifique %s imediatamente.\n' "$PREVIOUS" "$CURRENT" >&2
-    fi
-  fi
-
-  if [ "$status" -ne 0 ] && [ "$CREATED_RELEASE" -eq 1 ]; then
-    if [ "$ACTIVATED" -eq 0 ] || [ "$ROLLBACK_OK" -eq 1 ]; then
-      remove_release_tree "$RELEASE" || true
     fi
   fi
 
@@ -149,20 +173,113 @@ acquire_lock() {
 }
 
 validate_archive_paths() {
-  tar -tzf "$PACKAGE" >/dev/null
-  if tar -tzf "$PACKAGE" | grep -Eq '(^|/)\.\.(/|$)|^/'; then
-    fail "pacote contem caminho absoluto ou traversal"
+  ARCHIVE_LIST_FILE=$(mktemp "${TMPDIR:-/tmp}/kickoff-archive-list.XXXXXX")
+  ARCHIVE_VERBOSE_FILE=$(mktemp "${TMPDIR:-/tmp}/kickoff-archive-types.XXXXXX")
+
+  TAR_OPTIONS= LC_ALL=C tar -tzf "$PACKAGE" > "$ARCHIVE_LIST_FILE"
+  TAR_OPTIONS= LC_ALL=C tar -tvzf "$PACKAGE" > "$ARCHIVE_VERBOSE_FILE"
+
+  while IFS= read -r member || [ -n "$member" ]; do
+    case "$member" in
+      /*)
+        fail "pacote contem caminho absoluto: $member"
+        return 1
+        ;;
+    esac
+
+    normalized=$member
+    while [ "${normalized#./}" != "$normalized" ]; do
+      normalized=${normalized#./}
+    done
+
+    case "/$normalized/" in
+      */../*)
+        fail "pacote contem path traversal: $member"
+        return 1
+        ;;
+    esac
+
+    case "$normalized" in
+      .deploy-ready|.deploy-manifest.sha256)
+        fail "pacote tenta fornecer arquivo de controle: $member"
+        return 1
+        ;;
+    esac
+  done < "$ARCHIVE_LIST_FILE"
+
+  while IFS= read -r entry || [ -n "$entry" ]; do
+    entry_type=${entry:0:1}
+    case "$entry_type" in
+      -|d) ;;
+      l) fail "pacote contem symlink, que nao e permitido"; return 1 ;;
+      h) fail "pacote contem hardlink, que nao e permitido"; return 1 ;;
+      *) fail "pacote contem tipo de entrada nao regular: $entry_type"; return 1 ;;
+    esac
+  done < "$ARCHIVE_VERBOSE_FILE"
+}
+
+link_matches() {
+  link_path=$1
+  expected_target=$2
+  [ -L "$link_path" ] && [ "$(readlink -- "$link_path")" = "$expected_target" ]
+}
+
+generate_release_manifest() {
+  manifest_root=$1
+  manifest_output=$2
+
+  (
+    cd "$manifest_root"
+    find . -xdev -type f \
+      ! -path './.deploy-ready' \
+      ! -path './.deploy-manifest.sha256' \
+      -print0 \
+      | LC_ALL=C sort -z \
+      | xargs -0 -r sha256sum
+  ) > "$manifest_output"
+}
+
+verify_release_manifest() {
+  [ -f "$RELEASE/.deploy-manifest.sha256" ] \
+    && [ ! -L "$RELEASE/.deploy-manifest.sha256" ] \
+    || return 1
+
+  MANIFEST_CHECK_FILE=$(mktemp "${TMPDIR:-/tmp}/kickoff-manifest.XXXXXX")
+  if ! generate_release_manifest "$RELEASE" "$MANIFEST_CHECK_FILE"; then
+    return 1
   fi
+  cmp -s -- "$RELEASE/.deploy-manifest.sha256" "$MANIFEST_CHECK_FILE"
 }
 
 release_is_ready() {
   [ -d "$RELEASE" ] \
     && [ ! -L "$RELEASE" ] \
     && [ -f "$RELEASE/.deploy-ready" ] \
+    && [ ! -L "$RELEASE/.deploy-ready" ] \
     && [ "$(cat "$RELEASE/.deploy-ready")" = "$SHA" ] \
     && [ -f "$RELEASE/public/index.php" ] \
-    && [ -L "$RELEASE/storage" ] \
-    && [ -L "$RELEASE/config/local.php" ]
+    && [ ! -L "$RELEASE/public/index.php" ] \
+    && link_matches "$RELEASE/storage" "$BASE/shared/storage" \
+    && link_matches "$RELEASE/config/local.php" "$BASE/shared/config/local.php" \
+    && link_matches "$RELEASE/config/crypto.local.php" "$BASE/shared/config/crypto.local.php" \
+    && link_matches "$RELEASE/config/microsoft.local.php" "$BASE/shared/config/microsoft.local.php" \
+    && [ "$(find "$RELEASE" -xdev -type l -print | wc -l)" -eq 4 ] \
+    && verify_release_manifest
+}
+
+quarantine_existing_release() {
+  quarantine="$RELEASES/.quarantine-$SHA-$(date -u +%Y%m%dT%H%M%SZ)-$$"
+
+  [ "$(dirname -- "$RELEASE")" = "$RELEASES" ] \
+    || fail "release fora do diretorio esperado: $RELEASE"
+  if is_current_target "$RELEASE"; then
+    fail "release invalida e o alvo atual; intervencao manual necessaria"
+  fi
+  [ ! -e "$quarantine" ] && [ ! -L "$quarantine" ] \
+    || fail "destino de quarentena ja existe: $quarantine"
+
+  mv -T -- "$RELEASE" "$quarantine"
+  log "Release invalida preservada em quarentena: $quarantine"
 }
 
 prepare_release() {
@@ -173,16 +290,24 @@ prepare_release() {
     fi
 
     if is_current_target "$RELEASE"; then
-      fail "release parcial e o alvo atual; intervencao manual necessaria"
+      fail "release invalida e o alvo atual; intervencao manual necessaria"
     fi
 
-    log "Removendo release parcial de tentativa anterior: $RELEASE"
-    remove_release_tree "$RELEASE"
+    quarantine_existing_release
   fi
 
   validate_archive_paths
   mkdir -- "$STAGING"
-  tar --no-same-owner --no-same-permissions -xzf "$PACKAGE" -C "$STAGING"
+  printf '%s\n' "$SHA:$$" > "$STAGING_OWNER"
+  TAR_OPTIONS= tar \
+    --extract \
+    --gzip \
+    --file "$PACKAGE" \
+    --directory "$STAGING" \
+    --no-same-owner \
+    --no-same-permissions \
+    --no-overwrite-dir \
+    --delay-directory-restore
 
   mkdir -p -- "$STAGING/config"
   ln -s -- "$BASE/shared/config/local.php" "$STAGING/config/local.php"
@@ -191,12 +316,16 @@ prepare_release() {
   ln -s -- "$BASE/shared/storage" "$STAGING/storage"
 
   [ -f "$STAGING/public/index.php" ] || fail "public/index.php ausente no pacote"
+  [ ! -L "$STAGING/public/index.php" ] || fail "public/index.php nao pode ser link simbolico"
   [ -L "$STAGING/storage" ] || fail "link de storage nao foi criado"
   [ -L "$STAGING/config/local.php" ] || fail "link de configuracao nao foi criado"
+  [ -L "$STAGING/config/crypto.local.php" ] || fail "link de crypto nao foi criado"
+  [ -L "$STAGING/config/microsoft.local.php" ] || fail "link de Microsoft nao foi criado"
 
+  generate_release_manifest "$STAGING" "$STAGING/.deploy-manifest.sha256"
   printf '%s\n' "$SHA" > "$STAGING/.deploy-ready"
   mv -- "$STAGING" "$RELEASE"
-  CREATED_RELEASE=1
+  rm -f -- "$STAGING_OWNER"
   log "Release preparada: $RELEASE"
 }
 

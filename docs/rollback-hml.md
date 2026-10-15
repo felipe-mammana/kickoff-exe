@@ -14,9 +14,19 @@ aplica a producao e nao autoriza alteracoes em banco, Vault, rede ou servicos.
 - Falhas depois da ativacao restauram o alvo anterior com outro rename atomico.
 - `EXIT`, `SIGHUP`, `SIGINT` e `SIGTERM` executam a mesma rotina de limpeza.
 - Pacote, staging e links temporarios sao removidos em sucesso ou falha.
-- Uma release parcial do mesmo SHA e removida antes de uma nova tentativa.
-- Uma release completa do mesmo SHA e reutilizada; repetir o job e idempotente.
+- `remove_release_tree()` so aceita o staging exato da execucao, exige um
+  marcador lateral com SHA/PID e recusa remover qualquer alvo de `current`.
+- Releases finais nunca sao apagadas automaticamente. Uma release incompleta ou
+  inconsistente do mesmo SHA e movida para `.quarantine-<SHA>-<data>-<PID>`.
+- Uma release completa do mesmo SHA so e reutilizada se o manifesto SHA-256, o
+  marcador, `public/index.php` e os quatro links compartilhados estiverem
+  integros; repetir o job permanece idempotente.
 - Um lock em `.deploy-lock` impede duas publicacoes remotas simultaneas.
+
+Antes da extracao, o pacote e listado e validado. Caminhos absolutos, `..`,
+arquivos de controle do deploy, symlinks, hardlinks, FIFOs, devices e outros
+tipos especiais sao recusados. O repositorio atual nao possui symlinks ou
+submodulos versionados, portanto essa restricao nao altera o pacote esperado.
 
 `SIGKILL`, desligamento abrupto da VM e falha do filesystem nao podem executar
 traps. Nesses casos, use a recuperacao manual abaixo.
@@ -60,7 +70,13 @@ A suite cria toda a topologia sob um diretorio temporario e cobre:
 - deploy bem-sucedido;
 - repeticao do mesmo SHA;
 - substituicao de release parcial;
-- `SIGTERM` depois da troca de `current`.
+- protecao de release ativa, inclusive quando referenciada por outro symlink;
+- rejeicao de symlink, hardlink, FIFO, caminho absoluto, traversal e arquivo de
+  controle dentro do tar;
+- validacao de `local.php`, `crypto.local.php`, `microsoft.local.php` e
+  `storage`;
+- deteccao de release reutilizada adulterada pelo manifesto SHA-256;
+- `SIGTERM` e `SIGHUP` depois da troca de `current`.
 
 ## Recuperacao manual
 
@@ -112,6 +128,10 @@ O teste real deve ser agendado e aprovado antes da execucao:
    PHP-FPM somente leitura.
 7. Confirmar ausencia de pacote, staging e links temporarios residuais.
 8. Reexecutar o mesmo SHA com health check normal para validar a repeticao.
+
+Diretorios `.quarantine-*` sao evidencias preservadas e nao devem ser removidos
+automaticamente. Depois da analise, um operador deve confirmar que nao sao alvo
+de `current`, registrar a decisao e somente entao fazer a limpeza manual.
 
 Uma alternativa ainda mais conservadora e executar o script integralmente sob
 `/tmp`, com servidor HTTP falso, usando a suite automatizada. Esse ensaio nao
