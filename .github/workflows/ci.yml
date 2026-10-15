@@ -31,3 +31,8 @@ jobs:
           find . -type f -name '*.php' \
             -not -path './.git/*' \
             -print0 | xargs -0 -r -n1 php -l
+
+      - name: Testar deploy e rollback de homologacao isoladamente
+        run: |
+          bash -n scripts/deploy-hml-release.sh
+          bash tests/deploy_hml_rollback.sh
