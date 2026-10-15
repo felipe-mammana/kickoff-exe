@@ -17,6 +17,7 @@ jobs:
   deploy-hml:
     name: Deploy Homologacao
     runs-on: [self-hosted, Linux, X64, deploy]
+    timeout-minutes: 20
 
     steps:
       - name: Baixar codigo
@@ -27,6 +28,11 @@ jobs:
           find . -type f -name '*.php' \
             -not -path './.git/*' \
             -print0 | xargs -0 -r -n1 php -l
+
+      - name: Testar rollback em ambiente isolado
+        run: |
+          bash -n scripts/deploy-hml-release.sh
+          bash tests/deploy_hml_rollback.sh
 
       - name: Criar pacote da release
         run: |
@@ -53,124 +59,18 @@ jobs:
             -i ~/.ssh/id_ed25519_deploy \
             -o StrictHostKeyChecking=yes \
             deploy@10.10.10.10 \
-            bash -s -- "${GITHUB_SHA}" <<'REMOTE'
-          set -Eeuo pipefail
+            bash -s -- "${GITHUB_SHA}" \
+            < scripts/deploy-hml-release.sh
 
-          SHA="$1"
-          BASE=/srv/projetos/kickoff/homologacao
-          RELEASE="$BASE/releases/$SHA"
-          PACOTE="/tmp/kickoff-$SHA.tar.gz"
-          CURRENT="$BASE/current"
-          ANTERIOR=""
-          TROCADO=0
-          TEMP_LINK=""
-
-          cleanup() {
-            if [ -n "$TEMP_LINK" ]; then
-              rm -f -- "$TEMP_LINK"
-            fi
-          }
-
-          rollback() {
-            status="$1"
-            trap - EXIT ERR INT TERM
-
-            if [ -n "$ANTERIOR" ] && [ -L "$CURRENT" ]; then
-              ATUAL=$(readlink "$CURRENT")
-
-              if [ "$ATUAL" = "$RELEASE" ]; then
-                echo "Restaurando release anterior..."
-
-                RESTORE_LINK="$BASE/.rollback-$SHA"
-                rm -f -- "$RESTORE_LINK"
-                if ln -s "$ANTERIOR" "$RESTORE_LINK" && mv -Tf "$RESTORE_LINK" "$CURRENT"; then
-                   echo "Rollback executado."
-                else
-                   echo "ERRO CRITICO: falha ao restaurar a release anterior." >&2
-                   echo "Verifique imediatamente: $CURRENT" >&2
-                fi
-
-                curl -fsS --max-time 15 \
-                  -o /dev/null \
-                  http://127.0.0.1:8080/ || true
-              fi
-            fi
-
-            cleanup
-            exit "$status"
-          }
-
-          trap 'exit 130' INT
-          trap 'exit 143' TERM
-          trap 'status=$?; if [ "$status" -ne 0 ]; then rollback "$status"; else cleanup; fi' EXIT
-
-          test -f "$PACOTE"
-
-          if [ -L "$CURRENT" ]; then
-            ANTERIOR=$(readlink -f "$CURRENT")
-            test -d "$ANTERIOR"
-          else
-            echo "ERRO: current nao e um link simbolico."
-            exit 1
-          fi
-
-          echo "Release anterior: $ANTERIOR"
-          echo "Nova release: $RELEASE"
-
-          if [ -e "$RELEASE" ]; then
-            echo "ERRO: release ja existe."
-            exit 1
-          fi
-
-          mkdir "$RELEASE"
-          tar -xzf "$PACOTE" -C "$RELEASE"
-
-          mkdir -p "$RELEASE/config"
-
-          ln -s "$BASE/shared/config/local.php" \
-            "$RELEASE/config/local.php"
-
-          ln -s "$BASE/shared/config/crypto.local.php" \
-            "$RELEASE/config/crypto.local.php"
-
-          ln -s "$BASE/shared/config/microsoft.local.php" \
-            "$RELEASE/config/microsoft.local.php"
-
-          ln -s "$BASE/shared/storage" "$RELEASE/storage"
-
-          test -f "$RELEASE/public/index.php"
-          test -L "$RELEASE/storage"
-          test -L "$RELEASE/config/local.php"
-
-          TEMP_LINK="$BASE/.current-$SHA"
-          ln -s "$RELEASE" "$TEMP_LINK"
-          mv -Tf "$TEMP_LINK" "$CURRENT"
-          TEMP_LINK=""
-          TROCADO=1
-
-          echo "Release ativada. Validando HTTP..."
-
-          sleep 2
-
-          STATUS=$(curl -sS --max-time 15 \
-            -o /dev/null -w '%{http_code}' \
-            http://127.0.0.1:8080/)
-
-          echo "HTTP Homologacao: $STATUS"
-
-          if [ "$STATUS" != "200" ] && [ "$STATUS" != "302" ]; then
-            echo "ERRO: validacao HTTP falhou."
-            false
-          fi
-
-          if ! rm -f -- "$PACOTE"; then
-            echo "AVISO: nao foi possivel remover o pacote temporario."
-          fi
-
-          echo "Deploy HML concluido com sucesso."
-          REMOTE
-
-      - name: Limpar pacote local
+      - name: Limpar pacotes temporarios
         if: always()
         run: |
           rm -f /tmp/kickoff-${GITHUB_SHA}.tar.gz
+          ssh \
+            -i ~/.ssh/id_ed25519_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=10 \
+            -o StrictHostKeyChecking=yes \
+            deploy@10.10.10.10 \
+            "rm -f -- /tmp/kickoff-${GITHUB_SHA}.tar.gz" \
+            || echo "AVISO: limpeza remota nao pode ser confirmada."
