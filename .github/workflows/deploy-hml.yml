@@ -1,3 +1,4 @@
+
 name: CD - Homologacao
 
 on:
@@ -8,10 +9,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: kickoff-deploy-hml
+  cancel-in-progress: false
+
 jobs:
   deploy-hml:
     name: Deploy Homologacao
     runs-on: [self-hosted, Linux, X64, deploy]
+    timeout-minutes: 20
 
     steps:
       - name: Baixar codigo
@@ -22,6 +28,11 @@ jobs:
           find . -type f -name '*.php' \
             -not -path './.git/*' \
             -print0 | xargs -0 -r -n1 php -l
+
+      - name: Testar rollback em ambiente isolado
+        run: |
+          bash -n scripts/deploy-hml-release.sh
+          bash tests/deploy_hml_rollback.sh
 
       - name: Criar pacote da release
         run: |
@@ -42,62 +53,24 @@ jobs:
             /tmp/kickoff-${GITHUB_SHA}.tar.gz \
             deploy@10.10.10.10:/tmp/
 
-      - name: Publicar homologacao
+      - name: Publicar e validar homologacao
         run: |
           ssh \
             -i ~/.ssh/id_ed25519_deploy \
             -o StrictHostKeyChecking=yes \
-            deploy@10.10.10.10 "
-              set -e
-
-              RELEASE=/srv/projetos/kickoff/homologacao/releases/${GITHUB_SHA}
-
-              mkdir -p \$RELEASE
-              tar -xzf /tmp/kickoff-${GITHUB_SHA}.tar.gz -C \$RELEASE
-
-              mkdir -p \$RELEASE/config
-
-              ln -s \
-                /srv/projetos/kickoff/homologacao/shared/config/local.php \
-                \$RELEASE/config/local.php
-
-              ln -s \
-                /srv/projetos/kickoff/homologacao/shared/config/crypto.local.php \
-                \$RELEASE/config/crypto.local.php
-
-              ln -s \
-                /srv/projetos/kickoff/homologacao/shared/config/microsoft.local.php \
-                \$RELEASE/config/microsoft.local.php
-
-              ln -s \
-                /srv/projetos/kickoff/homologacao/shared/storage \
-                \$RELEASE/storage
-
-              ln -sfn \
-                \$RELEASE \
-                /srv/projetos/kickoff/homologacao/current
-
-              rm -f /tmp/kickoff-${GITHUB_SHA}.tar.gz
-            "
-
-      - name: Testar homologacao
-        run: |
-          sleep 2
-
-          STATUS=$(ssh \
-            -i ~/.ssh/id_ed25519_deploy \
-            -o StrictHostKeyChecking=yes \
             deploy@10.10.10.10 \
-            "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080")
+            bash -s -- "${GITHUB_SHA}" \
+            < scripts/deploy-hml-release.sh
 
-          echo "HTTP Homologacao: $STATUS"
-
-          if [ "$STATUS" != "200" ] && [ "$STATUS" != "302" ]; then
-            echo "Falha no teste da homologacao"
-            exit 1
-          fi
-
-      - name: Limpar pacote local
+      - name: Limpar pacotes temporarios
         if: always()
         run: |
           rm -f /tmp/kickoff-${GITHUB_SHA}.tar.gz
+          ssh \
+            -i ~/.ssh/id_ed25519_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=10 \
+            -o StrictHostKeyChecking=yes \
+            deploy@10.10.10.10 \
+            "rm -f -- /tmp/kickoff-${GITHUB_SHA}.tar.gz" \
+            || echo "AVISO: limpeza remota nao pode ser confirmada."
