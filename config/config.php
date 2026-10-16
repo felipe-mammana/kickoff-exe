@@ -10,16 +10,71 @@ if (is_file($localConfigFile)) {
     $localConfig = is_array($loadedConfig) ? $loadedConfig : [];
 }
 
+// Identifica o ambiente antes de carregar as credenciais do banco.
+$effectiveEnv = getenv('APP_ENV') ?: ($localConfig['APP_ENV'] ?? 'local');
+
+// Configurações do MySQL fornecidas pelo Vault Agent.
+$vaultDbConfig = [];
+
+if ($effectiveEnv === 'homologacao') {
+    $vaultConfigFile = '/run/kickoff-hml-secrets/database.php';
+
+    if (!is_file($vaultConfigFile) || !is_readable($vaultConfigFile)) {
+        throw new RuntimeException(
+            'Credenciais do Vault indisponiveis na homologacao.'
+        );
+    }
+
+    $vaultDbConfig = require $vaultConfigFile;
+
+    if (!is_array($vaultDbConfig)) {
+        throw new RuntimeException(
+            'Configuracao do Vault invalida na homologacao.'
+        );
+    }
+
+    $requiredDbKeys = [
+        'DB_HOST',
+        'DB_NAME',
+        'DB_USER',
+        'DB_PASS',
+    ];
+
+    foreach ($requiredDbKeys as $key) {
+        if (
+            !array_key_exists($key, $vaultDbConfig) ||
+            !is_string($vaultDbConfig[$key]) ||
+            $vaultDbConfig[$key] === ''
+        ) {
+            throw new RuntimeException(
+                'Configuracao obrigatoria do Vault ausente: ' . $key
+            );
+        }
+    }
+}
+
 function config_value(string $key, $default = null)
 {
-    global $localConfig;
+    global $localConfig, $vaultDbConfig, $effectiveEnv;
 
+    // Na homologação, as credenciais do banco vêm exclusivamente do Vault.
+    if (
+        $effectiveEnv === 'homologacao' &&
+        in_array($key, ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS'], true)
+    ) {
+        return $vaultDbConfig[$key];
+    }
+
+    // Mantém o comportamento original para as demais configurações.
     $envValue = getenv($key);
+
     if ($envValue !== false && $envValue !== '') {
         return $envValue;
     }
 
-    return array_key_exists($key, $localConfig) ? $localConfig[$key] : $default;
+    return array_key_exists($key, $localConfig)
+        ? $localConfig[$key]
+        : $default;
 }
 
 function config_bool(string $key, bool $default = false): bool
@@ -33,7 +88,9 @@ function config_int(string $key, int $default): int
 {
     $value = config_value($key, (string) $default);
 
-    return filter_var($value, FILTER_VALIDATE_INT) !== false ? (int) $value : $default;
+    return filter_var($value, FILTER_VALIDATE_INT) !== false
+        ? (int) $value
+        : $default;
 }
 
 define('APP_NAME', (string) config_value('APP_NAME', 'EXE'));
