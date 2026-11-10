@@ -17,13 +17,151 @@ $dbUser = (string) getenv('DB_USER');
 $dbPassValue = getenv('DB_PASS');
 $dbPass = $dbPassValue === false ? '' : (string) $dbPassValue;
 $dbPort = (string) (getenv('DB_PORT') ?: '3306');
+$targetMode = strtolower(trim((string) (getenv('VAULT_KV2_TEST_TARGET') ?: 'loopback')));
+$dockerTarget = null;
 
-if (!in_array(strtolower($dbHost), ['127.0.0.1', 'localhost', '::1'], true)) {
-    fwrite(STDERR, "Teste recusado: DB_HOST deve identificar o MySQL local.\n");
-    exit(2);
-}
 if ($dbUser === '' || $dbPort !== '3306') {
     fwrite(STDERR, "Teste recusado: DB_USER deve ser informado e DB_PORT deve ser 3306.\n");
+    exit(2);
+}
+if ((getenv('DB_NAME') !== false && trim((string) getenv('DB_NAME')) !== '')
+    || (getenv('TEST_DB_NAME') !== false && trim((string) getenv('TEST_DB_NAME')) !== '')
+) {
+    fwrite(STDERR, "Teste recusado: DB_NAME e TEST_DB_NAME nao podem ser fornecidos; o nome descartavel e gerado internamente.\n");
+    exit(2);
+}
+
+$inspectDockerTarget = static function (string $identifier, string $host): array {
+    if (preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/D', $identifier) !== 1) {
+        throw new RuntimeException('Identificador de container Docker invalido.');
+    }
+    if (filter_var($host, FILTER_VALIDATE_IP) === false) {
+        throw new RuntimeException('No modo Docker, DB_HOST deve ser um IP pertencente ao container inspecionado.');
+    }
+
+    $descriptors = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+    $process = @proc_open(
+        ['docker', 'inspect', '--type', 'container', $identifier],
+        $descriptors,
+        $pipes,
+        null,
+        null,
+        ['bypass_shell' => true]
+    );
+    if (!is_resource($process)) {
+        throw new RuntimeException('Nao foi possivel executar docker inspect.');
+    }
+
+    fclose($pipes[0]);
+    stream_set_blocking($pipes[1], false);
+    stream_set_blocking($pipes[2], false);
+    $stdout = '';
+    $stderr = '';
+    $deadline = microtime(true) + 5.0;
+    $status = null;
+
+    try {
+        do {
+            $stdout .= (string) stream_get_contents($pipes[1], 1048576 - strlen($stdout));
+            $stderr .= (string) stream_get_contents($pipes[2], 65536 - strlen($stderr));
+            if (strlen($stdout) >= 1048576 || strlen($stderr) >= 65536) {
+                proc_terminate($process);
+                throw new RuntimeException('Saida de docker inspect excedeu o limite permitido.');
+            }
+            $status = proc_get_status($process);
+            if (!$status['running']) {
+                break;
+            }
+            if (microtime(true) >= $deadline) {
+                proc_terminate($process);
+                throw new RuntimeException('docker inspect excedeu o tempo limite.');
+            }
+            usleep(20000);
+        } while (true);
+
+        $stdout .= (string) stream_get_contents($pipes[1]);
+        $stderr .= (string) stream_get_contents($pipes[2]);
+    } finally {
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $closeCode = proc_close($process);
+    }
+
+    $exitCode = is_array($status) && is_int($status['exitcode']) && $status['exitcode'] >= 0
+        ? $status['exitcode']
+        : $closeCode;
+    if ($exitCode !== 0) {
+        throw new RuntimeException('docker inspect nao confirmou o container descartavel informado.');
+    }
+
+    try {
+        $decoded = json_decode($stdout, true, 64, JSON_THROW_ON_ERROR);
+    } catch (JsonException $error) {
+        throw new RuntimeException('Resposta invalida de docker inspect.', 0, $error);
+    }
+    if (!is_array($decoded) || count($decoded) !== 1 || !is_array($decoded[0])) {
+        throw new RuntimeException('docker inspect nao retornou exatamente um container.');
+    }
+
+    $container = $decoded[0];
+    $containerId = strtolower((string) ($container['Id'] ?? ''));
+    $containerName = ltrim((string) ($container['Name'] ?? ''), '/');
+    $expected = strtolower($identifier);
+    $identifierMatches = hash_equals(strtolower($containerName), $expected)
+        || (strlen($expected) >= 12 && str_starts_with($containerId, $expected));
+    if (preg_match('/^[0-9a-f]{64}$/D', $containerId) !== 1 || !$identifierMatches) {
+        throw new RuntimeException('A identidade retornada pelo Docker nao corresponde ao identificador esperado.');
+    }
+    if (($container['State']['Running'] ?? false) !== true) {
+        throw new RuntimeException('O container Docker autorizado nao esta em execucao.');
+    }
+
+    $configuredAddress = inet_pton($host);
+    $addressMatches = false;
+    foreach ((array) ($container['NetworkSettings']['Networks'] ?? []) as $network) {
+        if (!is_array($network)) {
+            continue;
+        }
+        foreach (['IPAddress', 'GlobalIPv6Address'] as $field) {
+            $candidate = (string) ($network[$field] ?? '');
+            if ($candidate !== '' && inet_pton($candidate) === $configuredAddress) {
+                $addressMatches = true;
+                break 2;
+            }
+        }
+    }
+    if (!$addressMatches) {
+        throw new RuntimeException('DB_HOST nao pertence a nenhuma rede do container Docker autorizado.');
+    }
+
+    $hostname = (string) ($container['Config']['Hostname'] ?? '');
+    if ($hostname === '' || strlen($hostname) > 255) {
+        throw new RuntimeException('Hostname interno do container Docker invalido.');
+    }
+
+    return ['id' => $containerId, 'name' => $containerName, 'hostname' => $hostname];
+};
+
+try {
+    if ($targetMode === 'loopback') {
+        if (!in_array(strtolower($dbHost), ['127.0.0.1', 'localhost', '::1'], true)) {
+            throw new RuntimeException('DB_HOST deve identificar o MySQL em loopback.');
+        }
+    } elseif ($targetMode === 'docker') {
+        $containerIdentifier = trim((string) getenv('VAULT_KV2_TEST_CONTAINER'));
+        if ($containerIdentifier === '') {
+            throw new RuntimeException('Defina VAULT_KV2_TEST_CONTAINER com o nome ou ID esperado.');
+        }
+        $dockerTarget = $inspectDockerTarget($containerIdentifier, $dbHost);
+    } else {
+        throw new RuntimeException('VAULT_KV2_TEST_TARGET deve ser loopback ou docker.');
+    }
+} catch (Throwable $error) {
+    fwrite(STDERR, 'Teste recusado antes da conexao: ' . $error->getMessage() . "\n");
     exit(2);
 }
 
@@ -65,6 +203,18 @@ try {
             PDO::ATTR_EMULATE_PREPARES => false,
         ]
     );
+
+    $serverIdentity = $serverPdo->query(
+        'SELECT @@hostname AS server_hostname, DATABASE() AS selected_database'
+    )->fetch();
+    if (!is_array($serverIdentity) || $serverIdentity['selected_database'] !== null) {
+        throw new RuntimeException('A conexao de teste nao pode iniciar com um banco selecionado.');
+    }
+    if (is_array($dockerTarget)
+        && !hash_equals((string) $dockerTarget['hostname'], (string) ($serverIdentity['server_hostname'] ?? ''))
+    ) {
+        throw new RuntimeException('O servidor MySQL conectado nao corresponde ao hostname do container inspecionado.');
+    }
 
     $exists = $serverPdo->prepare(
         'SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :database_name'
