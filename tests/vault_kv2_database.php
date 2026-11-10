@@ -18,6 +18,7 @@ $dbPassValue = getenv('DB_PASS');
 $dbPass = $dbPassValue === false ? '' : (string) $dbPassValue;
 $dbPort = (string) (getenv('DB_PORT') ?: '3306');
 $targetMode = strtolower(trim((string) (getenv('VAULT_KV2_TEST_TARGET') ?: 'loopback')));
+$dockerInspectMode = strtolower(trim((string) (getenv('VAULT_KV2_TEST_DOCKER_INSPECT') ?: 'direct')));
 $dockerTarget = null;
 
 if ($dbUser === '' || $dbPort !== '3306') {
@@ -31,7 +32,7 @@ if ((getenv('DB_NAME') !== false && trim((string) getenv('DB_NAME')) !== '')
     exit(2);
 }
 
-$inspectDockerTarget = static function (string $identifier, string $host): array {
+$inspectDockerTarget = static function (string $identifier, string $host, string $inspectMode): array {
     if (preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/D', $identifier) !== 1) {
         throw new RuntimeException('Identificador de container Docker invalido.');
     }
@@ -44,8 +45,15 @@ $inspectDockerTarget = static function (string $identifier, string $host): array
         1 => ['pipe', 'w'],
         2 => ['pipe', 'w'],
     ];
+    $command = match ($inspectMode) {
+        'direct' => ['docker', 'inspect', '--type', 'container', $identifier],
+        'sudo-n' => ['/usr/bin/sudo', '-n', '/usr/bin/docker', 'inspect', '--type', 'container', $identifier],
+        default => throw new RuntimeException(
+            'VAULT_KV2_TEST_DOCKER_INSPECT deve ser direct ou sudo-n.'
+        ),
+    };
     $process = @proc_open(
-        ['docker', 'inspect', '--type', 'container', $identifier],
+        $command,
         $descriptors,
         $pipes,
         null,
@@ -156,7 +164,7 @@ try {
         if ($containerIdentifier === '') {
             throw new RuntimeException('Defina VAULT_KV2_TEST_CONTAINER com o nome ou ID esperado.');
         }
-        $dockerTarget = $inspectDockerTarget($containerIdentifier, $dbHost);
+        $dockerTarget = $inspectDockerTarget($containerIdentifier, $dbHost, $dockerInspectMode);
     } else {
         throw new RuntimeException('VAULT_KV2_TEST_TARGET deve ser loopback ou docker.');
     }
