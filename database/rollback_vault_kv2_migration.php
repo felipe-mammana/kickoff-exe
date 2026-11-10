@@ -10,19 +10,8 @@ if (PHP_SAPI !== 'cli') {
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
 
 (static function (): void {
-    $isDisposableTest = getenv('VAULT_KV2_DISPOSABLE_TEST') === '1';
-    if ($isDisposableTest) {
-        if (APP_ENV !== 'testing'
-            || !in_array(strtolower(DB_HOST), ['127.0.0.1', 'localhost', '::1'], true)
-            || !preg_match('/^kickoff_vault_kv2_test_[0-9a-f]{16}$/', DB_NAME)
-        ) {
-            throw new RuntimeException('Rollback recusado: alvo descartavel invalido.');
-        }
-    } elseif (APP_ENV !== 'homologacao' || DB_NAME !== 'kickoff_hml') {
-        throw new RuntimeException('Rollback recusado: use APP_ENV=homologacao e o banco kickoff_hml.');
-    }
-
     $pdo = db();
+    VaultKv2DatabaseTargetGuard::assertMigrationTarget($pdo);
     $tableExists = static function (string $table) use ($pdo): bool {
         $stmt = $pdo->prepare('SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table');
         $stmt->execute(['table' => $table]);

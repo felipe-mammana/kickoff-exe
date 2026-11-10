@@ -10,19 +10,8 @@ if (PHP_SAPI !== 'cli') {
 require_once dirname(__DIR__) . '/includes/bootstrap.php';
 
 (static function (): void {
-    $isDisposableTest = getenv('VAULT_KV2_DISPOSABLE_TEST') === '1';
-    if ($isDisposableTest) {
-        if (APP_ENV !== 'testing'
-            || !in_array(strtolower(DB_HOST), ['127.0.0.1', 'localhost', '::1'], true)
-            || !preg_match('/^kickoff_vault_kv2_test_[0-9a-f]{16}$/', DB_NAME)
-        ) {
-            throw new RuntimeException('Instalacao recusada: alvo descartavel invalido.');
-        }
-    } elseif (APP_ENV !== 'homologacao' || DB_NAME !== 'kickoff_hml') {
-        throw new RuntimeException('Instalacao recusada: use APP_ENV=homologacao e o banco kickoff_hml.');
-    }
-
     $pdo = db();
+    VaultKv2DatabaseTargetGuard::assertMigrationTarget($pdo);
     $version = (string) $pdo->query('SELECT VERSION()')->fetchColumn();
     if (!preg_match('/^(\d+)\.(\d+)\.(\d+)/', $version, $matches)
         || version_compare($matches[1] . '.' . $matches[2] . '.' . $matches[3], '8.0.16', '<')
