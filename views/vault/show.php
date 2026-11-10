@@ -386,6 +386,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                                             type="button"
                                             data-vault-modal-open="edit"
                                             data-vault-id="<?= (int) $credential['id'] ?>"
+                                            data-vault-lock-version="<?= (int) $credential['lock_version'] ?>"
                                             data-vault-title="<?= e($credential['title']) ?>"
                                             data-vault-category-id="<?= (int) ($credential['category_id'] ?? 0) ?>"
                                             data-vault-username="<?= e($credential['username'] ?? '') ?>"
@@ -402,6 +403,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                                         <form action="/?route=vault.deactivate" method="post" data-confirm="Desativar esta credencial?">
                                             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                                             <input type="hidden" name="id" value="<?= (int) $credential['id'] ?>">
+                                            <input type="hidden" name="lock_version" value="<?= (int) $credential['lock_version'] ?>">
                                             <button class="icon-btn danger" type="submit" aria-label="Desativar credencial" title="Desativar">
                                                 <?= icon('trash-2') ?>
                                             </button>
@@ -805,6 +807,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
         <form class="company-form modal-company-form vault-credential-form vault-credential-grid" action="/?route=vault.update" method="post" novalidate>
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
             <input type="hidden" name="id" value="<?= (int) ($formOld['id'] ?? 0) ?>" data-vault-edit-id>
+            <input type="hidden" name="lock_version" value="<?= (int) ($formOld['lock_version'] ?? 0) ?>" data-vault-edit-lock-version>
             <label class="field <?= isset($formErrors['title']) ? 'has-error' : '' ?>">
                 <span>Nome</span>
                 <input type="text" name="title" value="<?= e($formOld['title'] ?? '') ?>" required data-vault-edit-title>

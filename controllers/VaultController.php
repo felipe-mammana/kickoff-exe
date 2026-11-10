@@ -16,23 +16,38 @@ class VaultController
             flash('danger', 'Senha incorreta ou limite de tentativas atingido.');
             redirect('/?route=vault.show&id=' . (int) $company['id']);
         }
-        $stmt = db()->prepare('SELECT id, title, username, service_url, secret_value, notes, custom_fields FROM vault_credentials WHERE company_id = ? AND is_active = 1 ORDER BY id LIMIT 5001');
+        $stmt = db()->prepare("SELECT id, company_id, category_id, title, username, service_url,
+                                      notes, custom_fields, operational_state, vault_version,
+                                      vault_operation_id, lock_version, is_active
+                               FROM vault_credentials
+                               WHERE company_id = ? AND is_active = 1 AND operational_state = 'ready'
+                               ORDER BY id LIMIT 5001");
         $stmt->execute([(int) $company['id']]);
         $rows = $stmt->fetchAll();
         if (count($rows) > 5000) {
             flash('danger', 'Exportacao excede o limite de 5000 credenciais. Nenhum arquivo foi gerado.');
             redirect('/?route=vault.show&id=' . (int) $company['id']);
         }
-        foreach ($rows as &$row) {
-            foreach (['secret_value', 'notes', 'custom_fields'] as $field) {
-                if ($row[$field] !== null) $row[$field] = CredentialCrypto::decrypt((string) $row[$field]);
+        try {
+            $service = self::secretService();
+            foreach ($rows as &$row) {
+                $row = VaultCredential::decryptMetadata($row);
+                $row['secret_value'] = $service->reveal($row);
             }
+            unset($row);
+        } catch (VaultCredentialServiceException $error) {
+            flash('danger', 'Exportacao cancelada: ' . $error->getMessage() . ' Nenhum arquivo foi gerado.');
+            redirect('/?route=vault.show&id=' . (int) $company['id']);
         }
-        unset($row);
         $payload = EncryptedBackup::encrypt(json_encode(['company_id' => (int) $company['id'], 'exported_at' => gmdate('c'), 'credentials' => $rows], JSON_THROW_ON_ERROR), 'vault');
-        AuditLog::record(['required' => true, 'action_type' => 'vault_exported', 'affected_table' => 'vault_credentials',
-            'company_id' => (int) $company['id'], 'description' => 'Exportacao criptografada do cofre.',
-            'new_data' => ['count' => count($rows)]]);
+        try {
+            AuditLog::record(['required' => true, 'action_type' => 'vault_exported', 'affected_table' => 'vault_credentials',
+                'company_id' => (int) $company['id'], 'description' => 'Exportacao criptografada do cofre.',
+                'new_data' => ['count' => count($rows)]]);
+        } catch (Throwable) {
+            flash('danger', 'Exportacao cancelada porque a auditoria obrigatoria esta indisponivel.');
+            redirect('/?route=vault.show&id=' . (int) $company['id']);
+        }
         header('Cache-Control: no-store, private, max-age=0');
         header('Content-Type: application/octet-stream');
         header('Content-Disposition: attachment; filename="cofre-' . (int) $company['id'] . '.exe-vault"');
@@ -155,19 +170,31 @@ class VaultController
         }
 
         $userId = (int) current_user()['id'];
-        $data['secret_value'] = CredentialCrypto::encrypt((string) $data['secret_value']);
+        $secret = (string) $data['secret_value'];
+        unset($data['secret_value']);
         $data['created_by'] = $userId;
         $data['updated_by'] = $userId;
-        $credentialId = VaultCredential::create($data);
+        try {
+            $credentialId = self::secretService()->create($data, $secret);
+        } catch (VaultCredentialServiceException $error) {
+            flash('danger', $error->getMessage());
+            redirect('/?route=vault.show&id=' . (int) $company['id']);
+        }
 
-        AuditLog::record([
-            'action_type' => 'vault_credential_created',
-            'affected_table' => 'vault_credentials',
-            'affected_record_id' => $credentialId,
-            'company_id' => (int) $company['id'],
-            'description' => 'Credencial do cofre cadastrada.',
-            'new_data' => self::auditData($data),
-        ]);
+        try {
+            AuditLog::record([
+                'required' => true,
+                'action_type' => 'vault_credential_created',
+                'affected_table' => 'vault_credentials',
+                'affected_record_id' => $credentialId,
+                'company_id' => (int) $company['id'],
+                'description' => 'Credencial do cofre cadastrada.',
+                'new_data' => self::auditData($data),
+            ]);
+        } catch (Throwable) {
+            flash('danger', 'A credencial foi gravada, mas a auditoria obrigatoria falhou. Nao repita o cadastro; acione o suporte.');
+            redirect('/?route=vault.show&id=' . (int) $company['id']);
+        }
 
         flash('success', 'Credencial cadastrada com sucesso.');
         redirect('/?route=vault.show&id=' . (int) $company['id']);
@@ -187,33 +214,58 @@ class VaultController
             $_SESSION['vault_form_errors'] = $errors;
             $_SESSION['vault_form_old'] = array_merge(self::oldData($data), [
                 'id' => (int) $credential['id'],
+                'lock_version' => (int) $credential['lock_version'],
             ]);
             flash('danger', 'Revise os campos da credencial.');
             redirect('/?route=vault.show&id=' . (int) $company['id'] . '&open_modal=edit');
         }
 
-        if ($data['secret_value'] === null || $data['secret_value'] === '') {
-            $data['secret_value'] = $credential['secret_value'];
-        } else {
-            $data['secret_value'] = CredentialCrypto::encrypt((string) $data['secret_value']);
-        }
-
+        $secret = $data['secret_value'] !== null ? (string) $data['secret_value'] : null;
         $data['updated_by'] = (int) current_user()['id'];
-        unset($data['company_id'], $data['created_by']);
+        unset($data['company_id'], $data['created_by'], $data['secret_value'], $data['is_active']);
 
         $changes = self::changedFields($credential, $data);
-        VaultCredential::update((int) $credential['id'], $data);
+        if ($secret !== null && $secret !== '') {
+            $changes['old']['Senha'] = '[protegido]';
+            $changes['new']['Senha'] = '[protegido]';
+        }
+        if (!$changes) {
+            flash('info', 'Nenhuma alteracao foi informada.');
+            redirect('/?route=vault.show&id=' . (int) $company['id']);
+        }
+        $submittedLockVersion = filter_var($_POST['lock_version'] ?? null, FILTER_VALIDATE_INT);
+        if ($submittedLockVersion === false || $submittedLockVersion < 0) {
+            flash('danger', 'A versao da credencial e invalida. Reabra o formulario.');
+            redirect('/?route=vault.show&id=' . (int) $company['id']);
+        }
+        try {
+            self::secretService()->update(
+                (int) $credential['id'],
+                $data,
+                $secret,
+                (int) $submittedLockVersion
+            );
+        } catch (VaultCredentialServiceException $error) {
+            flash('danger', $error->getMessage());
+            redirect('/?route=vault.show&id=' . (int) $company['id']);
+        }
 
         if ($changes) {
-            AuditLog::record([
-                'action_type' => 'vault_credential_updated',
-                'affected_table' => 'vault_credentials',
-                'affected_record_id' => (int) $credential['id'],
-                'company_id' => (int) $company['id'],
-                'description' => 'Credencial do cofre alterada.',
-                'old_data' => $changes['old'],
-                'new_data' => $changes['new'],
-            ]);
+            try {
+                AuditLog::record([
+                    'required' => true,
+                    'action_type' => 'vault_credential_updated',
+                    'affected_table' => 'vault_credentials',
+                    'affected_record_id' => (int) $credential['id'],
+                    'company_id' => (int) $company['id'],
+                    'description' => 'Credencial do cofre alterada.',
+                    'old_data' => $changes['old'],
+                    'new_data' => $changes['new'],
+                ]);
+            } catch (Throwable) {
+                flash('danger', 'A credencial foi alterada, mas a auditoria obrigatoria falhou. Nao repita a operacao; acione o suporte.');
+                redirect('/?route=vault.show&id=' . (int) $company['id']);
+            }
         }
 
         flash('success', 'Credencial atualizada com sucesso.');
@@ -227,17 +279,37 @@ class VaultController
         verify_csrf();
 
         $credential = self::requireCredential((int) ($_POST['id'] ?? 0));
-        VaultCredential::deactivate((int) $credential['id'], (int) current_user()['id']);
+        $submittedLockVersion = filter_var($_POST['lock_version'] ?? null, FILTER_VALIDATE_INT);
+        if ($submittedLockVersion === false || $submittedLockVersion < 0) {
+            flash('danger', 'A versao da credencial e invalida. Atualize a pagina.');
+            redirect('/?route=vault.show&id=' . (int) $credential['company_id']);
+        }
+        try {
+            self::secretService()->deactivate(
+                (int) $credential['id'],
+                (int) current_user()['id'],
+                (int) $submittedLockVersion
+            );
+        } catch (VaultCredentialServiceException $error) {
+            flash('danger', $error->getMessage());
+            redirect('/?route=vault.show&id=' . (int) $credential['company_id']);
+        }
 
-        AuditLog::record([
-            'action_type' => 'vault_credential_deactivated',
-            'affected_table' => 'vault_credentials',
-            'affected_record_id' => (int) $credential['id'],
-            'company_id' => (int) $credential['company_id'],
-            'description' => 'Credencial do cofre desativada.',
-            'old_data' => ['Status' => 'Ativa'],
-            'new_data' => ['Status' => 'Inativa'],
-        ]);
+        try {
+            AuditLog::record([
+                'required' => true,
+                'action_type' => 'vault_credential_deactivated',
+                'affected_table' => 'vault_credentials',
+                'affected_record_id' => (int) $credential['id'],
+                'company_id' => (int) $credential['company_id'],
+                'description' => 'Credencial do cofre desativada.',
+                'old_data' => ['Status' => 'Ativa'],
+                'new_data' => ['Status' => 'Inativa'],
+            ]);
+        } catch (Throwable) {
+            flash('danger', 'A credencial foi desativada, mas a auditoria obrigatoria falhou. Nao repita a operacao; acione o suporte.');
+            redirect('/?route=vault.show&id=' . (int) $credential['company_id']);
+        }
 
         flash('success', 'Credencial desativada.');
         redirect('/?route=vault.show&id=' . (int) $credential['company_id']);
@@ -255,6 +327,8 @@ class VaultController
         if (!is_post()) {
             ApiResponse::error('method_not_allowed', 'Método não permitido.', 405);
         }
+        header('Cache-Control: no-store, private, max-age=0');
+        header('Pragma: no-cache');
 
         $token = $_POST['csrf_token'] ?? '';
         if (!is_string($token) || !csrf_token_is_valid($token)) {
@@ -288,20 +362,21 @@ class VaultController
         }
 
         $credential = self::requireCredential((int) ($_POST['id'] ?? 0));
-        $value = CredentialCrypto::decrypt((string) ($credential['secret_value'] ?? ''));
-        if ($value === null || $value === '' || $value === '[credencial inválida]') {
-            ApiResponse::error('credential_invalid', 'Credencial indisponível ou inválida.', 422);
+        try {
+            $value = self::secretService()->reveal($credential);
+        } catch (VaultCredentialServiceException $error) {
+            $status = $error->isConflict() ? 409 : 503;
+            ApiResponse::error($error->reason(), $error->getMessage(), $status);
         }
 
-        VaultCredential::markRevealed((int) $credential['id'], (int) current_user()['id']);
-        if (AppSetting::vaultAuditsSecretAccess()) {
+        try {
             AuditLog::record([
                 'action_type' => 'vault_credential_revealed',
                 'required' => true,
                 'affected_table' => 'vault_credentials',
                 'affected_record_id' => (int) $credential['id'],
                 'company_id' => (int) $credential['company_id'],
-                'description' => 'Usuário revelou credencial do cofre.',
+                'description' => 'Usuario revelou credencial do cofre.',
                 'new_data' => [
                     'credential_id' => (int) $credential['id'],
                     'title' => $credential['title'] ?? null,
@@ -312,7 +387,10 @@ class VaultController
                     'secret_value' => '[protegido]',
                 ],
             ]);
+        } catch (Throwable) {
+            ApiResponse::error('audit_unavailable', 'Auditoria indisponivel. O segredo nao foi devolvido.', 503);
         }
+        VaultCredential::markRevealed((int) $credential['id'], (int) current_user()['id']);
 
         ApiResponse::ok([
             'id' => (int) $credential['id'],
@@ -378,7 +456,7 @@ class VaultController
     {
         $credential = VaultCredential::find($credentialId);
 
-        if (!$credential || empty($credential['is_active'])) {
+        if (!$credential || empty($credential['is_active']) || ($credential['operational_state'] ?? '') !== 'ready') {
             http_response_code(404);
             view('errors/404', ['title' => 'Credencial não encontrada']);
             exit;
@@ -528,10 +606,8 @@ class VaultController
             'title' => 'Nome',
             'service_url' => 'URL',
             'username' => 'Usuário',
-            'secret_value' => 'Senha',
             'notes' => 'Observações',
             'custom_fields' => 'Campos personalizados',
-            'is_active' => 'Status',
         ];
 
         $changes = ['old' => [], 'new' => []];
@@ -540,7 +616,7 @@ class VaultController
             $newValue = (string) ($new[$field] ?? '');
 
             if ($oldValue !== $newValue) {
-                $protected = in_array($field, ['secret_value', 'notes', 'custom_fields'], true);
+                $protected = in_array($field, ['notes', 'custom_fields'], true);
                 $changes['old'][$label] = $protected ? '[protegido]' : $oldValue;
                 $changes['new'][$label] = $protected ? '[protegido]' : $newValue;
             }
@@ -673,5 +749,10 @@ class VaultController
         }
 
         return strtolower($left) === strtolower($right);
+    }
+
+    private static function secretService(): VaultCredentialSecretService
+    {
+        return VaultCredentialSecretService::fromApplication();
     }
 }

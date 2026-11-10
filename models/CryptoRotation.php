@@ -4,7 +4,8 @@ declare(strict_types=1);
 final class CryptoRotation
 {
     private const TARGETS = [
-        ['vault_credentials', 'id', 'secret_value', 'credentials'],
+        ['vault_credentials', 'id', 'notes', 'credentials'],
+        ['vault_credentials', 'id', 'custom_fields', 'credentials'],
         ['machines', 'id', 'machine_password', 'credentials'],
         ['machines', 'id', 'admin_password', 'credentials'],
         ['users', 'id', 'two_factor_secret', 'totp'],

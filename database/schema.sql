@@ -214,7 +214,10 @@ CREATE TABLE IF NOT EXISTS vault_credentials (
     title VARCHAR(160) NOT NULL,
     service_url VARCHAR(255) NULL,
     username VARCHAR(190) NULL,
-    secret_value TEXT NOT NULL,
+    operational_state VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'pending',
+    vault_version INT UNSIGNED NULL,
+    vault_operation_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    lock_version BIGINT UNSIGNED NOT NULL DEFAULT 0,
     notes TEXT NULL,
     custom_fields TEXT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
@@ -227,10 +230,69 @@ CREATE TABLE IF NOT EXISTS vault_credentials (
     INDEX idx_vault_credentials_category (category_id),
     INDEX idx_vault_credentials_active (is_active),
     INDEX idx_vault_credentials_updated_at (updated_at),
+    INDEX idx_vault_credentials_operational (operational_state, is_active),
     CONSTRAINT fk_vault_credentials_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
     CONSTRAINT fk_vault_credentials_category FOREIGN KEY (category_id) REFERENCES vault_categories(id) ON DELETE SET NULL,
     CONSTRAINT fk_vault_credentials_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-    CONSTRAINT fk_vault_credentials_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+    CONSTRAINT fk_vault_credentials_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT chk_vault_credentials_operational_state CHECK (operational_state IN ('pending', 'ready', 'error')),
+    CONSTRAINT chk_vault_credentials_vault_version CHECK (vault_version IS NULL OR vault_version > 0),
+    CONSTRAINT chk_vault_credentials_operation_uuid CHECK (
+        vault_operation_id IS NULL OR REGEXP_LIKE(vault_operation_id, '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', 'c')
+    ),
+    CONSTRAINT chk_vault_credentials_reference_state CHECK (
+        (operational_state = 'ready' AND vault_version IS NOT NULL AND vault_operation_id IS NOT NULL)
+        OR (operational_state IN ('pending', 'error') AND vault_version IS NULL AND vault_operation_id IS NULL)
+    )
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS vault_secret_operations (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    operation_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    credential_id BIGINT UNSIGNED NOT NULL,
+    operation_type VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    operation_state VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'pending',
+    expected_vault_version INT UNSIGNED NOT NULL,
+    result_vault_version INT UNSIGNED NULL,
+    expected_lock_version BIGINT UNSIGNED NOT NULL,
+    attempts INT UNSIGNED NOT NULL DEFAULT 0,
+    error_code VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    next_attempt_at TIMESTAMP NULL DEFAULT NULL,
+    last_attempt_at TIMESTAMP NULL DEFAULT NULL,
+    completed_at TIMESTAMP NULL DEFAULT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    UNIQUE INDEX uq_vault_secret_operations_id (operation_id),
+    INDEX idx_vault_secret_operations_credential (credential_id, created_at),
+    INDEX idx_vault_secret_operations_reconcile (operation_state, next_attempt_at),
+    UNIQUE INDEX uq_vault_secret_operations_version (credential_id, result_vault_version),
+    CONSTRAINT fk_vault_secret_operations_credential FOREIGN KEY (credential_id) REFERENCES vault_credentials(id) ON DELETE RESTRICT,
+    CONSTRAINT chk_vault_secret_operations_type CHECK (operation_type IN ('create', 'update')),
+    CONSTRAINT chk_vault_secret_operations_state CHECK (operation_state IN ('pending', 'vault_confirmed', 'completed', 'failed')),
+    CONSTRAINT chk_vault_secret_operations_uuid CHECK (
+        REGEXP_LIKE(operation_id, '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', 'c')
+    ),
+    CONSTRAINT chk_vault_secret_operations_expected_version CHECK (
+        (operation_type = 'create' AND expected_vault_version = 0 AND expected_lock_version = 0)
+        OR (operation_type = 'update' AND expected_vault_version > 0)
+    ),
+    CONSTRAINT chk_vault_secret_operations_result_version CHECK (
+        result_vault_version IS NULL OR result_vault_version = expected_vault_version + 1
+    ),
+    CONSTRAINT chk_vault_secret_operations_state_result CHECK (
+        (operation_state IN ('pending', 'failed') AND result_vault_version IS NULL)
+        OR (operation_state IN ('vault_confirmed', 'completed') AND result_vault_version IS NOT NULL)
+    ),
+    CONSTRAINT chk_vault_secret_operations_completion CHECK (
+        (operation_state = 'completed' AND completed_at IS NOT NULL)
+        OR (operation_state <> 'completed' AND completed_at IS NULL)
+    ),
+    CONSTRAINT chk_vault_secret_operations_failure CHECK (
+        operation_state <> 'failed' OR error_code IS NOT NULL
+    ),
+    CONSTRAINT chk_vault_secret_operations_error_code CHECK (
+        error_code IS NULL OR REGEXP_LIKE(error_code, '^[A-Z0-9_]{1,64}$', 'c')
+    )
 ) ENGINE=InnoDB;
 
 INSERT INTO companies (name)

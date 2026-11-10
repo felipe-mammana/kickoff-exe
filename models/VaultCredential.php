@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 class VaultCredential
 {
-    private static bool $customFieldsColumnEnsured = false;
-
     public static function encryptMetadata(array $data): array
     {
         foreach (['notes', 'custom_fields'] as $field) {
@@ -29,7 +27,7 @@ class VaultCredential
         $row = db()->query(
             'SELECT
                 COUNT(*) AS total,
-                SUM(is_active = 1) AS active_total,
+                SUM(is_active = 1 AND operational_state = \'ready\') AS active_total,
                 SUM(last_revealed_at IS NOT NULL) AS revealed_total,
                 MAX(last_revealed_at) AS last_revealed_at
              FROM vault_credentials'
@@ -54,7 +52,8 @@ class VaultCredential
              FROM companies c
              LEFT JOIN vault_credentials v
                 ON v.company_id = c.id
-                AND v.is_active = 1';
+                AND v.is_active = 1
+                AND v.operational_state = \'ready\'';
         $params = [];
 
         if (!empty($filters['category_id'])) {
@@ -76,6 +75,7 @@ class VaultCredential
                 FROM vault_credentials vf
                 WHERE vf.company_id = c.id
                   AND vf.is_active = 1
+                  AND vf.operational_state = \'ready\'
                   AND vf.category_id = :category_id
             )';
             $params['category_id'] = (int) $filters['category_id'];
@@ -92,6 +92,7 @@ class VaultCredential
                     FROM vault_credentials vn
                     WHERE vn.company_id = c.id
                       AND vn.is_active = 1
+                      AND vn.operational_state = \'ready\'
                       AND vn.title LIKE :credential_query
                 )
             )';
@@ -110,8 +111,6 @@ class VaultCredential
 
     public static function filtered(array $filters = [], int $limit = 100): array
     {
-        self::ensureCustomFieldsColumn();
-
         $sql =
             'SELECT
                 v.id,
@@ -121,6 +120,10 @@ class VaultCredential
                 v.service_url,
                 v.notes,
                 v.custom_fields,
+                v.operational_state,
+                v.vault_version,
+                v.vault_operation_id,
+                v.lock_version,
                 v.updated_at,
                 c.id AS company_id,
                 c.name AS company_name,
@@ -130,6 +133,7 @@ class VaultCredential
              INNER JOIN companies c ON c.id = v.company_id
              LEFT JOIN vault_categories cat ON cat.id = v.category_id
              WHERE v.is_active = 1
+               AND v.operational_state = \'ready\'
                AND c.is_active = 1';
         $params = [];
 
@@ -176,8 +180,6 @@ class VaultCredential
 
     public static function find(int $id): ?array
     {
-        self::ensureCustomFieldsColumn();
-
         $stmt = db()->prepare(
             'SELECT
                 v.*,
@@ -198,16 +200,17 @@ class VaultCredential
 
     public static function create(array $data): int
     {
-        self::ensureCustomFieldsColumn();
         $data['custom_fields'] = $data['custom_fields'] ?? null;
         $data = self::encryptMetadata($data);
 
         $stmt = db()->prepare(
             'INSERT INTO vault_credentials (
-                company_id, category_id, title, service_url, username, secret_value,
+                company_id, category_id, title, service_url, username,
+                operational_state, vault_version, vault_operation_id, lock_version,
                 notes, custom_fields, is_active, created_by, updated_by
             ) VALUES (
-                :company_id, :category_id, :title, :service_url, :username, :secret_value,
+                :company_id, :category_id, :title, :service_url, :username,
+                :operational_state, :vault_version, :vault_operation_id, :lock_version,
                 :notes, :custom_fields, :is_active, :created_by, :updated_by
             )'
         );
@@ -216,11 +219,10 @@ class VaultCredential
         return (int) db()->lastInsertId();
     }
 
-    public static function update(int $id, array $data): void
+    public static function update(int $id, array $data, int $expectedLockVersion): bool
     {
-        self::ensureCustomFieldsColumn();
-
         $data['id'] = $id;
+        $data['expected_lock_version'] = $expectedLockVersion;
         $data['custom_fields'] = $data['custom_fields'] ?? null;
         $data = self::encryptMetadata($data);
         $stmt = db()->prepare(
@@ -229,27 +231,30 @@ class VaultCredential
                 title = :title,
                 service_url = :service_url,
                 username = :username,
-                secret_value = :secret_value,
                 notes = :notes,
                 custom_fields = :custom_fields,
                 is_active = :is_active,
-                updated_by = :updated_by
-             WHERE id = :id'
+                updated_by = :updated_by,
+                lock_version = lock_version + 1
+             WHERE id = :id AND lock_version = :expected_lock_version'
         );
         $stmt->execute($data);
+        return $stmt->rowCount() === 1;
     }
 
-    public static function deactivate(int $id, int $userId): void
+    public static function deactivate(int $id, int $userId, int $expectedLockVersion): bool
     {
         $stmt = db()->prepare(
             'UPDATE vault_credentials
-             SET is_active = 0, updated_by = :updated_by
-             WHERE id = :id'
+             SET is_active = 0, updated_by = :updated_by, lock_version = lock_version + 1
+             WHERE id = :id AND is_active = 1 AND lock_version = :lock_version'
         );
         $stmt->execute([
             'id' => $id,
             'updated_by' => $userId,
+            'lock_version' => $expectedLockVersion,
         ]);
+        return $stmt->rowCount() === 1;
     }
 
     public static function markRevealed(int $id, int $userId): void
@@ -273,6 +278,7 @@ class VaultCredential
              INNER JOIN companies c ON c.id = v.company_id
              LEFT JOIN vault_categories cat ON cat.id = v.category_id
              WHERE v.is_active = 1
+               AND v.operational_state = \'ready\'
                AND c.is_active = 1';
         $params = [];
 
@@ -311,8 +317,6 @@ class VaultCredential
 
     public static function recent(int $limit = 8): array
     {
-        self::ensureCustomFieldsColumn();
-
         $stmt = db()->prepare(
             'SELECT
                 v.id,
@@ -329,6 +333,7 @@ class VaultCredential
              INNER JOIN companies c ON c.id = v.company_id
              LEFT JOIN vault_categories cat ON cat.id = v.category_id
              WHERE v.is_active = 1
+               AND v.operational_state = \'ready\'
              ORDER BY v.updated_at DESC
              LIMIT :limit'
         );
@@ -350,25 +355,4 @@ class VaultCredential
         return is_array($decoded) ? $decoded : [];
     }
 
-    private static function ensureCustomFieldsColumn(): void
-    {
-        if (self::$customFieldsColumnEnsured) {
-            return;
-        }
-
-        $stmt = db()->prepare(
-            'SELECT COUNT(*)
-             FROM INFORMATION_SCHEMA.COLUMNS
-             WHERE TABLE_SCHEMA = DATABASE()
-               AND TABLE_NAME = "vault_credentials"
-               AND COLUMN_NAME = "custom_fields"'
-        );
-        $stmt->execute();
-
-        if ((int) $stmt->fetchColumn() === 0) {
-            db()->exec('ALTER TABLE vault_credentials ADD custom_fields TEXT NULL AFTER notes');
-        }
-
-        self::$customFieldsColumnEnsured = true;
-    }
 }

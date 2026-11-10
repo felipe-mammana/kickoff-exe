@@ -1839,6 +1839,7 @@
 
             if (modalName === 'edit') {
                 const id = modal.querySelector('[data-vault-edit-id]');
+                const lockVersion = modal.querySelector('[data-vault-edit-lock-version]');
                 const title = modal.querySelector('[data-vault-edit-title]');
                 const category = modal.querySelector('[data-vault-edit-category]');
                 const username = modal.querySelector('[data-vault-edit-username]');
@@ -1847,6 +1848,7 @@
                 const secret = modal.querySelector('[name="secret_value"]');
 
                 if (id) id.value = button.getAttribute('data-vault-id') || '';
+                if (lockVersion) lockVersion.value = button.getAttribute('data-vault-lock-version') || '';
                 if (title) title.value = button.getAttribute('data-vault-title') || '';
                 if (category) category.value = button.getAttribute('data-vault-category-id') || '';
                 syncVaultCategorySearchInput(category);

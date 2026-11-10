@@ -117,6 +117,14 @@ define('DB_USER', (string) config_value('DB_USER', 'root'));
 define('DB_PASS', (string) config_value('DB_PASS', ''));
 define('DB_CHARSET', (string) config_value('DB_CHARSET', 'utf8mb4'));
 
+// Configuracao nao secreta do cofre. O token e lido sob demanda do sink do Vault Agent.
+define('VAULT_COFRE_ADDRESS', (string) config_value('VAULT_COFRE_ADDRESS', 'https://10.10.10.30:8200'));
+define('VAULT_COFRE_MOUNT', 'kickoff-cofre-hml');
+define('VAULT_COFRE_CA_FILE', (string) config_value('VAULT_COFRE_CA_FILE', '/usr/local/share/ca-certificates/kickoff-vault-ca.crt'));
+define('VAULT_COFRE_TOKEN_FILE', (string) config_value('VAULT_COFRE_TOKEN_FILE', '/run/kickoff-cofre-hml/token'));
+define('VAULT_COFRE_CONNECT_TIMEOUT_MS', max(100, min(10000, config_int('VAULT_COFRE_CONNECT_TIMEOUT_MS', 1000))));
+define('VAULT_COFRE_REQUEST_TIMEOUT_MS', max(VAULT_COFRE_CONNECT_TIMEOUT_MS, min(30000, config_int('VAULT_COFRE_REQUEST_TIMEOUT_MS', 3000))));
+
 define('MAX_UPLOAD_BYTES', 5 * 1024 * 1024);
 define('COMPANY_ATTACHMENT_MAX_BYTES', max(1024, config_int('COMPANY_ATTACHMENT_MAX_BYTES', 25 * 1024 * 1024)));
 define('ALLOWED_IMAGE_MIMES', ['image/jpeg', 'image/png', 'image/webp']);

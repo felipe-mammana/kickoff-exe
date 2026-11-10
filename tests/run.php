@@ -368,7 +368,10 @@ try {
         'title' => 'Firewall matriz',
         'service_url' => 'https://firewall.example',
         'username' => 'admin',
-        'secret_value' => CredentialCrypto::encrypt('senha-cofre'),
+        'operational_state' => 'ready',
+        'vault_version' => 1,
+        'vault_operation_id' => '123e4567-e89b-42d3-a456-426614174100',
+        'lock_version' => 0,
         'notes' => 'Acesso principal',
         'custom_fields' => json_encode(['ip_de_acesso' => '192.168.0.1', 'lan' => '10.0.0.0/24']),
         'is_active' => 1,
@@ -376,7 +379,8 @@ try {
         'updated_by' => $adminId,
     ]);
     $vaultCredential = VaultCredential::find($vaultCredentialId);
-    check('Credencial do cofre fica criptografada no banco', CredentialCrypto::isEncrypted($vaultCredential['secret_value'] ?? null));
+    check('Credencial do cofre armazena somente referencia Vault', !array_key_exists('secret_value', $vaultCredential)
+        && (int) ($vaultCredential['vault_version'] ?? 0) === 1);
     check('Credencial do cofre salva campos personalizados', VaultCredential::customFields($vaultCredential)['ip_de_acesso'] === '192.168.0.1');
     check('Credencial do cofre aparece na busca filtrada', count(VaultCredential::filtered(['company_id' => $companyId, 'query' => 'Firewall'])) === 1);
     VaultCredential::update($vaultCredentialId, [
@@ -384,14 +388,13 @@ try {
         'title' => 'Firewall matriz atualizado',
         'service_url' => 'https://firewall.example',
         'username' => 'admin',
-        'secret_value' => $vaultCredential['secret_value'],
         'notes' => 'Acesso principal',
         'custom_fields' => json_encode(['ip_de_acesso' => '192.168.0.254']),
         'is_active' => 1,
         'updated_by' => $adminId,
-    ]);
+    ], 0);
     $vaultCredentialUpdated = VaultCredential::find($vaultCredentialId);
-    check('Edicao do cofre preserva senha criptografada quando valor nao muda', ($vaultCredentialUpdated['secret_value'] ?? '') === ($vaultCredential['secret_value'] ?? null));
+    check('Edicao de metadados preserva referencia Vault', (int) ($vaultCredentialUpdated['vault_version'] ?? 0) === 1);
     check('Edicao do cofre atualiza campos personalizados', VaultCredential::customFields($vaultCredentialUpdated)['ip_de_acesso'] === '192.168.0.254');
     check('Credencial do cofre aparece na categoria principal', count(VaultCredential::filtered(['company_id' => $companyId, 'category_id' => $vaultCategoryId])) === 1);
     db()->prepare('UPDATE vault_categories SET is_active = 0 WHERE id = :id')->execute(['id' => $vaultSubcategoryId]);
@@ -410,12 +413,11 @@ try {
     check('Busca do cofre por nome encontra credenciais de todas as empresas', count(VaultCredential::filtered(['search_mode' => 'credential', 'query' => 'Firewall'])) === 1);
     check('Busca do cofre por empresa encontra empresas pelo nome', count(VaultCredential::companiesSummary(['search_mode' => 'company', 'query' => 'EXE'])) === 1);
     check('Busca do cofre por empresa nao mistura nome da credencial', count(VaultCredential::companiesSummary(['search_mode' => 'company', 'query' => 'Firewall'])) === 0);
-    check('Credencial do cofre pode ser revelada quando permitido', CredentialCrypto::decrypt($vaultCredentialUpdated['secret_value'] ?? null) === 'senha-cofre');
     VaultCredential::markRevealed($vaultCredentialId, $adminId);
     $vaultCredentialRevealed = VaultCredential::find($vaultCredentialId);
     check('Revelacao do cofre atualiza ultimo acesso', !empty($vaultCredentialRevealed['last_revealed_at']));
     check('Filtro do cofre trata SQL injection como texto', count(VaultCredential::filtered(['query' => "' OR 1=1 --"])) === 0);
-    VaultCredential::deactivate($vaultCredentialId, $adminId);
+    VaultCredential::deactivate($vaultCredentialId, $adminId, 1);
     check('Credencial desativada sai da busca principal', count(VaultCredential::filtered(['company_id' => $companyId, 'query' => 'Firewall'])) === 0);
 
     check('Prefixo de notebook usa empresa', Machine::normalizeTag('42', 'notebook', $company) === 'NEXE42');

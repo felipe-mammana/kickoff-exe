@@ -193,7 +193,7 @@ apply_api_rate_limit_migration.php
 apply_account_security_migration.php
 apply_security_settings_migration.php
 apply_user_preferences_migration.php
-apply_vault_migration.php
+apply_vault_kv2_migration.php
 apply_company_attachments_migration.php
 apply_photo_metadata_migration.php
 apply_account_protection_migration.php
