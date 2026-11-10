@@ -124,6 +124,9 @@ define('VAULT_COFRE_CA_FILE', (string) config_value('VAULT_COFRE_CA_FILE', '/usr
 define('VAULT_COFRE_TOKEN_FILE', (string) config_value('VAULT_COFRE_TOKEN_FILE', '/run/kickoff-cofre-hml/token'));
 define('VAULT_COFRE_CONNECT_TIMEOUT_MS', max(100, min(10000, config_int('VAULT_COFRE_CONNECT_TIMEOUT_MS', 1000))));
 define('VAULT_COFRE_REQUEST_TIMEOUT_MS', max(VAULT_COFRE_CONNECT_TIMEOUT_MS, min(30000, config_int('VAULT_COFRE_REQUEST_TIMEOUT_MS', 3000))));
+define('VAULT_COFRE_ENVELOPE_ENCRYPTION', filter_var(config_value('VAULT_COFRE_ENVELOPE_ENCRYPTION', '0'), FILTER_VALIDATE_BOOL));
+define('VAULT_COFRE_TRANSIT_MOUNT', (string) config_value('VAULT_COFRE_TRANSIT_MOUNT', 'transit'));
+define('VAULT_COFRE_TRANSIT_KEY', (string) config_value('VAULT_COFRE_TRANSIT_KEY', 'kickoff-cofre-hml'));
 
 define('MAX_UPLOAD_BYTES', 5 * 1024 * 1024);
 define('COMPANY_ATTACHMENT_MAX_BYTES', max(1024, config_int('COMPANY_ATTACHMENT_MAX_BYTES', 25 * 1024 * 1024)));

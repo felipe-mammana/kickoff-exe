@@ -389,14 +389,21 @@ try {
         throw new RuntimeException('Nao foi possivel preparar o token ficticio.');
     }
     $fakeTransport = new FakeVaultKv2Transport();
+    $tokenProvider = new VaultTokenProvider($testTokenFile);
+    $transitClient = new VaultTransitClient(
+        $fakeTransport, $tokenProvider, 'https://vault.invalid:8200',
+        'transit', 'kickoff-cofre-hml', $testTokenFile, 100, 500
+    );
     $fakeClient = new VaultKv2Client(
         $fakeTransport,
-        new VaultTokenProvider($testTokenFile),
+        $tokenProvider,
         new VaultSecretPath('kickoff-cofre-hml'),
         'https://vault.invalid:8200',
         $testTokenFile,
         100,
-        500
+        500,
+        new VaultSecretEnvelope($transitClient),
+        true
     );
     $service = new VaultCredentialSecretService($pdo, $fakeClient);
     $metadata = [
@@ -411,6 +418,9 @@ try {
         && (int) $serviceRow['vault_version'] === 1 && (int) $serviceRow['lock_version'] === 1);
     $check('Notas permanecem criptografadas no MySQL', CredentialCrypto::isEncrypted($serviceRow['notes']));
     $check('Segredo nao existe nas colunas da credencial', !array_key_exists('secret_value', $serviceRow));
+    $storedEnvelope = $fakeTransport->versionData(1, $serviceCredentialId, 1);
+    $check('Servico grava somente envelope enc:v2 no KV', ($storedEnvelope['format'] ?? null) === 'enc:v2'
+        && !array_key_exists('secret', $storedEnvelope));
 
     $metadata['title'] = 'Servico Vault editado';
     $metadata['updated_by'] = null;
@@ -445,6 +455,25 @@ try {
     $pendingBefore = (int) $pdo->query("SELECT COUNT(*) FROM vault_secret_operations WHERE operation_state = 'pending'")->fetchColumn();
     $reconciled = $service->reconcilePending(50);
     $check('Reconciliacao confirma escrita por leitura sem repetir POST', $pendingBefore > 0 && $reconciled['completed'] >= 1);
+
+    $legacyClient = new VaultKv2Client(
+        $fakeTransport, $tokenProvider, new VaultSecretPath('kickoff-cofre-hml'),
+        'https://vault.invalid:8200', $testTokenFile, 100, 500
+    );
+    $legacyService = new VaultCredentialSecretService($pdo, $legacyClient);
+    $legacyCredentialId = $legacyService->create(
+        array_merge($metadata, ['title' => 'Formato legado controlado']),
+        'segredo-legado-para-migracao'
+    );
+    $migration = $service->migrateEncryption($legacyCredentialId);
+    $migratedRow = $pdo->query('SELECT * FROM vault_credentials WHERE id = ' . $legacyCredentialId)->fetch();
+    $check('Migracao controlada cria nova versao enc:v2', $migration['migrated']
+        && $migration['from'] === 'legacy:v1' && $migration['to'] === 'enc:v2'
+        && (int) $migratedRow['vault_version'] === 2
+        && $service->reveal($migratedRow) === 'segredo-legado-para-migracao');
+    $migrationAgain = $service->migrateEncryption($legacyCredentialId);
+    $check('Migracao enc:v2 e idempotente', !$migrationAgain['migrated']
+        && $migrationAgain['vault_version'] === 2);
 
     $missingTokenClient = new VaultKv2Client(
         new FakeVaultKv2Transport(),

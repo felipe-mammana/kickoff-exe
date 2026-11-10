@@ -16,7 +16,9 @@ final class VaultKv2Client
         string $address,
         private readonly string $caFile,
         private readonly int $connectTimeoutMs = 1000,
-        private readonly int $requestTimeoutMs = 3000
+        private readonly int $requestTimeoutMs = 3000,
+        private readonly ?VaultSecretEnvelope $envelope = null,
+        private readonly bool $encryptWrites = false
     ) {
         $parts = parse_url($address);
         if (
@@ -53,6 +55,11 @@ final class VaultKv2Client
         return $this->write($companyId, $credentialId, $secret, 0, $operationId);
     }
 
+    public function encryptionEnabled(): bool
+    {
+        return $this->envelope !== null && $this->encryptWrites;
+    }
+
     public function read(int $companyId, int $credentialId, int $version): VaultSecret
     {
         if ($version < 1) {
@@ -72,7 +79,6 @@ final class VaultKv2Client
             throw $this->invalidResponse();
         }
 
-        $secret = $data['secret'] ?? null;
         $returnedCompanyId = $data['company_id'] ?? null;
         $returnedCredentialId = $data['credential_id'] ?? null;
         $operationId = $data['operation_id'] ?? null;
@@ -82,13 +88,10 @@ final class VaultKv2Client
         $deletionTime = $metadata['deletion_time'] ?? null;
 
         if (
-            !is_string($secret)
-            || $secret === ''
-            || strlen($secret) > self::MAX_SECRET_BYTES
-            || !is_int($returnedCompanyId)
+            !is_int($returnedCompanyId)
             || !is_int($returnedCredentialId)
             || !is_string($operationId)
-            || $schemaVersion !== 1
+            || !in_array($schemaVersion, [1, 2], true)
             || !is_int($returnedVersion)
             || !is_bool($destroyed)
             || !is_string($deletionTime)
@@ -107,7 +110,24 @@ final class VaultKv2Client
             throw $this->invalidResponse($error);
         }
 
-        return new VaultSecret($secret, $companyId, $credentialId, $operationId, $version);
+        if ($schemaVersion === 1) {
+            $secret = $data['secret'] ?? null;
+            if (!is_string($secret) || $secret === '' || strlen($secret) > self::MAX_SECRET_BYTES) {
+                throw $this->invalidResponse();
+            }
+            return new VaultSecret($secret, $companyId, $credentialId, $operationId, $version, 'legacy:v1');
+        }
+        if ($this->envelope === null || array_key_exists('secret', $data)) {
+            throw new VaultOperationException('encryption_unavailable', 'Segredo criptografado indisponivel sem configuracao Transit.');
+        }
+        try {
+            $secret = $this->envelope->decrypt($data, $companyId, $credentialId, $operationId, $version);
+        } catch (VaultOperationException $error) {
+            throw $error;
+        } catch (Throwable $error) {
+            throw $this->invalidResponse($error);
+        }
+        return new VaultSecret($secret, $companyId, $credentialId, $operationId, $version, VaultSecretEnvelope::FORMAT);
     }
 
     public function update(
@@ -142,15 +162,20 @@ final class VaultKv2Client
         $expectedVersion = $cas + 1;
 
         try {
+            $data = [
+                'company_id' => $companyId,
+                'credential_id' => $credentialId,
+                'operation_id' => $operationId,
+            ];
+            if (!$this->encryptionEnabled()) {
+                $data += ['secret' => $secret, 'schema_version' => 1];
+            } else {
+                $data += $this->envelope->encrypt($secret, $companyId, $credentialId, $operationId, $expectedVersion);
+                $data['schema_version'] = 2;
+            }
             $body = json_encode([
                 'options' => ['cas' => $cas],
-                'data' => [
-                    'secret' => $secret,
-                    'company_id' => $companyId,
-                    'credential_id' => $credentialId,
-                    'operation_id' => $operationId,
-                    'schema_version' => 1,
-                ],
+                'data' => $data,
             ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
         } catch (JsonException $error) {
             throw new VaultOperationException('invalid_request', 'Não foi possível preparar a requisição ao Vault.', false, null, null, $error);

@@ -8,6 +8,18 @@ final class FakeVaultKv2Transport implements VaultHttpTransport
     private array $versions = [];
     private bool $timeoutAfterNextWrite = false;
     private bool $conflictNextWrite = false;
+    private int $dataKeyCounter = 0;
+
+    /** @return array<string, mixed> */
+    public function versionData(int $companyId, int $credentialId, int $version): array
+    {
+        return $this->versions[$companyId . ':' . $credentialId][$version] ?? [];
+    }
+
+    public function replaceVersionData(int $companyId, int $credentialId, int $version, array $data): void
+    {
+        $this->versions[$companyId . ':' . $credentialId][$version] = $data;
+    }
 
     public function timeoutAfterNextWrite(): void
     {
@@ -29,6 +41,23 @@ final class FakeVaultKv2Transport implements VaultHttpTransport
         string $caFile
     ): array {
         $path = (string) parse_url($url, PHP_URL_PATH);
+        if ($method === 'POST' && str_contains($path, '/datakey/wrapped/')) {
+            $this->dataKeyCounter++;
+            $key = hash('sha256', 'fake-transit-key-' . $this->dataKeyCounter, true);
+            return $this->response(200, ['data' => [
+                'plaintext' => base64_encode($key),
+                'ciphertext' => 'vault:v1:' . base64_encode($key),
+            ]]);
+        }
+        if ($method === 'POST' && str_contains($path, '/decrypt/')) {
+            $payload = json_decode((string) $body, true, 8, JSON_THROW_ON_ERROR);
+            $wrapped = (string) ($payload['ciphertext'] ?? '');
+            $key = str_starts_with($wrapped, 'vault:v1:') ? base64_decode(substr($wrapped, 9), true) : false;
+            if (!is_string($key) || strlen($key) !== 32) {
+                return $this->response(400, ['errors' => ['invalid ciphertext']]);
+            }
+            return $this->response(200, ['data' => ['plaintext' => base64_encode($key)]]);
+        }
         if (preg_match('#/data/empresas/(\d+)/credenciais/(\d+)$#', $path, $matches) !== 1) {
             return $this->response(404, ['errors' => ['not found']]);
         }

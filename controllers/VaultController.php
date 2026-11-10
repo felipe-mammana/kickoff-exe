@@ -362,6 +362,11 @@ class VaultController
         }
 
         $credential = self::requireCredential((int) ($_POST['id'] ?? 0));
+        $rateLimit = SecurityRateLimit::hit('vault-reveal', (int) $currentUser['id'], 30, 60);
+        if (!$rateLimit['allowed']) {
+            header('Retry-After: ' . $rateLimit['retry_after']);
+            ApiResponse::error('rate_limited', 'Limite de revelações excedido. Aguarde antes de tentar novamente.', 429);
+        }
         try {
             $value = self::secretService()->reveal($credential);
         } catch (VaultCredentialServiceException $error) {

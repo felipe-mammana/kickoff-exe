@@ -178,6 +178,105 @@ final class VaultCredentialSecretService
         return $secret->secret;
     }
 
+    /** @return array{migrated: bool, from: string, to: string, operation_id: ?string, vault_version: int} */
+    public function migrateEncryption(int $credentialId): array
+    {
+        $credential = $this->readyCredential($credentialId);
+        try {
+            $current = $this->vault->read(
+                (int) $credential['company_id'],
+                $credentialId,
+                (int) $credential['vault_version']
+            );
+        } catch (VaultOperationException $error) {
+            throw new VaultCredentialServiceException($error->reason(), $error->getMessage(), false, $error);
+        }
+        if (!hash_equals((string) $credential['vault_operation_id'], $current->operationId)) {
+            throw new VaultCredentialServiceException('operation_mismatch', 'A referencia da credencial nao corresponde ao segredo no Vault.');
+        }
+        if ($current->format === VaultSecretEnvelope::FORMAT) {
+            return [
+                'migrated' => false, 'from' => $current->format, 'to' => $current->format,
+                'operation_id' => null, 'vault_version' => $current->version,
+            ];
+        }
+        if (!$this->vault->encryptionEnabled()) {
+            throw new VaultCredentialServiceException('encryption_disabled', 'Criptografia Transit nao habilitada para a migracao.');
+        }
+
+        $operationId = self::uuidV4();
+        $expectedVersion = (int) $credential['vault_version'];
+        $expectedLock = (int) $credential['lock_version'];
+        $this->pdo->beginTransaction();
+        try {
+            $locked = $this->lockCredential($credentialId);
+            if (!$this->matchesReference($locked, $expectedVersion, $expectedLock)) {
+                throw new VaultCredentialServiceException('optimistic_conflict', 'A credencial foi alterada por outra operacao.', true);
+            }
+            $this->insertOperation($operationId, $credentialId, 'update', $expectedVersion, $expectedLock);
+            $this->pdo->commit();
+        } catch (Throwable $error) {
+            $this->rollBack();
+            throw $error;
+        }
+
+        $writeReturned = false;
+        try {
+            $result = $this->vault->update(
+                (int) $credential['company_id'], $credentialId, $current->secret, $expectedVersion, $operationId
+            );
+            $writeReturned = true;
+            $confirmed = $this->vault->read((int) $credential['company_id'], $credentialId, $result->version);
+            $this->assertConfirmation($confirmed, $operationId, $current->secret, $expectedVersion + 1);
+            $this->markVaultConfirmed($operationId, $result->version);
+            $this->finalizeSecretRewrite($credentialId, $operationId, $result->version, $expectedVersion, $expectedLock);
+            return [
+                'migrated' => true, 'from' => $current->format, 'to' => $confirmed->format,
+                'operation_id' => $operationId, 'vault_version' => $result->version,
+            ];
+        } catch (VaultOperationException $error) {
+            $ambiguous = $writeReturned || $error->isRetryable();
+            $this->recordFailure($operationId, $error->reason(), !$ambiguous, $credentialId, false);
+            throw new VaultCredentialServiceException(
+                $ambiguous ? 'vault_write_unconfirmed' : $error->reason(),
+                $ambiguous
+                    ? 'A migracao pode ter criado uma versao no Vault. Nao repita; execute a reconciliacao.'
+                    : $error->getMessage(),
+                $error->reason() === 'cas_conflict',
+                $error
+            );
+        } catch (Throwable $error) {
+            $this->recordFailure($operationId, 'MYSQL_FINALIZATION_ERROR', false, $credentialId, false);
+            throw new VaultCredentialServiceException(
+                'mysql_finalization_error',
+                'A versao criptografada pode existir no Vault, mas o MySQL nao confirmou. Execute a reconciliacao.',
+                false,
+                $error
+            );
+        }
+    }
+
+    /** @return array{format: string, vault_version: int, encryption_enabled: bool} */
+    public function encryptionStatus(int $credentialId): array
+    {
+        $credential = $this->readyCredential($credentialId);
+        try {
+            $secret = $this->vault->read(
+                (int) $credential['company_id'], $credentialId, (int) $credential['vault_version']
+            );
+        } catch (VaultOperationException $error) {
+            throw new VaultCredentialServiceException($error->reason(), $error->getMessage(), false, $error);
+        }
+        if (!hash_equals((string) $credential['vault_operation_id'], $secret->operationId)) {
+            throw new VaultCredentialServiceException('operation_mismatch', 'A referencia da credencial nao corresponde ao segredo no Vault.');
+        }
+        return [
+            'format' => $secret->format,
+            'vault_version' => $secret->version,
+            'encryption_enabled' => $this->vault->encryptionEnabled(),
+        ];
+    }
+
     public function deactivate(int $credentialId, int $userId, int $expectedLockVersion): void
     {
         $stmt = $this->pdo->prepare(
@@ -329,6 +428,37 @@ final class VaultCredentialSecretService
         }
     }
 
+    private function finalizeSecretRewrite(
+        int $credentialId,
+        string $operationId,
+        int $version,
+        int $expectedVersion,
+        int $expectedLock
+    ): void {
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare(
+                "UPDATE vault_credentials
+                 SET vault_version = :version, vault_operation_id = :operation_id,
+                     lock_version = lock_version + 1
+                 WHERE id = :id AND operational_state = 'ready'
+                   AND vault_version = :expected_version AND lock_version = :expected_lock"
+            );
+            $stmt->execute([
+                'version' => $version, 'operation_id' => $operationId, 'id' => $credentialId,
+                'expected_version' => $expectedVersion, 'expected_lock' => $expectedLock,
+            ]);
+            if ($stmt->rowCount() !== 1) {
+                throw new VaultCredentialServiceException('optimistic_conflict', 'A credencial mudou durante a migracao.', true);
+            }
+            $this->completeOperation($operationId, $version);
+            $this->pdo->commit();
+        } catch (Throwable $error) {
+            $this->rollBack();
+            throw $error;
+        }
+    }
+
     private function finalizeReconciled(array $operation, int $version): void
     {
         $this->pdo->beginTransaction();
@@ -428,6 +558,7 @@ final class VaultCredentialSecretService
         if ($confirmed->version !== $version
             || !hash_equals($operationId, $confirmed->operationId)
             || !hash_equals($secret, $confirmed->secret)
+            || ($this->vault->encryptionEnabled() && $confirmed->format !== VaultSecretEnvelope::FORMAT)
         ) {
             throw new VaultOperationException('confirmation_mismatch', 'A confirmacao do Vault nao corresponde a escrita realizada.');
         }

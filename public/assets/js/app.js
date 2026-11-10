@@ -962,6 +962,8 @@
     const userModals = document.querySelectorAll('[data-user-modal]');
     const userModalFocus = document.querySelector('[data-user-modal-focus]');
     const vaultModals = document.querySelectorAll('[data-vault-modal]');
+    const vaultSecretCells = new Set();
+    const vaultSecretStates = new WeakMap();
     const confirmModal = document.querySelector('[data-confirm-modal]');
     const confirmMessage = confirmModal?.querySelector('[data-confirm-message]');
     const confirmSubmit = confirmModal?.querySelector('[data-confirm-submit]');
@@ -1054,6 +1056,7 @@
     }
 
     function closeVaultModals() {
+        clearAllVaultSecrets();
         vaultModals.forEach(function (modal) {
             modal.hidden = true;
         });
@@ -1109,6 +1112,7 @@
     }
 
     function openVaultModal(name) {
+        clearAllVaultSecrets();
         const modal = document.querySelector('[data-vault-modal="' + name + '"]');
         if (!modal) {
             return null;
@@ -1914,7 +1918,6 @@
                 if (output) {
                     output.value = '';
                     output.type = 'password';
-                    delete output.dataset.loaded;
                 }
                 if (secretToggle) {
                     secretToggle.setAttribute('data-vault-secret-id', id);
@@ -2084,13 +2087,47 @@
         });
     }
 
+    function vaultSecretState(cell) {
+        let state = vaultSecretStates.get(cell);
+        if (!state) {
+            state = { requestId: 0, controller: null, timer: null };
+            vaultSecretStates.set(cell, state);
+            vaultSecretCells.add(cell);
+        }
+        return state;
+    }
+
+    function resetVaultSecretButton(cell) {
+        const button = cell?.querySelector('[data-vault-secret-toggle]');
+        button?.setAttribute('title', 'Mostrar senha');
+        button?.setAttribute('aria-label', 'Mostrar senha');
+    }
+
+    function clearVaultSecret(cell) {
+        if (!cell) return;
+        const state = vaultSecretState(cell);
+        state.requestId += 1;
+        state.controller?.abort();
+        state.controller = null;
+        window.clearTimeout(state.timer);
+        state.timer = null;
+        const output = cell.querySelector('[data-vault-secret-output]');
+        if (output) {
+            if ('value' in output) output.value = '';
+            output.textContent = '';
+            if ('type' in output) output.type = 'password';
+        }
+        resetVaultSecretButton(cell);
+    }
+
+    function clearAllVaultSecrets() {
+        vaultSecretCells.forEach(clearVaultSecret);
+    }
+
     function fetchVaultSecret(cell, id, revealPassword, confirmedReveal, intent) {
         const output = cell?.querySelector('[data-vault-secret-output]');
         if (!cell || !output) {
             return Promise.reject(new Error('Campo de senha inválido.'));
-        }
-        if (output.dataset.loaded === '1' && !revealPassword && intent !== 'copy') {
-            return Promise.resolve(output.value);
         }
 
         const csrf = cell.querySelector('[data-vault-secret-csrf]')?.value || '';
@@ -2105,12 +2142,21 @@
         if (revealPassword) {
             payload.set('reveal_password', revealPassword);
         }
-        if (confirmedReveal || cell.dataset.vaultRevealConfirmed === '1') {
+        if (confirmedReveal) {
             payload.set('confirm_reveal', '1');
         }
 
+        const state = vaultSecretState(cell);
+        state.controller?.abort();
+        const controller = new AbortController();
+        const requestId = ++state.requestId;
+        state.controller = controller;
+
         return fetch('/?route=vault.reveal', {
             method: 'POST',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            signal: controller.signal,
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
             },
@@ -2120,26 +2166,28 @@
                 return { ok: response.ok && json.ok, json: json };
             });
         }).then(function (result) {
+            if (state.requestId !== requestId) {
+                const stale = new Error('Resposta de revelação descartada.');
+                stale.code = 'stale_response';
+                throw stale;
+            }
             if (!result.ok) {
                 const error = new Error(result.json?.error?.message || 'Não foi possível revelar a credencial.');
                 error.code = result.json?.error?.code || '';
                 throw error;
             }
 
-            output.value = result.json.data.value || '';
-            if (output.tagName !== 'INPUT' && output.tagName !== 'TEXTAREA') {
-                output.textContent = result.json.data.value || '';
-            }
-            output.dataset.loaded = '1';
-            return output.value || output.textContent || '';
+            return result.json.data.value || '';
         }).catch(function (error) {
+            if (error.name === 'AbortError' || error.code === 'stale_response') {
+                throw error;
+            }
             if (error.code !== 'password_required') {
                 if (error.code === 'confirmation_required') {
                     if (!window.confirm('Revelar esta senha?')) {
                         throw new Error('Revelação cancelada.');
                     }
 
-                    cell.dataset.vaultRevealConfirmed = '1';
                     return fetchVaultSecret(cell, id, revealPassword, true, intent);
                 }
 
@@ -2152,6 +2200,10 @@
             }
 
             return fetchVaultSecret(cell, id, password, confirmedReveal, intent);
+        }).finally(function () {
+            if (state.requestId === requestId && state.controller === controller) {
+                state.controller = null;
+            }
         });
     }
 
@@ -2165,15 +2217,28 @@
         button.addEventListener('click', function () {
             const cell = button.closest('[data-vault-secret-cell]');
             const output = cell?.querySelector('[data-vault-secret-output]');
+            const state = cell ? vaultSecretState(cell) : null;
 
-            fetchVaultSecret(cell, button.getAttribute('data-vault-secret-id') || '').then(function () {
-                const shouldShow = output?.type === 'password';
+            if (state?.controller || (output && (output.value || output.textContent))) {
+                clearVaultSecret(cell);
+                return;
+            }
+
+            clearVaultSecret(cell);
+            fetchVaultSecret(cell, button.getAttribute('data-vault-secret-id') || '').then(function (value) {
                 if (output) {
-                    output.type = shouldShow ? 'text' : 'password';
+                    if ('value' in output) output.value = value;
+                    else output.textContent = value;
+                    if ('type' in output) output.type = 'text';
                 }
-                button.setAttribute('title', shouldShow ? 'Ocultar senha' : 'Mostrar senha');
-                button.setAttribute('aria-label', shouldShow ? 'Ocultar senha' : 'Mostrar senha');
+                button.setAttribute('title', 'Ocultar senha');
+                button.setAttribute('aria-label', 'Ocultar senha');
+                const current = vaultSecretState(cell);
+                window.clearTimeout(current.timer);
+                current.timer = window.setTimeout(function () { clearVaultSecret(cell); }, 15000);
             }).catch(function (error) {
+                clearVaultSecret(cell);
+                if (error.name === 'AbortError' || error.code === 'stale_response') return;
                 window.alert(error.message || 'Não foi possível revelar a senha.');
             });
         });
@@ -2183,13 +2248,22 @@
         button.addEventListener('click', function () {
             const cell = button.closest('[data-vault-secret-cell]');
 
+            clearVaultSecret(cell);
             fetchVaultSecret(cell, button.getAttribute('data-vault-secret-id') || '', undefined, undefined, 'copy').then(function (value) {
                 copyText(value, button);
             }).catch(function (error) {
+                clearVaultSecret(cell);
+                if (error.name === 'AbortError' || error.code === 'stale_response') return;
                 window.alert(error.message || 'Não foi possível copiar a senha.');
             });
         });
     });
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) clearAllVaultSecrets();
+    });
+    window.addEventListener('pagehide', clearAllVaultSecrets);
+    window.addEventListener('beforeunload', clearAllVaultSecrets);
 
     document.querySelectorAll('[data-gallery-open]').forEach(function (button) {
         button.addEventListener('click', function () {
