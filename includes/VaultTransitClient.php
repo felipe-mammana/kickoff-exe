@@ -52,7 +52,7 @@ final class VaultTransitClient
     public function generateWrappedDataKey(): array
     {
         $payload = $this->request(
-            '/v1/' . rawurlencode($this->mount) . '/datakey/wrapped/' . rawurlencode($this->keyName),
+            '/v1/' . rawurlencode($this->mount) . '/datakey/plaintext/' . rawurlencode($this->keyName),
             ['bits' => 256]
         );
         $plaintext = $payload['data']['plaintext'] ?? null;

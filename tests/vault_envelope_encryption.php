@@ -50,6 +50,10 @@ try {
     $secret2 = 'segredo-ficticio-envelope-2';
     $write1 = $client->create(7, 41, $secret1, $op1);
     $stored1 = $transport->versionData(7, 41, 1);
+    $check('Transit usa datakey/plaintext para receber DEK e ciphertext',
+        in_array('POST /v1/transit/datakey/plaintext/kickoff-cofre-hml', $transport->requestPaths, true));
+    $check('Transit nao usa datakey/wrapped incompatível com plaintext',
+        !in_array('POST /v1/transit/datakey/wrapped/kickoff-cofre-hml', $transport->requestPaths, true));
     $check('Nova escrita usa schema_version 2', ($stored1['schema_version'] ?? null) === 2);
     $check('KV nao contem campo secret em texto legivel', !array_key_exists('secret', $stored1));
     $check('KV contem envelope enc:v2 AES-256-GCM', ($stored1['format'] ?? null) === 'enc:v2' && ($stored1['algorithm'] ?? null) === 'AES-256-GCM');

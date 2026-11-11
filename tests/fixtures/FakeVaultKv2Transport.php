@@ -9,6 +9,8 @@ final class FakeVaultKv2Transport implements VaultHttpTransport
     private bool $timeoutAfterNextWrite = false;
     private bool $conflictNextWrite = false;
     private int $dataKeyCounter = 0;
+    /** @var list<string> */
+    public array $requestPaths = [];
 
     /** @return array<string, mixed> */
     public function versionData(int $companyId, int $credentialId, int $version): array
@@ -41,7 +43,16 @@ final class FakeVaultKv2Transport implements VaultHttpTransport
         string $caFile
     ): array {
         $path = (string) parse_url($url, PHP_URL_PATH);
+        $this->requestPaths[] = $method . ' ' . $path;
         if ($method === 'POST' && str_contains($path, '/datakey/wrapped/')) {
+            $this->dataKeyCounter++;
+            $key = hash('sha256', 'fake-transit-key-' . $this->dataKeyCounter, true);
+            // Resposta real de /datakey/wrapped: nao inclui a DEK em plaintext.
+            return $this->response(200, ['data' => [
+                'ciphertext' => 'vault:v1:' . base64_encode($key),
+            ]]);
+        }
+        if ($method === 'POST' && str_contains($path, '/datakey/plaintext/')) {
             $this->dataKeyCounter++;
             $key = hash('sha256', 'fake-transit-key-' . $this->dataKeyCounter, true);
             return $this->response(200, ['data' => [

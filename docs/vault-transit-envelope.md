@@ -42,7 +42,7 @@ Estas operacoes exigem um operador Vault autorizado e devem ser revisadas antes 
 2. Criar a chave `kickoff-cofre-hml` como `aes256-gcm96`, nao exportavel, sem backup em texto claro e sem exclusao permitida.
 3. Anexar ao AppRole exclusivo da HML somente a politica de [exemplo](examples/vault-kickoff-cofre-hml-transit-policy.hcl).
 4. Renovar o token do Vault Agent e validar apenas:
-   - `update` em `transit/datakey/wrapped/kickoff-cofre-hml`;
+   - `update` em `transit/datakey/plaintext/kickoff-cofre-hml`;
    - `update` em `transit/decrypt/kickoff-cofre-hml`.
 5. Nao conceder `transit/keys/*`, `transit/encrypt/*`, `sys/*`, `sudo`, `list` ou acesso a chaves de producao.
 
@@ -54,7 +54,7 @@ VAULT_COFRE_TRANSIT_KEY=kickoff-cofre-hml
 VAULT_COFRE_ENVELOPE_ENCRYPTION=1
 ```
 
-Ativar a flag somente depois de um teste de `datakey/wrapped` e `decrypt` com material ficticio. Nao versionar esses valores em `config/local.php`.
+Ativar a flag somente depois de um teste de `datakey/plaintext` e `decrypt` com material ficticio. O endpoint `datakey/plaintext` retorna a DEK em Base64 e o respectivo ciphertext; `datakey/wrapped` retorna somente o ciphertext e nao e compativel com a criptografia AES-GCM local. A DEK em claro deve existir apenas na memoria do processo e nunca ser registrada ou persistida. Nao versionar esses valores em `config/local.php`.
 
 ## Migracao controlada
 
