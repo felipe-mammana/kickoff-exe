@@ -330,6 +330,35 @@ try {
     check('Categoria criada na empresa nao aparece em outra empresa', !in_array($companyOnlyCategoryId, array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::withCountsByParent(null, $otherCompanyId)), true));
     check('Categoria criada na empresa nao vira padrao global', !in_array($companyOnlyCategoryId, array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::allWithCounts()), true));
     check('Base de icones do cofre contem opcoes variadas', count(VaultCategory::iconOptions()) >= 24 && array_key_exists('server', VaultCategory::iconOptions()));
+    $vaultCategorySeeder = new VaultCategorySeeder(db());
+    $defaultVaultCategories = AppSetting::defaultVaultSettings()['default_categories'];
+    $firstSeed = $vaultCategorySeeder->synchronize($defaultVaultCategories, $adminId);
+    $secondSeed = $vaultCategorySeeder->synchronize($defaultVaultCategories, $adminId);
+    check('Seeder cria as 10 categorias padrao historicas', $firstSeed['created'] === 10);
+    check('Seeder de categorias do cofre e idempotente', $secondSeed['created'] === 0 && $secondSeed['updated'] === 0 && $secondSeed['unchanged'] === 10);
+    $defaultCountStmt = db()->prepare(
+        'SELECT COUNT(*) FROM vault_categories
+         WHERE company_id IS NULL
+           AND (name IN ("Acessos administrativos", "Bancos de dados", "Cloud e hospedagem", "E-mails e comunicação", "Financeiro", "Rede e infraestrutura", "Sistemas internos", "Outros")
+                OR name IN ("Roteadores", "Wi-Fi"))'
+    );
+    $defaultCountStmt->execute();
+    check('Categorias padrao nao sao duplicadas', (int) $defaultCountStmt->fetchColumn() === 10);
+    $networkCategoryStmt = db()->prepare('SELECT id, icon FROM vault_categories WHERE company_id IS NULL AND parent_id IS NULL AND name = :name');
+    $networkCategoryStmt->execute(['name' => 'Rede e infraestrutura']);
+    $networkCategory = $networkCategoryStmt->fetch();
+    $networkChildrenStmt = db()->prepare('SELECT name, icon FROM vault_categories WHERE company_id IS NULL AND parent_id = :parent_id ORDER BY name');
+    $networkChildrenStmt->execute(['parent_id' => (int) $networkCategory['id']]);
+    $networkChildren = $networkChildrenStmt->fetchAll();
+    check('Seeder preserva hierarquia e icones historicos', $networkCategory['icon'] === 'router' && $networkChildren === [
+        ['name' => 'Roteadores', 'icon' => 'router'],
+        ['name' => 'Wi-Fi', 'icon' => 'wifi'],
+    ]);
+    db()->prepare('UPDATE vault_categories SET icon = "folder", is_active = 0 WHERE id = :id')->execute(['id' => (int) $networkCategory['id']]);
+    $repairSeed = $vaultCategorySeeder->synchronize($defaultVaultCategories, $adminId);
+    $repairedNetwork = VaultCategory::find((int) $networkCategory['id']);
+    check('Seeder reativa e restaura caracteristicas de categoria padrao', $repairSeed['updated'] === 1 && $repairedNetwork['icon'] === 'router' && (int) $repairedNetwork['is_active'] === 1);
+    check('Seeder nao cria categorias vinculadas a empresas', (int) db()->query('SELECT COUNT(*) FROM vault_categories WHERE company_id IS NOT NULL AND id <> ' . $companyOnlyCategoryId)->fetchColumn() === 0);
     $attachmentId = CompanyAttachment::create([
         'company_id' => $companyId,
         'category_id' => $vaultCategoryId,

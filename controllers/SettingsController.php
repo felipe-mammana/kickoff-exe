@@ -236,12 +236,12 @@ class SettingsController
         ];
 
         AppSetting::setJson('vault_settings', $settings);
-        $created = self::ensureVaultDefaultCategories($categories);
+        $seedResult = (new VaultCategorySeeder(db()))->synchronize($categories, (int) current_user()['id']);
         AuditLog::record([
             'action_type' => 'vault_settings_updated',
             'affected_table' => 'app_settings',
             'description' => 'Configurações do cofre de senhas atualizadas.',
-            'new_data' => $settings + ['Categorias criadas' => $created],
+            'new_data' => $settings + ['Categorias criadas' => $seedResult['created']],
         ]);
 
         flash('success', 'Configurações do cofre salvas.');
@@ -894,70 +894,6 @@ class SettingsController
 
         flash('success', '2FA desativado com sucesso.');
         redirect('/?route=settings.twoFactor');
-    }
-
-    private static function ensureVaultDefaultCategories(array $categories): int
-    {
-        $created = 0;
-        $userId = (int) current_user()['id'];
-
-        foreach ($categories as $category) {
-            $parentId = self::ensureVaultCategoryNode($category, null, $userId, $created);
-            foreach ((array) ($category['children'] ?? []) as $child) {
-                self::ensureVaultCategoryNode($child, $parentId, $userId, $created);
-            }
-        }
-
-        return $created;
-    }
-
-    private static function ensureVaultCategoryNode(array $category, ?int $parentId, int $userId, int &$created): int
-    {
-        $name = (string) ($category['name'] ?? '');
-        $icon = (string) ($category['icon'] ?? 'folder');
-        $slugBase = self::vaultCategoryBaseSlug(($parentId ? 'sub-' . $parentId . '-' : '') . $name);
-        $existing = VaultCategory::findGlobalBySlug($slugBase);
-
-        if ($existing) {
-            VaultCategory::updateDefault((int) $existing['id'], $name, $icon, $parentId);
-
-            return (int) $existing['id'];
-        }
-
-        $id = VaultCategory::create([
-            'company_id' => null,
-            'parent_id' => $parentId,
-            'name' => $name,
-            'slug' => self::uniqueVaultCategorySlug($slugBase),
-            'description' => $parentId ? 'Subcategoria padrão do cofre.' : 'Categoria padrão do cofre.',
-            'icon' => $icon,
-            'is_active' => 1,
-            'created_by' => $userId,
-            'updated_by' => $userId,
-        ]);
-        $created++;
-
-        return $id;
-    }
-
-    private static function vaultCategoryBaseSlug(string $name): string
-    {
-        $base = strtolower(trim((string) preg_replace('/[^A-Za-z0-9]+/', '-', iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $name) ?: $name), '-'));
-
-        return $base !== '' ? substr($base, 0, 110) : 'categoria';
-    }
-
-    private static function uniqueVaultCategorySlug(string $base): string
-    {
-        $slug = $base;
-        $suffix = 2;
-
-        while (VaultCategory::slugExists($slug)) {
-            $slug = substr($base, 0, 104) . '-' . $suffix;
-            $suffix++;
-        }
-
-        return $slug;
     }
 
     private static function activeSessions(array $user): array
