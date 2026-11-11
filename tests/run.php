@@ -329,9 +329,13 @@ try {
     check('Categoria criada na empresa fica visivel nela', in_array($companyOnlyCategoryId, array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::withCountsByParent(null, $companyId)), true));
     check('Categoria criada na empresa nao aparece em outra empresa', !in_array($companyOnlyCategoryId, array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::withCountsByParent(null, $otherCompanyId)), true));
     check('Categoria criada na empresa nao vira padrao global', !in_array($companyOnlyCategoryId, array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::allWithCounts()), true));
+    $selectableForCompany = array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::selectableForCompanies([$companyId]));
+    $selectableForOtherCompany = array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::selectableForCompanies([$otherCompanyId]));
+    check('Seletor do cofre inclui categoria global e categoria da empresa', in_array($vaultCategoryId, $selectableForCompany, true) && in_array($companyOnlyCategoryId, $selectableForCompany, true));
+    check('Seletor do cofre nao vaza categoria de outra empresa', !in_array($companyOnlyCategoryId, $selectableForOtherCompany, true));
     check('Base de icones do cofre contem opcoes variadas', count(VaultCategory::iconOptions()) >= 24 && array_key_exists('server', VaultCategory::iconOptions()));
     $vaultCategorySeeder = new VaultCategorySeeder(db());
-    $defaultVaultCategories = AppSetting::defaultVaultSettings()['default_categories'];
+    $defaultVaultCategories = VaultCategorySeeder::defaultCategories();
     $firstSeed = $vaultCategorySeeder->synchronize($defaultVaultCategories, $adminId);
     $secondSeed = $vaultCategorySeeder->synchronize($defaultVaultCategories, $adminId);
     check('Seeder cria as 10 categorias padrao historicas', $firstSeed['created'] === 10);
@@ -437,6 +441,28 @@ try {
     $vaultValidator->setAccessible(true);
     [, $inactiveCategoryErrors] = $vaultValidator->invoke(null, $company);
     check('Cofre rejeita categoria inativa em credencial', isset($inactiveCategoryErrors['category_id']));
+    $selectableWithInactive = array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::selectableForCompanies([$companyId]));
+    check('Seletor do cofre omite categoria inativa', !in_array($vaultSubcategoryId, $selectableWithInactive, true));
+    $settingsTree = VaultCategory::settingsTree();
+    $settingsTreeIds = [];
+    foreach ($settingsTree as $settingsCategory) {
+        $settingsTreeIds[] = (int) $settingsCategory['id'];
+        foreach ((array) $settingsCategory['children'] as $settingsChild) {
+            $settingsTreeIds[] = (int) $settingsChild['id'];
+        }
+    }
+    check('Configuracoes carregam categorias inativas do banco', in_array($vaultSubcategoryId, $settingsTreeIds, true));
+    $_POST = [
+        'company_id' => $otherCompanyId,
+        'category_id' => $companyOnlyCategoryId,
+        'title' => 'Credencial categoria de outra empresa',
+        'secret_value' => 'segredo',
+    ];
+    [, $otherCompanyCategoryErrors] = $vaultValidator->invoke(null, Company::find($otherCompanyId));
+    check('Backend rejeita categoria vinculada a outra empresa', isset($otherCompanyCategoryErrors['category_id']));
+    $companyResolver = new ReflectionMethod(VaultController::class, 'findAccessibleCompany');
+    $companyResolver->setAccessible(true);
+    check('Backend exige empresa ativa valida no cadastro', $companyResolver->invoke(null, 0) === null && (int) $companyResolver->invoke(null, $companyId)['id'] === $companyId);
     db()->prepare('UPDATE vault_categories SET is_active = 1 WHERE id = :id')->execute(['id' => $vaultSubcategoryId]);
     $_POST = [];
     check('Busca do cofre por nome encontra credenciais de todas as empresas', count(VaultCredential::filtered(['search_mode' => 'credential', 'query' => 'Firewall'])) === 1);

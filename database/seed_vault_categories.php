@@ -30,7 +30,7 @@ require_once dirname(__DIR__) . '/includes/bootstrap.php';
         throw new RuntimeException('Seeder recusado: a conexão PDO não aponta para kickoff_hml.');
     }
 
-    $categories = AppSetting::defaultVaultSettings()['default_categories'];
+    $categories = VaultCategorySeeder::defaultCategories();
     $seeder = new VaultCategorySeeder($pdo);
 
     if (!$apply) {

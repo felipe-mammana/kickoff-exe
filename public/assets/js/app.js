@@ -180,8 +180,6 @@
     });
 
     const vaultCategoryList = document.querySelector('[data-vault-category-list]');
-    const vaultCategoryTemplate = document.querySelector('[data-vault-category-template]');
-    const vaultSubcategoryTemplate = document.querySelector('[data-vault-subcategory-template]');
     const vaultCustomFieldTemplate = document.querySelector('[data-vault-custom-field-template]');
     let vaultDynamicIndex = Date.now();
 
@@ -198,30 +196,6 @@
             updateVaultIconPreview(select);
             select.addEventListener('change', function () {
                 updateVaultIconPreview(select);
-            });
-        });
-
-        scope.querySelectorAll('[data-vault-add-subcategory]').forEach(function (button) {
-            button.addEventListener('click', function () {
-                const category = button.closest('[data-vault-default-category]');
-                const list = category?.querySelector('[data-vault-subcategory-list]');
-                const categoryInput = category?.querySelector('input[name$="[name]"]');
-                const categoryMatch = categoryInput?.name.match(/vault_categories\[([^\]]+)\]/);
-                if (!list || !vaultSubcategoryTemplate || !categoryMatch) {
-                    return;
-                }
-
-                const categoryIndex = categoryMatch[1];
-                const childIndex = 'new_' + vaultDynamicIndex++;
-                const html = vaultSubcategoryTemplate.innerHTML
-                    .replaceAll('__CATEGORY__', categoryIndex)
-                    .replaceAll('__CHILD__', childIndex);
-                list.insertAdjacentHTML('beforeend', html);
-                const added = list.lastElementChild;
-                if (added) {
-                    bindVaultDefaultCategoryControls(added);
-                    added.querySelector('input')?.focus();
-                }
             });
         });
 
@@ -254,18 +228,6 @@
             });
         });
 
-        scope.querySelectorAll('[data-vault-remove-category]').forEach(function (button) {
-            button.addEventListener('click', function () {
-                button.closest('[data-vault-default-category]')?.remove();
-            });
-        });
-
-        scope.querySelectorAll('[data-vault-remove-subcategory]').forEach(function (button) {
-            button.addEventListener('click', function () {
-                button.closest('[data-vault-default-subcategory]')?.remove();
-            });
-        });
-
         scope.querySelectorAll('[data-vault-remove-custom-field]').forEach(function (button) {
             if (button.dataset.bound === 'true') {
                 return;
@@ -276,21 +238,6 @@
             });
         });
     }
-
-    document.querySelector('[data-vault-add-category]')?.addEventListener('click', function () {
-        if (!vaultCategoryList || !vaultCategoryTemplate) {
-            return;
-        }
-
-        const categoryIndex = 'new_' + vaultDynamicIndex++;
-        const html = vaultCategoryTemplate.innerHTML.replaceAll('__CATEGORY__', categoryIndex);
-        vaultCategoryList.insertAdjacentHTML('beforeend', html);
-        const added = vaultCategoryList.lastElementChild;
-        if (added) {
-            bindVaultDefaultCategoryControls(added);
-            added.querySelector('input')?.focus();
-        }
-    });
 
     if (vaultCategoryList) {
         bindVaultDefaultCategoryControls(vaultCategoryList);
@@ -1243,6 +1190,29 @@
         }
     }
 
+    function syncVaultCategoriesForCompany(form, notify = true) {
+        const company = form?.querySelector('[data-vault-create-company]');
+        const category = form?.querySelector('[data-vault-create-category]');
+        if (!company || !category) {
+            return;
+        }
+
+        const companyId = company.value;
+        Array.from(category.options).forEach(function (option) {
+            const categoryCompanyId = option.dataset.companyId || '';
+            const visible = categoryCompanyId === '' || (companyId !== '' && categoryCompanyId === companyId);
+            option.hidden = !visible;
+            option.disabled = !visible;
+        });
+        if (category.selectedOptions[0]?.disabled) {
+            category.value = '';
+        }
+        syncVaultCategorySearchInput(category);
+        if (notify) {
+            category.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+
     function initVaultCategoryCombobox(select) {
         const combobox = select.closest('[data-vault-category-combobox]');
         const input = combobox?.querySelector('[data-vault-category-search-input]');
@@ -1255,7 +1225,8 @@
         const options = Array.from(select.options).map(function (option) {
             return {
                 value: option.value,
-                label: option.textContent.trim()
+                label: option.textContent.trim(),
+                element: option
             };
         });
 
@@ -1274,7 +1245,7 @@
         function renderOptions() {
             const query = input.value.trim().toLowerCase();
             const matches = options.filter(function (option) {
-                return option.label.toLowerCase().includes(query);
+                return !option.element.hidden && !option.element.disabled && option.label.toLowerCase().includes(query);
             });
 
             optionsBox.replaceChildren();
@@ -1306,7 +1277,7 @@
         input.addEventListener('focus', renderOptions);
         input.addEventListener('input', function () {
             const exact = options.find(function (option) {
-                return option.label.toLowerCase() === input.value.trim().toLowerCase();
+                return !option.element.hidden && !option.element.disabled && option.label.toLowerCase() === input.value.trim().toLowerCase();
             });
             select.value = exact ? exact.value : '';
             renderOptions();
@@ -1329,6 +1300,14 @@
 
         syncVaultCategorySearchInput(select);
     }
+
+    document.querySelectorAll('[data-vault-create-company]').forEach(function (company) {
+        const form = company.closest('form');
+        syncVaultCategoriesForCompany(form, false);
+        company.addEventListener('change', function () {
+            syncVaultCategoriesForCompany(form);
+        });
+    });
 
     document.querySelectorAll('[data-vault-create-category], [data-vault-edit-category]').forEach(function (select) {
         initVaultCategoryCombobox(select);
@@ -1957,9 +1936,13 @@
                 if (count) count.textContent = (button.getAttribute('data-category-count') || '0') + ' item(ns)';
                 if (icon && cardIcon) icon.innerHTML = cardIcon.innerHTML;
             } else if (modalName === 'create') {
+                const company = modal.querySelector('[data-vault-create-company]');
                 const category = modal.querySelector('[data-vault-create-category]');
+                const companyId = button.getAttribute('data-vault-company-id') || '';
                 const categoryId = button.getAttribute('data-vault-category-id') || '';
-                if (category && categoryId) category.value = categoryId;
+                if (company && companyId) company.value = companyId;
+                syncVaultCategoriesForCompany(modal.querySelector('form'), false);
+                if (category) category.value = categoryId;
                 syncVaultCategorySearchInput(category);
                 resetVaultPasswordGenerators(modal, false);
                 syncVaultFormCustomFields(modal.querySelector('form'), {});

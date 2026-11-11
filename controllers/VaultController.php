@@ -73,13 +73,17 @@ class VaultController
             'query' => trim((string) ($_GET['query'] ?? '')),
         ];
 
+        $accessibleCompanies = self::accessibleCompanies();
+        $credentialCategories = VaultCategory::selectableForCompanies(array_column($accessibleCompanies, 'id'));
+
         view('vault/index', [
             'title' => 'Cofre de senhas',
             'filters' => $filters,
             'companies' => VaultCredential::companiesSummary($filters),
             'credentials' => VaultCredential::filtered($filters),
-            'categories' => VaultCategory::allWithCounts(),
-            'allCompanies' => Company::all(true),
+            'accessibleCompanies' => $accessibleCompanies,
+            'credentialCategories' => $credentialCategories,
+            'vaultCustomFieldConfig' => self::customFieldConfig($credentialCategories),
         ]);
     }
 
@@ -100,10 +104,10 @@ class VaultController
         $categoryId = (int) ($_GET['category_id'] ?? 0);
         $selectedParent = $parentId > 0 ? VaultCategory::find($parentId) : null;
         $selectedCategory = $categoryId > 0 ? VaultCategory::find($categoryId) : null;
-        if ($selectedParent && (empty($selectedParent['is_active']) || !VaultCategory::isVisibleForCompany($selectedParent, $companyId))) {
+        if ($selectedParent && !VaultCategory::isSelectableForCompany($selectedParent, $companyId)) {
             $selectedParent = null;
         }
-        if ($selectedCategory && (empty($selectedCategory['is_active']) || !VaultCategory::isVisibleForCompany($selectedCategory, $companyId))) {
+        if ($selectedCategory && !VaultCategory::isSelectableForCompany($selectedCategory, $companyId)) {
             $selectedCategory = null;
             $categoryId = 0;
         }
@@ -126,6 +130,8 @@ class VaultController
         ];
 
         $categories = VaultCategory::allWithCounts($companyId);
+        $accessibleCompanies = self::accessibleCompanies();
+        $credentialCategories = VaultCategory::selectableForCompanies(array_column($accessibleCompanies, 'id'));
 
         view('vault/show', [
             'title' => 'Cofre - ' . $company['name'],
@@ -142,7 +148,9 @@ class VaultController
             'attachments' => $effectiveCategoryId > 0 ? CompanyAttachment::byCompanyAndCategory($companyId, $effectiveCategoryId) : [],
             'attachmentCategoryId' => $effectiveCategoryId > 0 ? $effectiveCategoryId : null,
             'categories' => $categories,
-            'vaultCustomFieldConfig' => self::customFieldConfig($categories),
+            'accessibleCompanies' => $accessibleCompanies,
+            'credentialCategories' => $credentialCategories,
+            'vaultCustomFieldConfig' => self::customFieldConfig($credentialCategories),
             'rootCategories' => VaultCategory::withCountsByParent(null, $companyId),
             'childCategories' => $selectedParent ? VaultCategory::withCountsByParent((int) $selectedParent['id'], $companyId) : [],
             'selectedParent' => $selectedParent,
@@ -159,14 +167,24 @@ class VaultController
         require_vault_access();
         verify_csrf();
 
-        $company = self::requireCompany((int) ($_POST['company_id'] ?? 0));
+        $companyId = (int) ($_POST['company_id'] ?? 0);
+        $company = self::findAccessibleCompany($companyId);
+        if (!$company) {
+            $_SESSION['vault_form_errors'] = ['company_id' => 'Selecione uma empresa válida.'];
+            $_SESSION['vault_form_old'] = self::submittedCreateOldData();
+            flash('danger', 'Selecione uma empresa válida para cadastrar a credencial.');
+            redirect('/?route=vault.index&open_modal=create');
+        }
         [$data, $errors] = self::validatedData($company);
 
         if ($errors) {
             $_SESSION['vault_form_errors'] = $errors;
             $_SESSION['vault_form_old'] = self::oldData($data);
             flash('danger', 'Revise os campos da credencial.');
-            redirect('/?route=vault.show&id=' . (int) $company['id'] . '&open_modal=create');
+            $route = (string) ($_POST['form_context'] ?? '') === 'index'
+                ? '/?route=vault.index&open_modal=create'
+                : '/?route=vault.show&id=' . (int) $company['id'] . '&open_modal=create';
+            redirect($route);
         }
 
         $userId = (int) current_user()['id'];
@@ -446,7 +464,7 @@ class VaultController
 
     private static function requireCompany(int $companyId): array
     {
-        $company = Company::find($companyId);
+        $company = self::findAccessibleCompany($companyId);
 
         if (!$company || empty($company['is_active'])) {
             http_response_code(404);
@@ -455,6 +473,26 @@ class VaultController
         }
 
         return $company;
+    }
+
+    private static function accessibleCompanies(): array
+    {
+        return Company::all(true);
+    }
+
+    private static function findAccessibleCompany(int $companyId): ?array
+    {
+        if ($companyId <= 0) {
+            return null;
+        }
+
+        foreach (self::accessibleCompanies() as $company) {
+            if ((int) $company['id'] === $companyId) {
+                return $company;
+            }
+        }
+
+        return null;
     }
 
     private static function requireCredential(int $credentialId): array
@@ -495,7 +533,7 @@ class VaultController
         }
 
         $category = $data['category_id'] !== null ? VaultCategory::find((int) $data['category_id']) : null;
-        if ($data['category_id'] !== null && (!$category || empty($category['is_active']) || !VaultCategory::isVisibleForCompany($category, (int) $company['id']))) {
+        if ($data['category_id'] !== null && (!$category || !VaultCategory::isSelectableForCompany($category, (int) $company['id']))) {
             $errors['category_id'] = 'Tipo de credencial inválido.';
         }
 
@@ -589,6 +627,19 @@ class VaultController
         unset($data['secret_value']);
 
         return $data;
+    }
+
+    private static function submittedCreateOldData(): array
+    {
+        return [
+            'company_id' => (int) ($_POST['company_id'] ?? 0),
+            'category_id' => (int) ($_POST['category_id'] ?? 0),
+            'title' => trim((string) ($_POST['title'] ?? '')),
+            'service_url' => self::nullable('service_url'),
+            'username' => self::nullable('username'),
+            'notes' => self::nullable('notes'),
+            'custom_fields' => is_array($_POST['custom_fields'] ?? null) ? $_POST['custom_fields'] : [],
+        ];
     }
 
     private static function auditData(array $data): array
@@ -718,42 +769,9 @@ class VaultController
             return [];
         }
 
-        $parent = !empty($category['parent_id']) ? VaultCategory::find((int) $category['parent_id']) : null;
         $settings = AppSetting::vaultSettings();
 
-        foreach ((array) ($settings['default_categories'] ?? []) as $defaultCategory) {
-            if ($parent) {
-                if (!self::sameName((string) ($defaultCategory['name'] ?? ''), (string) ($parent['name'] ?? ''))) {
-                    continue;
-                }
-
-                foreach ((array) ($defaultCategory['children'] ?? []) as $child) {
-                    if (self::sameName((string) ($child['name'] ?? ''), (string) ($category['name'] ?? ''))) {
-                        return (array) ($child['fields'] ?? []);
-                    }
-                }
-
-                return [];
-            }
-
-            if (self::sameName((string) ($defaultCategory['name'] ?? ''), (string) ($category['name'] ?? ''))) {
-                return (array) ($defaultCategory['fields'] ?? []);
-            }
-        }
-
-        return [];
-    }
-
-    private static function sameName(string $left, string $right): bool
-    {
-        $left = trim($left);
-        $right = trim($right);
-
-        if (function_exists('mb_strtolower')) {
-            return mb_strtolower($left) === mb_strtolower($right);
-        }
-
-        return strtolower($left) === strtolower($right);
+        return AppSetting::vaultFieldsForCategory($category, $settings);
     }
 
     private static function secretService(): VaultCredentialSecretService

@@ -123,6 +123,71 @@ class VaultCategory
         return $stmt->fetchAll();
     }
 
+    public static function selectableForCompanies(array $companyIds): array
+    {
+        self::ensureCompanyScopeColumn();
+
+        $companyIds = array_values(array_unique(array_filter(array_map('intval', $companyIds), static fn (int $id): bool => $id > 0)));
+        $sql = 'SELECT c.*, parent.name AS parent_name, company.name AS company_name
+                FROM vault_categories c
+                LEFT JOIN vault_categories parent ON parent.id = c.parent_id
+                LEFT JOIN companies company ON company.id = c.company_id
+                WHERE c.is_active = 1
+                  AND (c.parent_id IS NULL OR parent.is_active = 1)
+                  AND (c.company_id IS NULL';
+        $params = [];
+
+        if ($companyIds) {
+            $placeholders = [];
+            foreach ($companyIds as $index => $companyId) {
+                $key = 'company_' . $index;
+                $placeholders[] = ':' . $key;
+                $params[$key] = $companyId;
+            }
+            $sql .= ' OR c.company_id IN (' . implode(', ', $placeholders) . ')';
+        }
+
+        $sql .= ') ORDER BY COALESCE(company.name, ""), COALESCE(parent.name, c.name), c.parent_id IS NOT NULL, c.name';
+        $stmt = db()->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
+    public static function settingsTree(): array
+    {
+        self::ensureCompanyScopeColumn();
+
+        $rows = db()->query(
+            'SELECT c.*, parent.name AS parent_name, company.name AS company_name
+             FROM vault_categories c
+             LEFT JOIN vault_categories parent ON parent.id = c.parent_id
+             LEFT JOIN companies company ON company.id = c.company_id
+             ORDER BY COALESCE(company.name, ""), c.parent_id IS NOT NULL, COALESCE(parent.name, c.name), c.name'
+        )->fetchAll();
+        $roots = [];
+        $children = [];
+        foreach ($rows as $row) {
+            if (empty($row['parent_id'])) {
+                $row['children'] = [];
+                $roots[(int) $row['id']] = $row;
+            } else {
+                $children[] = $row;
+            }
+        }
+        foreach ($children as $child) {
+            $parentId = (int) $child['parent_id'];
+            if (isset($roots[$parentId])) {
+                $roots[$parentId]['children'][] = $child;
+            } else {
+                $child['children'] = [];
+                $roots[(int) $child['id']] = $child;
+            }
+        }
+
+        return array_values($roots);
+    }
+
     public static function find(int $id): ?array
     {
         self::ensureCompanyScopeColumn();
@@ -159,6 +224,23 @@ class VaultCategory
     public static function isVisibleForCompany(array $category, int $companyId): bool
     {
         return empty($category['company_id']) || (int) $category['company_id'] === $companyId;
+    }
+
+    public static function isSelectableForCompany(array $category, int $companyId): bool
+    {
+        if (empty($category['is_active']) || !self::isVisibleForCompany($category, $companyId)) {
+            return false;
+        }
+
+        if (empty($category['parent_id'])) {
+            return true;
+        }
+
+        $parent = self::find((int) $category['parent_id']);
+
+        return $parent !== null
+            && !empty($parent['is_active'])
+            && self::isVisibleForCompany($parent, $companyId);
     }
 
     public static function create(array $data): int

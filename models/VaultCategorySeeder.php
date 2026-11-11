@@ -11,6 +11,43 @@ final class VaultCategorySeeder
     {
     }
 
+    public static function defaultCategories(): array
+    {
+        return [
+            ['name' => 'Acessos administrativos', 'icon' => 'shield', 'fields' => [], 'children' => []],
+            ['name' => 'Bancos de dados', 'icon' => 'database', 'fields' => [], 'children' => []],
+            ['name' => 'Cloud e hospedagem', 'icon' => 'cloud', 'fields' => [], 'children' => []],
+            ['name' => 'E-mails e comunicação', 'icon' => 'mail', 'fields' => [], 'children' => []],
+            ['name' => 'Financeiro', 'icon' => 'credit-card', 'fields' => [], 'children' => []],
+            [
+                'name' => 'Rede e infraestrutura',
+                'icon' => 'router',
+                'fields' => [],
+                'children' => [
+                    [
+                        'name' => 'Roteadores',
+                        'icon' => 'router',
+                        'fields' => [
+                            ['label' => 'IP de acesso', 'key' => 'ip_de_acesso', 'type' => 'text', 'required' => false],
+                            ['label' => 'LAN', 'key' => 'lan', 'type' => 'text', 'required' => false],
+                            ['label' => 'Nome do Wi-Fi', 'key' => 'nome_do_wifi', 'type' => 'text', 'required' => false],
+                        ],
+                    ],
+                    [
+                        'name' => 'Wi-Fi',
+                        'icon' => 'wifi',
+                        'fields' => [
+                            ['label' => 'SSID', 'key' => 'ssid', 'type' => 'text', 'required' => false],
+                            ['label' => 'IP de acesso', 'key' => 'ip_de_acesso', 'type' => 'text', 'required' => false],
+                        ],
+                    ],
+                ],
+            ],
+            ['name' => 'Sistemas internos', 'icon' => 'settings', 'fields' => [], 'children' => []],
+            ['name' => 'Outros', 'icon' => 'folder', 'fields' => [], 'children' => []],
+        ];
+    }
+
     public function inspect(array $categories): array
     {
         $this->assertSchema();

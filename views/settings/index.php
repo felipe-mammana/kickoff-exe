@@ -16,11 +16,11 @@ $maintenanceStatus = $maintenanceStatus ?? null;
 $auditRetentionDays = (int) ($auditRetentionDays ?? 365);
 $deviceSettings = is_array($deviceSettings ?? null) ? $deviceSettings : AppSetting::deviceSettings();
 $vaultSettings = is_array($vaultSettings ?? null) ? $vaultSettings : AppSetting::vaultSettings();
+$vaultCategoryTree = is_array($vaultCategoryTree ?? null) ? $vaultCategoryTree : [];
 $deviceTypes = is_array($deviceTypes ?? null) ? $deviceTypes : Machine::deviceTypes();
 $deviceFieldLabels = is_array($deviceFieldLabels ?? null) ? $deviceFieldLabels : AppSetting::deviceFieldLabels();
 $photoMimeLabels = is_array($photoMimeLabels ?? null) ? $photoMimeLabels : ['image/jpeg' => 'JPG / JPEG', 'image/png' => 'PNG', 'image/webp' => 'WEBP'];
 $attachmentExtensionLabels = array_combine(AppSetting::defaultAttachmentExtensions(), array_map('strtoupper', AppSetting::defaultAttachmentExtensions()));
-$vaultIconOptions = VaultCategory::iconOptions();
 $vaultCustomFieldTypeLabels = is_array($vaultCustomFieldTypeLabels ?? null) ? $vaultCustomFieldTypeLabels : AppSetting::vaultCustomFieldTypeLabels();
 $accountRole = User::roleFromUser($accountUser);
 $accountRoleIcons = ['admin' => 'settings', 'editor' => 'edit-3', 'viewer' => 'users'];
@@ -567,65 +567,44 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                 <div class="settings-form-head vault-default-head vault-settings-intro">
                     <div>
-                        <h3>Categorias padrão do cofre</h3>
-                        <p>Configure nome, ícone e subcategorias. Ao salvar, o sistema cria ou atualiza os itens padrão.</p>
+                        <h3>Categorias do cofre</h3>
+                        <p>Registros carregados de <code>vault_categories</code>. Categorias inativas são exibidas apenas para referência administrativa.</p>
                     </div>
-                    <button class="btn btn-muted" type="button" data-vault-add-category>
-                        <?= icon('plus') ?><span>Adicionar categoria</span>
-                    </button>
                 </div>
                 <div class="vault-default-category-list" data-vault-category-list>
-                    <?php foreach ((array) $vaultSettings['default_categories'] as $categoryIndex => $category): ?>
+                    <?php if (!$vaultCategoryTree): ?>
+                        <div class="empty-state compact"><h3>Nenhuma categoria cadastrada</h3><p>Execute o seeder aprovado ou cadastre categorias pelo Cofre.</p></div>
+                    <?php endif; ?>
+                    <?php foreach ($vaultCategoryTree as $category): ?>
                         <section class="vault-default-category-card" data-vault-default-category>
                             <div class="vault-default-category-main vault-category-editor">
                                 <span class="vault-default-icon-preview"><?= icon((string) ($category['icon'] ?? 'folder')) ?></span>
-                                <label class="field">
-                                    <span>Categoria</span>
-                                    <input type="text" name="vault_categories[<?= (int) $categoryIndex ?>][name]" value="<?= e((string) ($category['name'] ?? '')) ?>" maxlength="120" required>
-                                </label>
-                                <label class="field">
-                                    <span>Ícone</span>
-                                    <select name="vault_categories[<?= (int) $categoryIndex ?>][icon]" data-vault-icon-select>
-                                        <?php foreach ($vaultIconOptions as $iconKey => $iconLabel): ?>
-                                            <option value="<?= e($iconKey) ?>" data-icon-markup="<?= e(icon($iconKey)) ?>" <?= (string) ($category['icon'] ?? 'folder') === $iconKey ? 'selected' : '' ?>><?= e($iconLabel) ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </label>
-                                <button class="icon-btn danger" type="button" data-vault-remove-category aria-label="Remover categoria" title="Remover categoria"><?= icon('trash-2') ?></button>
+                                <div class="field"><span>Categoria</span><strong><?= e((string) $category['name']) ?></strong><small><?= $category['company_id'] === null ? 'Global' : 'Empresa: ' . e((string) ($category['company_name'] ?? '')) ?> · <?= !empty($category['is_active']) ? 'Ativa' : 'Inativa' ?></small></div>
+                                <input type="hidden" name="vault_category_fields[<?= (int) $category['id'] ?>][name]" value="<?= e((string) $category['name']) ?>">
                             </div>
-                            <?php $renderVaultCustomFields('vault_categories[' . (int) $categoryIndex . ']', (array) ($category['fields'] ?? [])); ?>
+                            <?php $renderVaultCustomFields('vault_category_fields[' . (int) $category['id'] . ']', (array) ($category['fields'] ?? [])); ?>
+                            <?php if (!empty($category['children'])): ?>
                             <details class="vault-default-subcategory-block">
                                 <summary class="vault-default-subcategory-head">
-                                    <strong>Subcategorias padrão</strong>
+                                    <strong>Subcategorias</strong>
                                     <span class="vault-collapse-chevron" aria-hidden="true"><?= icon('chevron-down') ?></span>
                                 </summary>
                                 <div class="vault-default-subcategory-content">
-                                    <button class="btn btn-muted compact-btn" type="button" data-vault-add-subcategory><?= icon('plus') ?><span>Adicionar subcategoria</span></button>
                                     <div class="vault-default-subcategory-list" data-vault-subcategory-list>
-                                    <?php foreach ((array) ($category['children'] ?? []) as $childIndex => $child): ?>
+                                    <?php foreach ((array) $category['children'] as $child): ?>
                                         <div class="vault-default-subcategory-row" data-vault-default-subcategory>
                                             <div class="vault-default-subcategory-main">
                                                 <span class="vault-default-icon-preview small"><?= icon((string) ($child['icon'] ?? 'folder')) ?></span>
-                                                <label class="field">
-                                                    <span>Subcategoria</span>
-                                                    <input type="text" name="vault_categories[<?= (int) $categoryIndex ?>][children][<?= (int) $childIndex ?>][name]" value="<?= e((string) ($child['name'] ?? '')) ?>" maxlength="120" required>
-                                                </label>
-                                                <label class="field">
-                                                    <span>Ícone</span>
-                                                    <select name="vault_categories[<?= (int) $categoryIndex ?>][children][<?= (int) $childIndex ?>][icon]" data-vault-icon-select>
-                                                        <?php foreach ($vaultIconOptions as $iconKey => $iconLabel): ?>
-                                                            <option value="<?= e($iconKey) ?>" data-icon-markup="<?= e(icon($iconKey)) ?>" <?= (string) ($child['icon'] ?? 'folder') === $iconKey ? 'selected' : '' ?>><?= e($iconLabel) ?></option>
-                                                        <?php endforeach; ?>
-                                                    </select>
-                                                </label>
-                                                <button class="icon-btn danger" type="button" data-vault-remove-subcategory aria-label="Remover subcategoria" title="Remover subcategoria"><?= icon('trash-2') ?></button>
+                                                <div class="field"><span>Subcategoria</span><strong><?= e((string) $child['name']) ?></strong><small><?= !empty($child['is_active']) ? 'Ativa' : 'Inativa' ?></small></div>
+                                                <input type="hidden" name="vault_category_fields[<?= (int) $child['id'] ?>][name]" value="<?= e((string) $child['name']) ?>">
                                             </div>
-                                            <?php $renderVaultCustomFields('vault_categories[' . (int) $categoryIndex . '][children][' . (int) $childIndex . ']', (array) ($child['fields'] ?? [])); ?>
+                                            <?php $renderVaultCustomFields('vault_category_fields[' . (int) $child['id'] . ']', (array) ($child['fields'] ?? [])); ?>
                                         </div>
                                     <?php endforeach; ?>
                                     </div>
                                 </div>
                             </details>
+                            <?php endif; ?>
                         </section>
                     <?php endforeach; ?>
                 </div>
@@ -661,58 +640,6 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
 
                 <button class="btn btn-primary vault-save-button" type="submit"><?= icon('save') ?><span>Salvar cofre de senhas</span></button>
             </form>
-            <template data-vault-category-template>
-                <section class="vault-default-category-card" data-vault-default-category>
-                    <div class="vault-default-category-main vault-category-editor">
-                        <span class="vault-default-icon-preview"><?= icon('folder') ?></span>
-                        <label class="field">
-                            <span>Categoria</span>
-                            <input type="text" name="vault_categories[__CATEGORY__][name]" value="" maxlength="120" required>
-                        </label>
-                        <label class="field">
-                            <span>Ícone</span>
-                            <select name="vault_categories[__CATEGORY__][icon]" data-vault-icon-select>
-                                <?php foreach ($vaultIconOptions as $iconKey => $iconLabel): ?>
-                                    <option value="<?= e($iconKey) ?>" data-icon-markup="<?= e(icon($iconKey)) ?>" <?= $iconKey === 'folder' ? 'selected' : '' ?>><?= e($iconLabel) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </label>
-                        <button class="icon-btn danger" type="button" data-vault-remove-category aria-label="Remover categoria" title="Remover categoria"><?= icon('trash-2') ?></button>
-                    </div>
-                    <?php $renderVaultCustomFields('vault_categories[__CATEGORY__]', []); ?>
-                    <details class="vault-default-subcategory-block">
-                        <summary class="vault-default-subcategory-head">
-                            <strong>Subcategorias padrão</strong>
-                            <span class="vault-collapse-chevron" aria-hidden="true"><?= icon('chevron-down') ?></span>
-                        </summary>
-                        <div class="vault-default-subcategory-content">
-                            <button class="btn btn-muted compact-btn" type="button" data-vault-add-subcategory><?= icon('plus') ?><span>Adicionar subcategoria</span></button>
-                            <div class="vault-default-subcategory-list" data-vault-subcategory-list></div>
-                        </div>
-                    </details>
-                </section>
-            </template>
-            <template data-vault-subcategory-template>
-                <div class="vault-default-subcategory-row" data-vault-default-subcategory>
-                    <div class="vault-default-subcategory-main">
-                        <span class="vault-default-icon-preview small"><?= icon('folder') ?></span>
-                        <label class="field">
-                            <span>Subcategoria</span>
-                            <input type="text" name="vault_categories[__CATEGORY__][children][__CHILD__][name]" value="" maxlength="120" required>
-                        </label>
-                        <label class="field">
-                            <span>Ícone</span>
-                            <select name="vault_categories[__CATEGORY__][children][__CHILD__][icon]" data-vault-icon-select>
-                                <?php foreach ($vaultIconOptions as $iconKey => $iconLabel): ?>
-                                    <option value="<?= e($iconKey) ?>" data-icon-markup="<?= e(icon($iconKey)) ?>" <?= $iconKey === 'folder' ? 'selected' : '' ?>><?= e($iconLabel) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </label>
-                        <button class="icon-btn danger" type="button" data-vault-remove-subcategory aria-label="Remover subcategoria" title="Remover subcategoria"><?= icon('trash-2') ?></button>
-                    </div>
-                    <?php $renderVaultCustomFields('vault_categories[__CATEGORY__][children][__CHILD__]', []); ?>
-                </div>
-            </template>
             <template data-vault-custom-field-template>
                 <div class="vault-default-field-row" data-vault-custom-field>
                     <input type="hidden" name="__BASE__[fields][__FIELD__][key]" value="">

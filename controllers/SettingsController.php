@@ -90,6 +90,7 @@ class SettingsController
             'auditRetentionDays' => can_permission('settings.manage') ? AppSetting::auditRetentionDays() : null,
             'deviceSettings' => can_permission('settings.manage') ? AppSetting::deviceSettings() : null,
             'vaultSettings' => can_permission('vault.configure') ? AppSetting::vaultSettings() : null,
+            'vaultCategoryTree' => can_permission('vault.configure') ? self::vaultCategoryTree() : [],
             'deviceTypes' => Machine::deviceTypes(),
             'deviceFieldLabels' => AppSetting::deviceFieldLabels(),
             'vaultCustomFieldTypeLabels' => AppSetting::vaultCustomFieldTypeLabels(),
@@ -105,6 +106,22 @@ class SettingsController
     {
         require_permission('settings.manage');
         self::render('audit');
+    }
+
+    private static function vaultCategoryTree(): array
+    {
+        $tree = VaultCategory::settingsTree();
+        $settings = AppSetting::vaultSettings();
+        foreach ($tree as &$category) {
+            $category['fields'] = AppSetting::vaultFieldsForCategory($category, $settings);
+            foreach ($category['children'] as &$child) {
+                $child['fields'] = AppSetting::vaultFieldsForCategory($child, $settings);
+            }
+            unset($child);
+        }
+        unset($category);
+
+        return $tree;
     }
 
     public static function updateAuditSettings(): void
@@ -217,9 +234,17 @@ class SettingsController
         require_vault_access();
         verify_csrf();
 
-        $categories = AppSetting::normalizeVaultDefaultCategories((array) ($_POST['vault_categories'] ?? []));
-        if (!$categories) {
-            $categories = AppSetting::defaultVaultSettings()['default_categories'];
+        $currentVaultSettings = AppSetting::vaultSettings();
+        $categoryFields = (array) ($currentVaultSettings['category_fields'] ?? []);
+        foreach ((array) ($_POST['vault_category_fields'] ?? []) as $categoryId => $fieldConfig) {
+            if (!is_array($fieldConfig)) {
+                continue;
+            }
+            $categoryId = filter_var($categoryId, FILTER_VALIDATE_INT);
+            if ($categoryId === false || $categoryId <= 0 || !VaultCategory::find((int) $categoryId)) {
+                continue;
+            }
+            $categoryFields[(string) $categoryId] = AppSetting::normalizeVaultCustomFields((array) ($fieldConfig['fields'] ?? []));
         }
 
         $days = (int) ($_POST['credential_expiration_days'] ?? 365);
@@ -228,7 +253,7 @@ class SettingsController
         }
 
         $settings = [
-            'default_categories' => $categories,
+            'category_fields' => $categoryFields,
             'allow_password_copy' => !empty($_POST['allow_password_copy']),
             'require_reveal_confirmation' => !empty($_POST['require_reveal_confirmation']),
             'audit_secret_access' => !empty($_POST['audit_secret_access']),
@@ -236,12 +261,11 @@ class SettingsController
         ];
 
         AppSetting::setJson('vault_settings', $settings);
-        $seedResult = (new VaultCategorySeeder(db()))->synchronize($categories, (int) current_user()['id']);
         AuditLog::record([
             'action_type' => 'vault_settings_updated',
             'affected_table' => 'app_settings',
             'description' => 'Configurações do cofre de senhas atualizadas.',
-            'new_data' => $settings + ['Categorias criadas' => $seedResult['created']],
+            'new_data' => $settings,
         ]);
 
         flash('success', 'Configurações do cofre salvas.');

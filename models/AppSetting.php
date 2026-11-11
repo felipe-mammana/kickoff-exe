@@ -124,39 +124,8 @@ class AppSetting
     public static function defaultVaultSettings(): array
     {
         return [
-            'default_categories' => [
-                ['name' => 'Acessos administrativos', 'icon' => 'shield', 'fields' => [], 'children' => []],
-                ['name' => 'Bancos de dados', 'icon' => 'database', 'fields' => [], 'children' => []],
-                ['name' => 'Cloud e hospedagem', 'icon' => 'cloud', 'fields' => [], 'children' => []],
-                ['name' => 'E-mails e comunicação', 'icon' => 'mail', 'fields' => [], 'children' => []],
-                ['name' => 'Financeiro', 'icon' => 'credit-card', 'fields' => [], 'children' => []],
-                [
-                    'name' => 'Rede e infraestrutura',
-                    'icon' => 'router',
-                    'fields' => [],
-                    'children' => [
-                        [
-                            'name' => 'Roteadores',
-                            'icon' => 'router',
-                            'fields' => [
-                                ['label' => 'IP de acesso', 'key' => 'ip_de_acesso', 'type' => 'text', 'required' => false],
-                                ['label' => 'LAN', 'key' => 'lan', 'type' => 'text', 'required' => false],
-                                ['label' => 'Nome do Wi-Fi', 'key' => 'nome_do_wifi', 'type' => 'text', 'required' => false],
-                            ],
-                        ],
-                        [
-                            'name' => 'Wi-Fi',
-                            'icon' => 'wifi',
-                            'fields' => [
-                                ['label' => 'SSID', 'key' => 'ssid', 'type' => 'text', 'required' => false],
-                                ['label' => 'IP de acesso', 'key' => 'ip_de_acesso', 'type' => 'text', 'required' => false],
-                            ],
-                        ],
-                    ],
-                ],
-                ['name' => 'Sistemas internos', 'icon' => 'settings', 'fields' => [], 'children' => []],
-                ['name' => 'Outros', 'icon' => 'folder', 'fields' => [], 'children' => []],
-            ],
+            'default_categories' => VaultCategorySeeder::defaultCategories(),
+            'category_fields' => [],
             'allow_password_copy' => true,
             'require_reveal_confirmation' => false,
             'audit_secret_access' => true,
@@ -171,6 +140,14 @@ class AppSetting
         if (!$settings['default_categories']) {
             $settings['default_categories'] = self::defaultVaultSettings()['default_categories'];
         }
+        $categoryFields = [];
+        foreach ((array) ($settings['category_fields'] ?? []) as $categoryId => $fields) {
+            if (filter_var($categoryId, FILTER_VALIDATE_INT) === false || (int) $categoryId <= 0) {
+                continue;
+            }
+            $categoryFields[(string) (int) $categoryId] = self::normalizeVaultCustomFields((array) $fields);
+        }
+        $settings['category_fields'] = $categoryFields;
 
         $settings['allow_password_copy'] = !empty($settings['allow_password_copy']);
         $settings['require_reveal_confirmation'] = !empty($settings['require_reveal_confirmation']);
@@ -259,6 +236,37 @@ class AppSetting
         ];
     }
 
+    public static function vaultFieldsForCategory(array $category, ?array $settings = null): array
+    {
+        $settings ??= self::vaultSettings();
+        $categoryId = (int) ($category['id'] ?? 0);
+        $categoryFields = (array) ($settings['category_fields'] ?? []);
+        if ($categoryId > 0 && array_key_exists((string) $categoryId, $categoryFields)) {
+            return (array) $categoryFields[(string) $categoryId];
+        }
+
+        $parent = !empty($category['parent_id']) ? VaultCategory::find((int) $category['parent_id']) : null;
+        foreach ((array) ($settings['default_categories'] ?? []) as $defaultCategory) {
+            if ($parent) {
+                if (!self::sameText((string) ($defaultCategory['name'] ?? ''), (string) ($parent['name'] ?? ''))) {
+                    continue;
+                }
+                foreach ((array) ($defaultCategory['children'] ?? []) as $child) {
+                    if (self::sameText((string) ($child['name'] ?? ''), (string) ($category['name'] ?? ''))) {
+                        return (array) ($child['fields'] ?? []);
+                    }
+                }
+                return [];
+            }
+
+            if (self::sameText((string) ($defaultCategory['name'] ?? ''), (string) ($category['name'] ?? ''))) {
+                return (array) ($defaultCategory['fields'] ?? []);
+            }
+        }
+
+        return [];
+    }
+
     public static function normalizeVaultCustomFields(array $fields): array
     {
         $items = [];
@@ -306,6 +314,16 @@ class AppSetting
         }
 
         return $items;
+    }
+
+    private static function sameText(string $left, string $right): bool
+    {
+        $left = trim($left);
+        $right = trim($right);
+
+        return function_exists('mb_strtolower')
+            ? mb_strtolower($left) === mb_strtolower($right)
+            : strtolower($left) === strtolower($right);
     }
 
     public static function vaultAllowsPasswordCopy(): bool

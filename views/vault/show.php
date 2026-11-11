@@ -183,7 +183,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                 </details>
             <?php endif; ?>
             <?php if (can_permission('vault.create')): ?>
-                <button class="btn btn-primary" type="button" data-vault-modal-open="create" data-vault-category-id="<?= (int) $credentialDefaultCategoryId ?>">
+                <button class="btn btn-primary" type="button" data-vault-modal-open="create" data-vault-company-id="<?= (int) $company['id'] ?>" data-vault-category-id="<?= (int) $credentialDefaultCategoryId ?>">
                     <?= icon('plus') ?><span>Nova credencial</span>
                 </button>
             <?php endif; ?>
@@ -526,7 +526,17 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
         </header>
         <form class="company-form modal-company-form vault-credential-form vault-credential-grid" action="/?route=vault.store" method="post" novalidate>
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-            <input type="hidden" name="company_id" value="<?= (int) $company['id'] ?>">
+            <input type="hidden" name="form_context" value="show">
+            <label class="field <?= isset($formErrors['company_id']) ? 'has-error' : '' ?>">
+                <span>Empresa</span>
+                <select name="company_id" required data-vault-create-company>
+                    <option value="">Selecione uma empresa</option>
+                    <?php foreach ($accessibleCompanies as $accessibleCompany): ?>
+                        <option value="<?= (int) $accessibleCompany['id'] ?>" <?= (int) ($formOld['company_id'] ?? $company['id']) === (int) $accessibleCompany['id'] ? 'selected' : '' ?>><?= e($accessibleCompany['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if (isset($formErrors['company_id'])): ?><small><?= e($formErrors['company_id']) ?></small><?php endif; ?>
+            </label>
             <label class="field <?= isset($formErrors['title']) ? 'has-error' : '' ?>">
                 <span>Nome</span>
                 <input type="text" name="title" value="<?= e($formOld['title'] ?? '') ?>" required data-vault-modal-focus>
@@ -538,9 +548,9 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                     <input type="text" value="<?= e($categoryNameById($credentialDefaultCategoryId)) ?>" placeholder="Digite para buscar..." autocomplete="off" data-vault-category-search-input>
                     <select class="vault-native-category-select" name="category_id" data-vault-create-category tabindex="-1" aria-hidden="true">
                         <option value="">Sem tipo</option>
-                        <?php foreach ($categories as $category): ?>
-                            <option value="<?= (int) $category['id'] ?>" <?= $credentialDefaultCategoryId === (int) $category['id'] ? 'selected' : '' ?>>
-                                <?= e($category['name']) ?>
+                        <?php foreach ($credentialCategories as $category): ?>
+                            <option value="<?= (int) $category['id'] ?>" data-company-id="<?= $category['company_id'] === null ? '' : (int) $category['company_id'] ?>" <?= $credentialDefaultCategoryId === (int) $category['id'] ? 'selected' : '' ?>>
+                                <?= e(!empty($category['parent_name']) ? $category['parent_name'] . ' / ' . $category['name'] : $category['name']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

@@ -1,3 +1,23 @@
+<?php
+$formErrors = $_SESSION['vault_form_errors'] ?? [];
+$formOld = $_SESSION['vault_form_old'] ?? [];
+$openModal = (string) ($_GET['open_modal'] ?? '');
+unset($_SESSION['vault_form_errors'], $_SESSION['vault_form_old']);
+$accessibleCompanies = $accessibleCompanies ?? [];
+$credentialCategories = $credentialCategories ?? [];
+$vaultCustomFieldConfig = $vaultCustomFieldConfig ?? [];
+$selectedCompanyId = (int) ($formOld['company_id'] ?? 0);
+$selectedCategoryId = (int) ($formOld['category_id'] ?? 0);
+$categoryName = '';
+foreach ($credentialCategories as $category) {
+    if ((int) $category['id'] === $selectedCategoryId) {
+        $categoryName = !empty($category['parent_name']) ? $category['parent_name'] . ' / ' . $category['name'] : $category['name'];
+        break;
+    }
+}
+?>
+<script type="application/json" data-vault-custom-field-config><?= e(json_encode($vaultCustomFieldConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></script>
+
 <nav class="breadcrumbs" aria-label="Breadcrumb">
     <a href="/">Home</a>
     <?= icon('chevron-right', 'breadcrumb-icon') ?>
@@ -9,10 +29,63 @@
         <h1>Cofre de senhas</h1>
         <p>Área separada para organizar credenciais das empresas com controle de acesso e auditoria.</p>
     </div>
-    <button class="btn btn-primary" type="button" disabled title="Sera habilitado na proxima fase">
-        <?= icon('plus') ?><span>Nova credencial</span>
-    </button>
+    <?php if (can_permission('vault.create')): ?>
+        <button class="btn btn-primary" type="button" data-vault-modal-open="create" <?= !$accessibleCompanies ? 'disabled title="Nenhuma empresa ativa disponível"' : '' ?>>
+            <?= icon('plus') ?><span>Nova credencial</span>
+        </button>
+    <?php endif; ?>
 </section>
+
+<?php if (can_permission('vault.create')): ?>
+<div class="company-modal vault-modal" data-vault-modal="create" <?= $openModal === 'create' ? '' : 'hidden' ?>>
+    <div class="company-modal-dialog vault-credential-dialog" role="dialog" aria-modal="true" aria-labelledby="vault-index-create-title">
+        <header class="modal-head">
+            <div><span class="eyebrow">Cofre</span><h2 id="vault-index-create-title">Nova credencial</h2></div>
+            <button class="icon-btn" type="button" data-vault-modal-close aria-label="Fechar"><?= icon('x') ?></button>
+        </header>
+        <form class="company-form modal-company-form vault-credential-form vault-credential-grid" action="/?route=vault.store" method="post" novalidate>
+            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" name="form_context" value="index">
+            <label class="field <?= isset($formErrors['company_id']) ? 'has-error' : '' ?>">
+                <span>Empresa</span>
+                <select name="company_id" required data-vault-create-company data-vault-modal-focus>
+                    <option value="">Selecione uma empresa</option>
+                    <?php foreach ($accessibleCompanies as $accessibleCompany): ?>
+                        <option value="<?= (int) $accessibleCompany['id'] ?>" <?= $selectedCompanyId === (int) $accessibleCompany['id'] ? 'selected' : '' ?>><?= e($accessibleCompany['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if (isset($formErrors['company_id'])): ?><small><?= e($formErrors['company_id']) ?></small><?php endif; ?>
+            </label>
+            <label class="field <?= isset($formErrors['title']) ? 'has-error' : '' ?>">
+                <span>Nome</span><input type="text" name="title" value="<?= e($formOld['title'] ?? '') ?>" maxlength="160" required>
+                <?php if (isset($formErrors['title'])): ?><small><?= e($formErrors['title']) ?></small><?php endif; ?>
+            </label>
+            <label class="field <?= isset($formErrors['category_id']) ? 'has-error' : '' ?>">
+                <span>Tipo de credencial</span>
+                <div class="vault-category-combobox" data-vault-category-combobox>
+                    <input type="text" value="<?= e($categoryName) ?>" placeholder="Digite para buscar..." autocomplete="off" data-vault-category-search-input>
+                    <select class="vault-native-category-select" name="category_id" data-vault-create-category tabindex="-1" aria-hidden="true">
+                        <option value="">Sem tipo</option>
+                        <?php foreach ($credentialCategories as $category): ?>
+                            <option value="<?= (int) $category['id'] ?>" data-company-id="<?= $category['company_id'] === null ? '' : (int) $category['company_id'] ?>" <?= $selectedCategoryId === (int) $category['id'] ? 'selected' : '' ?>><?= e(!empty($category['parent_name']) ? $category['parent_name'] . ' / ' . $category['name'] : $category['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="vault-category-options" data-vault-category-options hidden></div>
+                </div>
+                <?php if (isset($formErrors['category_id'])): ?><small><?= e($formErrors['category_id']) ?></small><?php endif; ?>
+            </label>
+            <div class="field-wide vault-dynamic-custom-fields <?= isset($formErrors['custom_fields']) ? 'has-error' : '' ?>" data-vault-custom-fields data-vault-custom-values="<?= e(json_encode((array) ($formOld['custom_fields'] ?? []), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_APOS | JSON_HEX_QUOT)) ?>">
+                <?php if (isset($formErrors['custom_fields'])): ?><small><?= e($formErrors['custom_fields']) ?></small><?php endif; ?>
+            </div>
+            <label class="field"><span>Usuário</span><input type="text" name="username" value="<?= e($formOld['username'] ?? '') ?>" maxlength="190"></label>
+            <label class="field <?= isset($formErrors['secret_value']) ? 'has-error' : '' ?>"><span>Senha / segredo</span><input type="password" name="secret_value" maxlength="5000" required><?php if (isset($formErrors['secret_value'])): ?><small><?= e($formErrors['secret_value']) ?></small><?php endif; ?></label>
+            <label class="field field-wide"><span>URL</span><input type="text" name="service_url" value="<?= e($formOld['service_url'] ?? '') ?>" maxlength="255"></label>
+            <label class="field field-wide"><span>Observações</span><textarea name="notes" rows="3" maxlength="5000"><?= e($formOld['notes'] ?? '') ?></textarea></label>
+            <div class="form-actions field-wide"><button class="btn btn-muted" type="button" data-vault-modal-close>Cancelar</button><button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar</span></button></div>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php $isCredentialMode = ($filters['search_mode'] ?? 'company') === 'credential'; ?>
 

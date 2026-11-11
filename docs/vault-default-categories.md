@@ -2,7 +2,7 @@
 
 ## Origem
 
-As categorias canônicas são definidas por `AppSetting::defaultVaultSettings()` e existem no histórico do projeto desde o commit `7b2bd6b`. São oito categorias principais e duas subcategorias:
+As categorias canônicas foram originalmente definidas por `AppSetting::defaultVaultSettings()` no commit `7b2bd6b`. A definição histórica passou a ficar isolada em `VaultCategorySeeder::defaultCategories()`, sem alimentar as opções das telas. São oito categorias principais e duas subcategorias:
 
 - Acessos administrativos (`shield`)
 - Bancos de dados (`database`)
@@ -18,6 +18,8 @@ As categorias canônicas são definidas por `AppSetting::defaultVaultSettings()`
 As categorias padrão são globais (`company_id IS NULL`). Categorias criadas para uma empresa continuam vinculadas ao respectivo `company_id` e não são modificadas pelo seeder.
 
 Os campos personalizados de Roteadores e Wi-Fi pertencem à configuração do Cofre em `app_settings`; não são colunas de `vault_categories`.
+
+A apresentação e a seleção operacional de categorias usam diretamente `vault_categories`. A lista histórica em código permanece somente como definição canônica do seeder e como compatibilidade de leitura dos campos personalizados anteriores; ela não gera opções de interface nem autoriza categorias submetidas pelo navegador.
 
 ## Restauração em homologação
 
