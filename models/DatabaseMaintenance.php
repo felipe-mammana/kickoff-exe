@@ -6,18 +6,6 @@ class DatabaseMaintenance
 {
     private const CLEAN_SKIP_TABLES = ['audit_logs', 'api_rate_limits', 'api_tokens', 'login_attempts', 'security_rate_limits', 'session_presence'];
 
-    public static function status(): array
-    {
-        return [
-            'database_name' => DB_NAME,
-            'tables' => self::tableStatuses(),
-            'database_size' => self::databaseSize(),
-            'machine_photos' => self::directoryStatus(self::machinePhotoDirectories()),
-            'company_attachments' => self::directoryStatus([self::companyAttachmentDirectory()]),
-            'orphans' => self::orphanSummary(),
-        ];
-    }
-
     public static function dumpSql(bool $clean = false): string
     {
         $pdo = db();
@@ -131,55 +119,6 @@ class DatabaseMaintenance
         ];
     }
 
-    public static function cleanupOrphanFiles(): array
-    {
-        $orphans = self::orphanFiles();
-        $deleted = 0;
-        $bytes = 0;
-
-        foreach (array_merge($orphans['machine_photos'], $orphans['company_attachments']) as $file) {
-            $path = (string) $file['path'];
-            if (self::pathIsInAllowedStorage($path) && is_file($path) && is_writable($path) && @unlink($path)) {
-                $deleted++;
-                $bytes += (int) $file['size'];
-            }
-        }
-
-        return ['deleted' => $deleted, 'bytes' => $bytes];
-    }
-
-    private static function tableStatuses(): array
-    {
-        $statuses = [];
-        $stmt = db()->query(
-            'SELECT TABLE_NAME, TABLE_ROWS, DATA_LENGTH, INDEX_LENGTH
-             FROM information_schema.TABLES
-             WHERE TABLE_SCHEMA = DATABASE()
-             ORDER BY TABLE_NAME'
-        );
-
-        foreach ($stmt->fetchAll() as $row) {
-            $statuses[] = [
-                'name' => (string) $row['TABLE_NAME'],
-                'rows' => (int) ($row['TABLE_ROWS'] ?? 0),
-                'bytes' => (int) ($row['DATA_LENGTH'] ?? 0) + (int) ($row['INDEX_LENGTH'] ?? 0),
-            ];
-        }
-
-        return $statuses;
-    }
-
-    private static function databaseSize(): int
-    {
-        $stmt = db()->query(
-            'SELECT COALESCE(SUM(DATA_LENGTH + INDEX_LENGTH), 0)
-             FROM information_schema.TABLES
-             WHERE TABLE_SCHEMA = DATABASE()'
-        );
-
-        return (int) $stmt->fetchColumn();
-    }
-
     private static function tableNames(): array
     {
         return array_values(array_filter(array_map(
@@ -204,25 +143,6 @@ class DatabaseMaintenance
         }
 
         return db()->quote((string) $value);
-    }
-
-    private static function directoryStatus(array $directories): array
-    {
-        $files = 0;
-        $bytes = 0;
-
-        foreach ($directories as $directory) {
-            if (!is_dir($directory)) {
-                continue;
-            }
-
-            foreach (self::filesInDirectory($directory) as $path) {
-                $files++;
-                $bytes += filesize($path) ?: 0;
-            }
-        }
-
-        return ['files' => $files, 'bytes' => $bytes];
     }
 
     private static function orphanFiles(): array
@@ -321,23 +241,6 @@ class DatabaseMaintenance
     private static function companyAttachmentDirectory(): string
     {
         return STORAGE_PATH . DIRECTORY_SEPARATOR . 'company_attachments';
-    }
-
-    private static function pathIsInAllowedStorage(string $path): bool
-    {
-        $realPath = realpath($path);
-        if ($realPath === false) {
-            return false;
-        }
-
-        foreach (array_merge(self::machinePhotoDirectories(), [self::companyAttachmentDirectory()]) as $directory) {
-            $root = realpath($directory);
-            if ($root !== false && str_starts_with($realPath, $root . DIRECTORY_SEPARATOR)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static function splitSqlStatements(string $sql): array

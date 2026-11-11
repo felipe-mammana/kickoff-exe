@@ -565,6 +565,14 @@ try {
     check('Relatorio DOCX nao exporta marca nem modelo', strpos($docx, 'Marca') === false && strpos($docx, 'Modelo') === false && strpos($docx, 'ThinkPad') === false);
     check('Relatorio DOCX nao exporta senhas', strpos($docx, 'senha-equipamento') === false && strpos($docx, 'senha-admin') === false);
 
+    check('Modulo web de manutencao foi removido', !class_exists('MaintenanceController')
+        && !method_exists(DatabaseMaintenance::class, 'status')
+        && !method_exists(DatabaseMaintenance::class, 'cleanupOrphanFiles'));
+    check('Recuperacao operacional permanece disponivel', method_exists(DatabaseMaintenance::class, 'dumpSql')
+        && method_exists(DatabaseMaintenance::class, 'fullBackupZip')
+        && method_exists(DatabaseMaintenance::class, 'importSqlFile')
+        && class_exists(EncryptedBackup::class)
+        && class_exists(BackupRecovery::class));
     $cleanDump = DatabaseMaintenance::dumpSql(true);
     check('Backup limpo exporta estrutura e dados principais', strpos($cleanDump, 'CREATE TABLE `companies`') !== false && strpos($cleanDump, 'INSERT INTO `companies`') !== false);
     check('Backup limpo remove tabelas temporarias', strpos($cleanDump, 'CREATE TABLE `audit_logs`') === false && strpos($cleanDump, 'CREATE TABLE `api_tokens`') === false);

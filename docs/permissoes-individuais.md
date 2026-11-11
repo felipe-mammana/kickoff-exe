@@ -24,7 +24,7 @@ administrar o conjunto delegado na sua criacao ou ultima alteracao de permissoes
 | Auditoria | Consultar, exportar |
 | Sessoes | Visualizar, encerrar |
 | Usuarios | Visualizar, criar, editar/redefinir senha, gerenciar permissoes |
-| Administracao | Configuracoes globais, backups, restauracao/limpeza |
+| Administracao | Configuracoes globais |
 
 ## Regras aplicadas
 
@@ -46,8 +46,8 @@ administrar o conjunto delegado na sua criacao ou ultima alteracao de permissoes
 - Revogacoes afetam as proximas requisicoes web e de API, sem renovar o token.
 - Sessoes sao independentes do cofre. Visualizar nao concede encerrar.
 - Historicos em empresas/dispositivos exigem consultar auditoria.
-- Restaurar SQL exige, alem de `settings.restore`, gerenciar permissoes e ter
-  delegacao integral: importar banco pode alterar contas e controles de acesso.
+- Backup e restauracao nao sao expostos pela interface web. As rotinas operacionais
+  permanecem restritas aos procedimentos de infraestrutura e recuperacao.
 
 O controle de encerrar sessoes ainda usa a confirmacao administrativa existente
 (`SESSION_ADMIN_PASSWORD_HASH`). Esta entrega nao substitui essa senha por MFA.

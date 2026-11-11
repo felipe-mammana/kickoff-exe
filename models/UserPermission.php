@@ -14,7 +14,7 @@ class UserPermission
             'audit' => ['label' => 'Auditoria', 'actions' => ['view' => 'Consultar', 'export' => 'Exportar']],
             'sessions' => ['label' => 'Sessoes', 'actions' => ['view' => 'Visualizar', 'terminate' => 'Encerrar']],
             'users' => ['label' => 'Usuarios', 'actions' => ['view' => 'Visualizar', 'create' => 'Criar', 'edit' => 'Editar e redefinir senha', 'permissions' => 'Gerenciar permissoes']],
-            'settings' => ['label' => 'Administracao', 'actions' => ['manage' => 'Configuracoes do sistema', 'backup' => 'Exportar backups', 'restore' => 'Restaurar e limpar dados']],
+            'settings' => ['label' => 'Administracao', 'actions' => ['manage' => 'Configuracoes do sistema']],
         ];
     }
     public static function keys(): array
@@ -48,7 +48,7 @@ class UserPermission
     {
         $keys = ['companies.view', 'machines.view', 'machines.reveal', 'reports.view', 'reports.export'];
         if (in_array($role, ['admin', 'editor'], true)) $keys = array_merge($keys, ['companies.create', 'companies.edit', 'machines.create', 'machines.edit']);
-        if ($role === 'admin') $keys = array_merge($keys, ['companies.delete', 'machines.delete', 'audit.view', 'audit.export', 'users.view', 'users.create', 'users.edit', 'users.permissions', 'settings.manage', 'settings.backup', 'settings.restore']);
+        if ($role === 'admin') $keys = array_merge($keys, ['companies.delete', 'machines.delete', 'audit.view', 'audit.export', 'users.view', 'users.create', 'users.edit', 'users.permissions', 'settings.manage']);
         if ($vault) $keys = array_merge($keys, ['vault.view', 'vault.create', 'vault.edit', 'vault.delete', 'vault.reveal', 'vault.copy', 'vault.configure', 'sessions.view', 'sessions.terminate']);
         return $keys;
     }
@@ -86,10 +86,9 @@ class UserPermission
     }
     public static function routeKey(string $route): ?string
     {
-        if (in_array($route, ['dashboard', 'users.update', 'settings.maintenance'], true)) return null;
+        if (in_array($route, ['dashboard', 'users.update'], true)) return null;
         $exact = ['dashboard' => 'reports.view', 'reports.index' => 'reports.view', 'vault.export' => 'vault.export', 'sessions.index' => 'sessions.view', 'sessions.terminate' => 'sessions.terminate', 'audit.index' => 'audit.view', 'settings.auditFiles' => 'audit.view',
             'settings.vault' => 'vault.configure', 'settings.vault.update' => 'vault.configure',
-            'settings.maintenance' => 'settings.backup', 'maintenance.exportCleanDatabase' => 'settings.backup', 'maintenance.exportFullBackup' => 'settings.backup', 'maintenance.importDatabase' => 'settings.restore', 'maintenance.cleanupOrphans' => 'settings.restore',
             'users.index' => 'users.view', 'users.store' => 'users.create', 'users.update' => 'users.edit', 'users.resetPassword' => 'users.edit', 'users.setStatus' => 'users.edit',
             'vault.categories.store' => 'vault.configure'];
         if (isset($exact[$route])) return $exact[$route];

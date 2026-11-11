@@ -180,9 +180,6 @@ try {
         case 'settings.security':
             SettingsController::security();
             break;
-        case 'settings.maintenance':
-            SettingsController::maintenance();
-            break;
         case 'settings.devices':
             SettingsController::devices();
             break;
@@ -254,18 +251,6 @@ try {
             break;
         case 'settings.2fa.disable':
             SettingsController::disableTwoFactor();
-            break;
-        case 'maintenance.exportCleanDatabase':
-            MaintenanceController::exportCleanDatabase();
-            break;
-        case 'maintenance.exportFullBackup':
-            MaintenanceController::exportFullBackup();
-            break;
-        case 'maintenance.importDatabase':
-            MaintenanceController::importDatabase();
-            break;
-        case 'maintenance.cleanupOrphans':
-            MaintenanceController::cleanupOrphans();
             break;
         case 'export.download':
             ExportController::download();

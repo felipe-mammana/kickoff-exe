@@ -426,9 +426,11 @@ Checklist:
 
 ## Backup e recuperacao
 
-Manutencao exporta SQL e ZIP com SQL/fotos/anexos. ZIP nao inclui necessariamente
-APP_KEY/configuracao/codigo; preservar esses itens separadamente. Importacao do
-painel e SQL, nao restauracao automatica de um ZIP inteiro.
+O painel web de Backup e Manutencao foi removido. Backup, verificacao e restauracao
+devem ser executados somente pelos procedimentos operacionais da infraestrutura.
+Os componentes internos usados por migracoes controladas e recuperacao continuam
+disponiveis fora das rotas HTTP. Um pacote de recuperacao nao inclui necessariamente
+APP_KEY/configuracao/codigo; preservar esses itens separadamente.
 
 IMPORTANTE: "banco limpo" nao e vazio nem anonimizado. DatabaseMaintenance omite
 algumas tabelas operacionais e limpa campos de sessao; ainda pode conter dados

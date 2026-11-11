@@ -11,8 +11,14 @@ UserPermission::save($permissionUserId, ['users.view'], []);
 $clients[] = $permissionClient = new AccountSecurityHttpClient($baseUrl);
 $permissionClient->login('permissions@example.test', 'Permissions-Test-123');
 check('Permissoes: admin restrito consulta usuarios', $permissionClient->request('users.index')['status'] === 200);
-foreach (['companies.index', 'machines.show&id=1', 'vault.index', 'audit.index', 'sessions.index', 'settings.devices', 'settings.microsoft.index', 'maintenance.exportFullBackup', 'export.download&type=devices&format=json'] as $route) {
+foreach (['companies.index', 'machines.show&id=1', 'vault.index', 'audit.index', 'sessions.index', 'settings.devices', 'settings.microsoft.index', 'export.download&type=devices&format=json'] as $route) {
     check('Permissoes: URL recusada ' . $route, $permissionClient->request($route)['status'] === 403);
+}
+$removedMaintenanceRoutes = ['settings.maintenance', 'maintenance.exportCleanDatabase', 'maintenance.exportFullBackup', 'maintenance.importDatabase', 'maintenance.cleanupOrphans'];
+$routerSource = (string) file_get_contents(BASE_PATH . '/public/index.php');
+foreach ($removedMaintenanceRoutes as $removedRoute) {
+    check('Permissoes: rota removida nao possui handler ' . $removedRoute, !str_contains($routerSource, "case '" . $removedRoute . "':"));
+    check('Permissoes: rota removida retorna 404 ' . $removedRoute, $permissionClient->request($removedRoute)['status'] === 404);
 }
 check('Permissoes: configuracoes pessoais continuam disponiveis', $permissionClient->request('settings.account')['status'] === 200);
 $selfChangeResponse = $permissionClient->request('users.update', ['id' => $permissionUserId, 'permissions_present' => 1, 'permissions' => UserPermission::keys()]);

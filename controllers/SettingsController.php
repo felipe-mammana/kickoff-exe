@@ -34,12 +34,6 @@ class SettingsController
         self::render('security');
     }
 
-    public static function maintenance(): void
-    {
-        require_permission(can_permission('settings.restore') ? 'settings.restore' : 'settings.backup');
-        self::render('maintenance');
-    }
-
     public static function devices(): void
     {
         require_permission('settings.manage');
@@ -86,7 +80,6 @@ class SettingsController
                 : null,
             'activeSessions' => self::activeSessions($user),
             'recentAccesses' => AuditLog::latestAccountAccesses((int) $user['id']),
-            'maintenanceStatus' => (can_permission('settings.backup') || can_permission('settings.restore')) ? DatabaseMaintenance::status() : null,
             'auditRetentionDays' => can_permission('settings.manage') ? AppSetting::auditRetentionDays() : null,
             'deviceSettings' => can_permission('settings.manage') ? AppSetting::deviceSettings() : null,
             'vaultSettings' => can_permission('vault.configure') ? AppSetting::vaultSettings() : null,

@@ -12,7 +12,6 @@ $sessionTimeoutMinutes = (int) ($accountUser['session_timeout_minutes'] ?? 480);
 $vaultRequirePasswordReveal = !empty($accountUser['vault_require_password_reveal']);
 $activeSessions = $activeSessions ?? [];
 $recentAccesses = $recentAccesses ?? [];
-$maintenanceStatus = $maintenanceStatus ?? null;
 $auditRetentionDays = (int) ($auditRetentionDays ?? 365);
 $deviceSettings = is_array($deviceSettings ?? null) ? $deviceSettings : AppSetting::deviceSettings();
 $vaultSettings = is_array($vaultSettings ?? null) ? $vaultSettings : AppSetting::vaultSettings();
@@ -87,17 +86,13 @@ if (can_permission('settings.manage')) {
     $topics['audit'] = ['route' => 'settings.audit', 'icon' => 'file-clock', 'eyebrow' => 'Auditoria', 'title' => 'Auditoria do sistema', 'card_title' => 'Auditoria', 'description' => 'Retenção de logs, exportação por período e eventos críticos.'];
     $topics['devices'] = ['route' => 'settings.devices', 'icon' => 'monitor-cog', 'eyebrow' => 'Empresas e dispositivos', 'title' => 'Empresas e dispositivos', 'card_title' => 'Empresas e dispositivos', 'description' => 'Prefixos, categorias, obrigatoriedade e uploads.'];
     $topics['vault'] = ['route' => 'settings.vault', 'icon' => 'lock', 'eyebrow' => 'Cofre de senhas', 'title' => 'Cofre de senhas', 'card_title' => 'Cofre de senhas', 'description' => 'Categorias, cópia, revelação, logs e validade das credenciais.'];
-    if (is_array($maintenanceStatus)) {
-        $topics['maintenance'] = ['route' => 'settings.maintenance', 'icon' => 'database', 'eyebrow' => 'Manutenção', 'title' => 'Backup e manutenção', 'card_title' => 'Backup e manutenção', 'description' => 'Exporte backups, importe SQL e remova arquivos órfãos.'];
-        $topics['auditFiles'] = ['route' => 'settings.auditFiles', 'icon' => 'lock', 'eyebrow' => 'Auditoria', 'title' => 'Arquivos de auditoria', 'card_title' => 'Arquivos de auditoria', 'description' => 'Registros protegidos com confirmacao de senha.'];
-    }
+    $topics['auditFiles'] = ['route' => 'settings.auditFiles', 'icon' => 'lock', 'eyebrow' => 'Auditoria', 'title' => 'Arquivos de auditoria', 'card_title' => 'Arquivos de auditoria', 'description' => 'Registros protegidos com confirmacao de senha.'];
 }
 
 unset($topics['vault']);
 if (can_permission('vault.configure')) {
     $topics['vault'] = ['route' => 'settings.vault', 'icon' => 'lock', 'eyebrow' => 'Cofre', 'title' => 'Cofre de senhas', 'card_title' => 'Cofre de senhas', 'description' => 'Configuracoes do cofre.'];
 }
-if (can_permission('settings.backup') || can_permission('settings.restore')) $topics['maintenance'] = ['route' => 'settings.maintenance', 'icon' => 'database', 'eyebrow' => 'Manutencao', 'title' => 'Backup e manutencao', 'card_title' => 'Backup e manutencao', 'description' => ''];
 if (can_permission('audit.view')) $topics['auditFiles'] = ['route' => 'settings.auditFiles', 'icon' => 'lock', 'eyebrow' => 'Auditoria', 'title' => 'Arquivos de auditoria', 'card_title' => 'Arquivos de auditoria', 'description' => ''];
 $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $topics[$settingsTopic] : null;
 ?>
@@ -418,7 +413,7 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                         <h3>Exportar logs por período</h3>
                         <p>Use a tela de auditoria para filtrar por usuário, empresa, módulo, ação, criticidade e data.</p>
                     </div>
-                    <div class="maintenance-action-list">
+                    <div class="settings-action-list">
                         <a class="btn btn-muted" href="/?route=audit.index"><?= icon('filter') ?><span>Abrir filtros</span></a>
                         <a class="btn btn-primary" href="<?= e(export_url('audit', 'csv', ['date_from' => date('Y-m-01'), 'date_to' => date('Y-m-d')])) ?>"><?= icon('file-spreadsheet') ?><span>Exportar mês em CSV</span></a>
                     </div>
@@ -662,25 +657,6 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                     <button class="icon-btn danger" type="button" data-vault-remove-custom-field aria-label="Remover campo" title="Remover campo"><?= icon('trash-2') ?></button>
                 </div>
             </template>
-        <?php elseif ($settingsTopic === 'maintenance' && is_array($maintenanceStatus)): ?>
-            <div class="maintenance-grid">
-                <section class="settings-security-card maintenance-status-card">
-                    <div class="settings-form-head"><h3>Status do banco</h3><p><?= e((string) $maintenanceStatus['database_name']) ?> · <?= count($maintenanceStatus['tables']) ?> tabela(s)</p></div>
-                    <div class="maintenance-metrics">
-                        <div><span>Tamanho do banco</span><strong><?= e(format_file_size((int) $maintenanceStatus['database_size'])) ?></strong></div>
-                        <div><span>Fotos</span><strong><?= (int) $maintenanceStatus['machine_photos']['files'] ?></strong><small><?= e(format_file_size((int) $maintenanceStatus['machine_photos']['bytes'])) ?></small></div>
-                        <div><span>Anexos</span><strong><?= (int) $maintenanceStatus['company_attachments']['files'] ?></strong><small><?= e(format_file_size((int) $maintenanceStatus['company_attachments']['bytes'])) ?></small></div>
-                        <div><span>Órfãos</span><strong><?= (int) $maintenanceStatus['orphans']['total'] ?></strong><small><?= e(format_file_size((int) $maintenanceStatus['orphans']['bytes'])) ?></small></div>
-                    </div>
-                </section>
-                <?php if (can_permission('settings.backup')): ?><section class="settings-security-card"><div class="settings-form-head"><h3>Exportações</h3><p>Baixe uma cópia do banco ou um pacote completo com arquivos.</p></div><div class="maintenance-action-list"><a class="btn btn-primary" href="/?route=maintenance.exportCleanDatabase"><?= icon('download') ?><span>Exportar banco limpo</span></a><a class="btn btn-muted" href="/?route=maintenance.exportFullBackup"><?= icon('download') ?><span>Exportar backup completo</span></a></div></section><?php endif; ?>
-                <?php if (can_permission('settings.restore')): ?><section class="settings-security-card"><form class="company-form settings-maintenance-form" action="/?route=maintenance.importDatabase" method="post" enctype="multipart/form-data" data-confirm="Importar este SQL pode substituir dados atuais. Confirma a importação?" data-confirm-variant="warning" novalidate><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><div class="settings-form-head"><h3>Importar backup</h3><p>Use apenas arquivos SQL gerados por este sistema.</p></div><label class="field"><span>Arquivo SQL</span><input type="file" name="backup_sql" accept=".sql,.exe-sql" required></label><button class="btn btn-warning" type="submit"><?= icon('upload') ?><span>Importar SQL</span></button></form></section><?php endif; ?>
-                <?php if (can_permission('settings.restore')): ?><section class="settings-security-card"><div class="settings-form-head"><h3>Arquivos órfãos</h3><p>Remove fotos e anexos que existem na pasta, mas não possuem vínculo no banco.</p></div><form action="/?route=maintenance.cleanupOrphans" method="post" data-confirm="Remover arquivos órfãos encontrados no storage?" data-confirm-variant="warning"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><button class="btn btn-warning" type="submit" <?= (int) $maintenanceStatus['orphans']['total'] === 0 ? 'disabled' : '' ?>><?= icon('trash-2') ?><span>Limpar arquivos órfãos</span></button></form></section><?php endif; ?>
-            </div>
-            <section class="settings-security-card maintenance-table-card">
-                <div class="settings-form-head"><h3>Tabelas do banco</h3><p>Resumo rápido para acompanhar volume e espaço ocupado.</p></div>
-                <div class="table-scroll"><table class="inventory-table"><thead><tr><th>Tabela</th><th>Registros estimados</th><th>Tamanho</th></tr></thead><tbody><?php foreach ($maintenanceStatus['tables'] as $table): ?><tr><td data-label="Tabela"><strong><?= e((string) $table['name']) ?></strong></td><td data-label="Registros estimados"><?= (int) $table['rows'] ?></td><td data-label="Tamanho"><?= e(format_file_size((int) $table['bytes'])) ?></td></tr><?php endforeach; ?></tbody></table></div>
-            </section>
         <?php endif; ?>
     </section>
 <?php endif; ?>
