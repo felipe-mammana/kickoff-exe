@@ -67,7 +67,7 @@ foreach ($credentialCategories as $category) {
                     <select class="vault-native-category-select" name="category_id" required data-vault-create-category tabindex="-1" aria-hidden="true">
                         <option value="">Selecione uma categoria</option>
                         <?php foreach ($credentialCategories as $category): ?>
-                            <option value="<?= (int) $category['id'] ?>" data-company-id="<?= $category['company_id'] === null ? '' : (int) $category['company_id'] ?>" <?= $selectedCategoryId === (int) $category['id'] ? 'selected' : '' ?>><?= e(!empty($category['parent_name']) ? $category['parent_name'] . ' / ' . $category['name'] : $category['name']) ?></option>
+                            <option value="<?= (int) $category['id'] ?>" data-company-ids="<?= e((string) ($category['allowed_company_ids'] ?? '')) ?>" <?= $selectedCategoryId === (int) $category['id'] ? 'selected' : '' ?>><?= e(!empty($category['parent_name']) ? $category['parent_name'] . ' / ' . $category['name'] : $category['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
                     <div class="vault-category-options" data-vault-category-options hidden></div>

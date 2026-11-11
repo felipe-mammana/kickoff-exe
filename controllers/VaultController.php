@@ -627,6 +627,10 @@ class VaultController
             $errors['name'] = 'Campo obrigatório.';
         } elseif (strlen($data['name']) > 120) {
             $errors['name'] = 'Deve ter no máximo 120 caracteres.';
+        } elseif (VaultCategory::duplicateNameExists($data['name'], $companyId)) {
+            $errors['name'] = $companyId === null
+                ? 'Já existe uma categoria global com este nome.'
+                : 'Já existe uma categoria global ou desta empresa com este nome.';
         }
 
         if ($data['description'] !== null && strlen($data['description']) > 255) {

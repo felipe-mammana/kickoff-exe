@@ -11,6 +11,7 @@ class CompanyController
         view('companies/index', [
             'title' => 'Empresas',
             'companies' => Company::all(),
+            'vaultCategories' => VaultCategory::globalRoots(),
         ]);
     }
 
@@ -23,6 +24,8 @@ class CompanyController
             'company' => null,
             'errors' => [],
             'action' => '/?route=companies.store',
+            'vaultCategories' => VaultCategory::globalRoots(),
+            'selectedVaultCategoryIds' => [],
         ]);
     }
 
@@ -32,6 +35,8 @@ class CompanyController
         verify_csrf();
 
         [$data, $errors] = self::validatedData();
+        [$vaultCategoryIds, $vaultCategoryErrors] = self::validatedVaultCategoryIds();
+        $errors += $vaultCategoryErrors;
 
         if ($errors) {
             view('companies/form', [
@@ -39,6 +44,8 @@ class CompanyController
                 'company' => $data,
                 'errors' => $errors,
                 'action' => '/?route=companies.store',
+                'vaultCategories' => VaultCategory::globalRoots(),
+                'selectedVaultCategoryIds' => $vaultCategoryIds,
             ]);
             return;
         }
@@ -46,7 +53,16 @@ class CompanyController
         $userId = (int) current_user()['id'];
         $data['created_by'] = $userId;
         $data['updated_by'] = $userId;
-        $companyId = Company::create($data);
+        $pdo = db();
+        $pdo->beginTransaction();
+        try {
+            $companyId = Company::create($data);
+            CompanyVaultCategory::replaceForCompany($companyId, $vaultCategoryIds);
+            $pdo->commit();
+        } catch (Throwable $exception) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $exception;
+        }
 
         AuditLog::record([
             'action_type' => 'company_created',
@@ -54,7 +70,7 @@ class CompanyController
             'affected_record_id' => $companyId,
             'company_id' => $companyId,
             'description' => 'Empresa cadastrada.',
-            'new_data' => $data,
+            'new_data' => $data + ['vault_category_ids' => $vaultCategoryIds],
         ]);
 
         flash('success', 'Empresa cadastrada com sucesso.');
@@ -84,6 +100,8 @@ class CompanyController
             'company' => $company,
             'errors' => [],
             'action' => '/?route=companies.update&id=' . (int) $company['id'],
+            'vaultCategories' => VaultCategory::globalRoots(),
+            'selectedVaultCategoryIds' => CompanyVaultCategory::selectedIds((int) $company['id']),
         ]);
     }
 
@@ -94,6 +112,8 @@ class CompanyController
         $company = self::requireCompany();
 
         [$data, $errors] = self::validatedData((int) $company['id']);
+        [$vaultCategoryIds, $vaultCategoryErrors] = self::validatedVaultCategoryIds((int) $company['id']);
+        $errors += $vaultCategoryErrors;
 
         if ($errors) {
             view('companies/form', [
@@ -101,13 +121,30 @@ class CompanyController
                 'company' => array_merge($company, $data),
                 'errors' => $errors,
                 'action' => '/?route=companies.update&id=' . (int) $company['id'],
+                'vaultCategories' => VaultCategory::globalRoots(),
+                'selectedVaultCategoryIds' => $vaultCategoryIds,
             ]);
             return;
         }
 
         $data['updated_by'] = (int) current_user()['id'];
         $changes = self::changedFields($company, $data);
-        Company::update((int) $company['id'], $data);
+        $oldVaultCategoryIds = CompanyVaultCategory::selectedIds((int) $company['id']);
+        $pdo = db();
+        $pdo->beginTransaction();
+        try {
+            Company::update((int) $company['id'], $data);
+            CompanyVaultCategory::replaceForCompany((int) $company['id'], $vaultCategoryIds);
+            $pdo->commit();
+        } catch (Throwable $exception) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $exception;
+        }
+
+        if ($oldVaultCategoryIds !== $vaultCategoryIds) {
+            $changes['old']['Categorias do cofre'] = $oldVaultCategoryIds;
+            $changes['new']['Categorias do cofre'] = $vaultCategoryIds;
+        }
 
         if ($changes) {
             AuditLog::record([
@@ -509,6 +546,29 @@ class CompanyController
         }
 
         return [$data, $errors];
+    }
+
+    private static function validatedVaultCategoryIds(?int $companyId = null): array
+    {
+        $input = $_POST['vault_category_ids'] ?? [];
+        $input = is_array($input) ? $input : [];
+        $ids = array_values(array_unique(array_filter(array_map('intval', $input), static fn (int $id): bool => $id > 0)));
+        sort($ids);
+        $availableIds = array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::globalRoots());
+        $errors = [];
+
+        if (array_diff($ids, $availableIds)) {
+            $errors['vault_category_ids'] = 'Uma ou mais categorias selecionadas são inválidas.';
+        }
+
+        if ($companyId !== null) {
+            $requiredIds = CompanyVaultCategory::requiredGlobalRootIds($companyId);
+            if (array_diff($requiredIds, $ids)) {
+                $errors['vault_category_ids'] = 'Não é possível remover uma categoria que possui credenciais ou subcategorias da empresa.';
+            }
+        }
+
+        return [$ids, $errors];
     }
 
     private static function changedFields(array $old, array $new): array

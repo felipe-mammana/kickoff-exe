@@ -5045,6 +5045,50 @@ body.sidebar-collapsed .sidebar-profile {
     max-width: 360px;
 }
 
+.company-vault-category-fieldset {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.company-vault-category-fieldset legend {
+    padding: 0 var(--space-1);
+    font-weight: 900;
+}
+
+.company-vault-category-fieldset > p,
+.field-error-message {
+    margin: 0;
+    color: var(--muted);
+}
+
+.field-error-message {
+    color: var(--danger);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.company-vault-category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: var(--space-2);
+}
+
+.company-vault-category-grid.has-error {
+    padding: var(--space-2);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-sm);
+}
+
+.company-vault-category-grid .check-card span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
 .company-actions {
     max-width: 880px;
 }

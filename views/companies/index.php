@@ -137,6 +137,19 @@
                 </label>
             </div>
 
+            <fieldset class="company-vault-category-fieldset">
+                <legend>Categorias do Cofre</legend>
+                <p>Escolha, se necessário, quais categorias globais serão disponibilizadas para esta empresa.</p>
+                <div class="company-vault-category-grid">
+                    <?php foreach ((array) ($vaultCategories ?? []) as $vaultCategory): ?>
+                        <label class="check-card">
+                            <input type="checkbox" name="vault_category_ids[]" value="<?= (int) $vaultCategory['id'] ?>">
+                            <span><?= icon((string) ($vaultCategory['icon'] ?? 'folder')) ?> <?= e((string) $vaultCategory['name']) ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </fieldset>
+
             <label class="check-card company-status-card">
                 <input type="checkbox" name="is_active" checked>
                 <span>Empresa ativa</span>

@@ -63,8 +63,19 @@ class VaultCategory
 
         $sql .= ' WHERE c.is_active = 1';
         if ($companyId !== null) {
-            $sql .= ' AND (c.company_id IS NULL OR c.company_id = :visible_company_id)';
+            $sql .= ' AND (
+                c.company_id = :visible_company_id
+                OR (
+                    c.company_id IS NULL
+                    AND EXISTS (
+                        SELECT 1 FROM company_vault_categories enabled
+                        WHERE enabled.company_id = :enabled_company_id
+                          AND enabled.category_id = COALESCE(c.parent_id, c.id)
+                    )
+                )
+            )';
             $params['visible_company_id'] = $companyId;
+            $params['enabled_company_id'] = $companyId;
         } else {
             $sql .= ' AND c.company_id IS NULL';
         }
@@ -102,8 +113,19 @@ class VaultCategory
 
         $sql .= ' WHERE c.is_active = 1';
         if ($companyId !== null) {
-            $sql .= ' AND (c.company_id IS NULL OR c.company_id = :visible_company_id)';
+            $sql .= ' AND (
+                c.company_id = :visible_company_id
+                OR (
+                    c.company_id IS NULL
+                    AND EXISTS (
+                        SELECT 1 FROM company_vault_categories enabled
+                        WHERE enabled.company_id = :enabled_company_id
+                          AND enabled.category_id = COALESCE(c.parent_id, c.id)
+                    )
+                )
+            )';
             $params['visible_company_id'] = $companyId;
+            $params['enabled_company_id'] = $companyId;
         } else {
             $sql .= ' AND c.company_id IS NULL';
         }
@@ -128,7 +150,7 @@ class VaultCategory
         self::ensureCompanyScopeColumn();
 
         $companyIds = array_values(array_unique(array_filter(array_map('intval', $companyIds), static fn (int $id): bool => $id > 0)));
-        $sql = 'SELECT c.*, parent.name AS parent_name, company.name AS company_name
+        $sql = 'SELECT c.*, parent.name AS parent_name, parent.company_id AS parent_company_id, company.name AS company_name
                 FROM vault_categories c
                 LEFT JOIN vault_categories parent ON parent.id = c.parent_id
                 LEFT JOIN companies company ON company.id = c.company_id
@@ -150,8 +172,28 @@ class VaultCategory
         $sql .= ') ORDER BY COALESCE(company.name, ""), COALESCE(parent.name, c.name), c.parent_id IS NOT NULL, c.name';
         $stmt = db()->prepare($sql);
         $stmt->execute($params);
+        $allowedByRoot = CompanyVaultCategory::allowedCompaniesByRoot($companyIds);
+        $rows = [];
+        foreach ($stmt->fetchAll() as $row) {
+            if ($row['company_id'] !== null) {
+                $localCompanyId = (int) $row['company_id'];
+                if (!empty($row['parent_id']) && $row['parent_company_id'] === null
+                    && !in_array($localCompanyId, $allowedByRoot[(int) $row['parent_id']] ?? [], true)
+                ) {
+                    continue;
+                }
+                $row['allowed_company_ids'] = (string) $localCompanyId;
+                $rows[] = $row;
+                continue;
+            }
+            $rootId = !empty($row['parent_id']) ? (int) $row['parent_id'] : (int) $row['id'];
+            $allowedCompanyIds = $allowedByRoot[$rootId] ?? [];
+            if (!$allowedCompanyIds) continue;
+            $row['allowed_company_ids'] = implode(',', $allowedCompanyIds);
+            $rows[] = $row;
+        }
 
-        return $stmt->fetchAll();
+        return $rows;
     }
 
     public static function settingsTree(): array
@@ -223,7 +265,12 @@ class VaultCategory
 
     public static function isVisibleForCompany(array $category, int $companyId): bool
     {
-        return empty($category['company_id']) || (int) $category['company_id'] === $companyId;
+        if ($category['company_id'] !== null) {
+            return (int) $category['company_id'] === $companyId;
+        }
+
+        $rootId = !empty($category['parent_id']) ? (int) $category['parent_id'] : (int) $category['id'];
+        return CompanyVaultCategory::isEnabled($companyId, $rootId);
     }
 
     public static function isSelectableForCompany(array $category, int $companyId): bool
@@ -286,6 +333,31 @@ class VaultCategory
         $stmt->execute(['slug' => $slug]);
 
         return (bool) $stmt->fetch();
+    }
+
+    public static function globalRoots(bool $activeOnly = true): array
+    {
+        $sql = 'SELECT * FROM vault_categories WHERE company_id IS NULL AND parent_id IS NULL';
+        if ($activeOnly) $sql .= ' AND is_active = 1';
+        $sql .= ' ORDER BY name';
+
+        return db()->query($sql)->fetchAll();
+    }
+
+    public static function duplicateNameExists(string $name, ?int $companyId): bool
+    {
+        $sql = 'SELECT 1 FROM vault_categories WHERE LOWER(TRIM(name)) = LOWER(TRIM(:name)) AND company_id IS NULL';
+        $params = ['name' => $name];
+        if ($companyId !== null) {
+            $sql = 'SELECT 1 FROM vault_categories
+                    WHERE LOWER(TRIM(name)) = LOWER(TRIM(:name))
+                      AND (company_id IS NULL OR company_id = :company_id)';
+            $params['company_id'] = $companyId;
+        }
+        $stmt = db()->prepare($sql . ' LIMIT 1');
+        $stmt->execute($params);
+
+        return (bool) $stmt->fetchColumn();
     }
 
     private static function ensureCompanyScopeColumn(): void

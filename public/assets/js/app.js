@@ -1218,8 +1218,8 @@
 
         const companyId = company.value;
         Array.from(category.options).forEach(function (option) {
-            const categoryCompanyId = option.dataset.companyId || '';
-            const visible = categoryCompanyId === '' || (companyId !== '' && categoryCompanyId === companyId);
+            const allowedCompanyIds = (option.dataset.companyIds || '').split(',').filter(Boolean);
+            const visible = option.value === '' || (companyId !== '' && allowedCompanyIds.includes(companyId));
             option.hidden = !visible;
             option.disabled = !visible;
         });
@@ -1265,6 +1265,9 @@
         function renderOptions() {
             const query = input.value.trim().toLowerCase();
             const matches = options.filter(function (option) {
+                if (company && option.value === '') {
+                    return false;
+                }
                 return !option.element.hidden && !option.element.disabled && option.label.toLowerCase().includes(query);
             });
 

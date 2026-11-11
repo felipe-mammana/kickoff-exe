@@ -183,6 +183,16 @@ CREATE TABLE IF NOT EXISTS vault_categories (
     CONSTRAINT fk_vault_categories_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS company_vault_categories (
+    company_id INT UNSIGNED NOT NULL,
+    category_id INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (company_id, category_id),
+    INDEX idx_company_vault_categories_category (category_id, company_id),
+    CONSTRAINT fk_company_vault_categories_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    CONSTRAINT fk_company_vault_categories_category FOREIGN KEY (category_id) REFERENCES vault_categories(id) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='company_vault_categories:v1:complete';
+
 CREATE TABLE IF NOT EXISTS company_attachments (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     company_id INT UNSIGNED NOT NULL,

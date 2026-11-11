@@ -549,7 +549,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                     <select class="vault-native-category-select" name="category_id" required data-vault-create-category tabindex="-1" aria-hidden="true">
                         <option value="">Selecione uma categoria</option>
                         <?php foreach ($credentialCategories as $category): ?>
-                            <option value="<?= (int) $category['id'] ?>" data-company-id="<?= $category['company_id'] === null ? '' : (int) $category['company_id'] ?>" <?= $credentialDefaultCategoryId === (int) $category['id'] ? 'selected' : '' ?>>
+                            <option value="<?= (int) $category['id'] ?>" data-company-ids="<?= e((string) ($category['allowed_company_ids'] ?? '')) ?>" <?= $credentialDefaultCategoryId === (int) $category['id'] ? 'selected' : '' ?>>
                                 <?= e(!empty($category['parent_name']) ? $category['parent_name'] . ' / ' . $category['name'] : $category['name']) ?>
                             </option>
                         <?php endforeach; ?>

@@ -305,6 +305,8 @@ try {
         'updated_by' => $adminId,
     ]);
     $vaultSubcategory = VaultCategory::find($vaultSubcategoryId);
+    CompanyVaultCategory::replaceForCompany($companyId, [$vaultCategoryId]);
+    check('Empresa preserva selecao de categorias globais do cofre', CompanyVaultCategory::selectedIds($companyId) === [$vaultCategoryId]);
     check('Categoria do cofre aceita subcategoria', (int) ($vaultSubcategory['parent_id'] ?? 0) === $vaultCategoryId);
     check('Categorias principais do cofre nao misturam subcategorias', count(VaultCategory::withCountsByParent(null, $companyId)) === 1);
     check('Subcategorias do cofre abrem dentro da principal', count(VaultCategory::withCountsByParent($vaultCategoryId, $companyId)) === 1);
@@ -315,6 +317,7 @@ try {
         'created_by' => $adminId,
         'updated_by' => $adminId,
     ]);
+    CompanyVaultCategory::replaceForCompany($otherCompanyId, [$vaultCategoryId]);
     $companyOnlyCategoryId = VaultCategory::create([
         'company_id' => $companyId,
         'parent_id' => null,
@@ -333,6 +336,23 @@ try {
     $selectableForOtherCompany = array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::selectableForCompanies([$otherCompanyId]));
     check('Seletor do cofre inclui categoria global e categoria da empresa', in_array($vaultCategoryId, $selectableForCompany, true) && in_array($companyOnlyCategoryId, $selectableForCompany, true));
     check('Seletor do cofre nao vaza categoria de outra empresa', !in_array($companyOnlyCategoryId, $selectableForOtherCompany, true));
+    CompanyVaultCategory::replaceForCompany($otherCompanyId, []);
+    check('Categoria global desabilitada nao aparece para a empresa', VaultCategory::selectableForCompanies([$otherCompanyId]) === []);
+    CompanyVaultCategory::replaceForCompany($otherCompanyId, [$vaultCategoryId]);
+    check('Categoria global pode ser habilitada novamente para a empresa', in_array($vaultCategoryId, array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::selectableForCompanies([$otherCompanyId])), true));
+    check('Categoria duplicada global e detectada no escopo da empresa', VaultCategory::duplicateNameExists('Infraestrutura', $companyId));
+    $companyVaultCategoryValidator = new ReflectionMethod(CompanyController::class, 'validatedVaultCategoryIds');
+    $companyVaultCategoryValidator->setAccessible(true);
+    $_POST = ['vault_category_ids' => []];
+    [, $emptyCompanyVaultCategoryErrors] = $companyVaultCategoryValidator->invoke(null);
+    check('Cadastro de empresa permite iniciar sem categorias do cofre', !$emptyCompanyVaultCategoryErrors);
+    $_POST = ['vault_category_ids' => [$vaultCategoryId]];
+    [$validatedCompanyVaultCategoryIds, $validCompanyVaultCategoryErrors] = $companyVaultCategoryValidator->invoke(null);
+    check('Cadastro de empresa aceita categorias globais validas', $validatedCompanyVaultCategoryIds === [$vaultCategoryId] && !$validCompanyVaultCategoryErrors);
+    $_POST = ['vault_category_ids' => [PHP_INT_MAX]];
+    [, $invalidCompanyVaultCategoryErrors] = $companyVaultCategoryValidator->invoke(null);
+    check('Cadastro de empresa rejeita categoria manipulada na requisicao', isset($invalidCompanyVaultCategoryErrors['vault_category_ids']));
+    $_POST = [];
     check('Base de icones do cofre contem opcoes variadas', count(VaultCategory::iconOptions()) >= 24 && array_key_exists('server', VaultCategory::iconOptions()));
     $categoryValidator = new ReflectionMethod(VaultController::class, 'validatedCategoryData');
     $categoryValidator->setAccessible(true);
@@ -440,6 +460,7 @@ try {
         'updated_by' => $adminId,
     ]);
     $vaultCredential = VaultCredential::find($vaultCredentialId);
+    check('Categoria global em uso fica protegida contra remocao da empresa', in_array($vaultCategoryId, CompanyVaultCategory::requiredGlobalRootIds($companyId), true));
     check('Credencial do cofre armazena somente referencia Vault', !array_key_exists('secret_value', $vaultCredential)
         && (int) ($vaultCredential['vault_version'] ?? 0) === 1);
     check('Credencial do cofre salva campos personalizados', VaultCredential::customFields($vaultCredential)['ip_de_acesso'] === '192.168.0.1');

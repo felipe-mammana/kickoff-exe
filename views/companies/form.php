@@ -1,6 +1,8 @@
 <?php
 $isEdit = !empty($company['id']);
 $value = static fn (string $field): string => e((string) ($company[$field] ?? ''));
+$vaultCategories = is_array($vaultCategories ?? null) ? $vaultCategories : [];
+$selectedVaultCategoryIds = array_map('intval', is_array($selectedVaultCategoryIds ?? null) ? $selectedVaultCategoryIds : []);
 ?>
 
 <nav class="breadcrumbs" aria-label="Breadcrumb">
@@ -56,6 +58,26 @@ $value = static fn (string $field): string => e((string) ($company[$field] ?? ''
     <section class="asset-form-section">
         <header class="asset-section-head">
             <span class="step-number">2</span>
+            <div>
+                <h2>Categorias do Cofre</h2>
+                <p>Escolha, se necessário, quais categorias globais estarão disponíveis para as credenciais desta empresa.</p>
+            </div>
+        </header>
+
+        <div class="company-vault-category-grid <?= isset($errors['vault_category_ids']) ? 'has-error' : '' ?>">
+            <?php foreach ($vaultCategories as $vaultCategory): ?>
+                <label class="check-card">
+                    <input type="checkbox" name="vault_category_ids[]" value="<?= (int) $vaultCategory['id'] ?>" <?= in_array((int) $vaultCategory['id'], $selectedVaultCategoryIds, true) ? 'checked' : '' ?>>
+                    <span><?= icon((string) ($vaultCategory['icon'] ?? 'folder')) ?> <?= e((string) $vaultCategory['name']) ?></span>
+                </label>
+            <?php endforeach; ?>
+        </div>
+        <?php if (isset($errors['vault_category_ids'])): ?><p class="field-error-message"><?= e($errors['vault_category_ids']) ?></p><?php endif; ?>
+    </section>
+
+    <section class="asset-form-section">
+        <header class="asset-section-head">
+            <span class="step-number">3</span>
             <div>
                 <h2>Status operacional</h2>
                 <p>Empresas inativas permanecem no historico, mas saem do fluxo principal.</p>
