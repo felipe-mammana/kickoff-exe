@@ -459,14 +459,22 @@ try {
     check('Edicao do cofre atualiza campos personalizados', VaultCredential::customFields($vaultCredentialUpdated)['ip_de_acesso'] === '192.168.0.254');
     check('Credencial do cofre aparece na categoria principal', count(VaultCredential::filtered(['company_id' => $companyId, 'category_id' => $vaultCategoryId])) === 1);
     db()->prepare('UPDATE vault_categories SET is_active = 0 WHERE id = :id')->execute(['id' => $vaultSubcategoryId]);
+    $vaultValidator = new ReflectionMethod(VaultController::class, 'validatedData');
+    $vaultValidator->setAccessible(true);
+    $_POST = [
+        'company_id' => $companyId,
+        'category_id' => '',
+        'title' => 'Credencial sem categoria',
+        'secret_value' => 'segredo',
+    ];
+    [, $missingCategoryErrors] = $vaultValidator->invoke(null, $company);
+    check('Cadastro do cofre exige categoria', isset($missingCategoryErrors['category_id']));
     $_POST = [
         'company_id' => $companyId,
         'category_id' => $vaultSubcategoryId,
         'title' => 'Credencial categoria inativa',
         'secret_value' => 'segredo',
     ];
-    $vaultValidator = new ReflectionMethod(VaultController::class, 'validatedData');
-    $vaultValidator->setAccessible(true);
     [, $inactiveCategoryErrors] = $vaultValidator->invoke(null, $company);
     check('Cofre rejeita categoria inativa em credencial', isset($inactiveCategoryErrors['category_id']));
     $selectableWithInactive = array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::selectableForCompanies([$companyId]));

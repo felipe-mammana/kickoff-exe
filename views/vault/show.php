@@ -543,11 +543,11 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                 <?php if (isset($formErrors['title'])): ?><small><?= e($formErrors['title']) ?></small><?php endif; ?>
             </label>
             <label class="field <?= isset($formErrors['category_id']) ? 'has-error' : '' ?>">
-                <span>Tipo de credencial</span>
+                <span>Categoria</span>
                 <div class="vault-category-combobox" data-vault-category-combobox>
-                    <input type="text" value="<?= e($categoryNameById($credentialDefaultCategoryId)) ?>" placeholder="Digite para buscar..." autocomplete="off" data-vault-category-search-input>
-                    <select class="vault-native-category-select" name="category_id" data-vault-create-category tabindex="-1" aria-hidden="true">
-                        <option value="">Sem tipo</option>
+                    <input type="text" value="<?= e($categoryNameById($credentialDefaultCategoryId)) ?>" placeholder="Selecione ou busque uma categoria" autocomplete="off" data-vault-category-search-input>
+                    <select class="vault-native-category-select" name="category_id" required data-vault-create-category tabindex="-1" aria-hidden="true">
+                        <option value="">Selecione uma categoria</option>
                         <?php foreach ($credentialCategories as $category): ?>
                             <option value="<?= (int) $category['id'] ?>" data-company-id="<?= $category['company_id'] === null ? '' : (int) $category['company_id'] ?>" <?= $credentialDefaultCategoryId === (int) $category['id'] ? 'selected' : '' ?>>
                                 <?= e(!empty($category['parent_name']) ? $category['parent_name'] . ' / ' . $category['name'] : $category['name']) ?>

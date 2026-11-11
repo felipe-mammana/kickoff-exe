@@ -1204,8 +1204,8 @@
         const combobox = select?.closest('[data-vault-category-combobox]');
         const input = combobox?.querySelector('[data-vault-category-search-input]');
         const selected = select?.selectedOptions?.[0];
-        if (input && selected) {
-            input.value = selected.textContent.trim();
+        if (input) {
+            input.value = selected && selected.value !== '' ? selected.textContent.trim() : '';
         }
     }
 
@@ -1236,6 +1236,7 @@
         const combobox = select.closest('[data-vault-category-combobox]');
         const input = combobox?.querySelector('[data-vault-category-search-input]');
         const optionsBox = combobox?.querySelector('[data-vault-category-options]');
+        const company = select.closest('form')?.querySelector('[data-vault-create-company]');
 
         if (!combobox || !input || !optionsBox) {
             return;
@@ -1256,7 +1257,7 @@
 
         function selectOption(value, label) {
             select.value = value;
-            input.value = label;
+            input.value = value !== '' ? label : '';
             closeOptions();
             select.dispatchEvent(new Event('change', { bubbles: true }));
         }
@@ -1271,7 +1272,9 @@
             if (!matches.length) {
                 const empty = document.createElement('div');
                 empty.className = 'vault-category-option-empty';
-                empty.textContent = 'Nenhum tipo encontrado.';
+                empty.textContent = company
+                    ? (company.value ? 'Nenhuma categoria disponível para esta empresa.' : 'Selecione uma empresa para carregar as categorias.')
+                    : 'Nenhuma categoria disponível.';
                 optionsBox.appendChild(empty);
             } else {
                 matches.forEach(function (option) {
@@ -1309,10 +1312,7 @@
         });
         input.addEventListener('blur', function () {
             setTimeout(function () {
-                const selected = select.selectedOptions?.[0];
-                if (selected) {
-                    input.value = selected.textContent.trim();
-                }
+                syncVaultCategorySearchInput(select);
                 closeOptions();
             }, 120);
         });

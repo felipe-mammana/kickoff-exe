@@ -577,8 +577,10 @@ class VaultController
         }
 
         $category = $data['category_id'] !== null ? VaultCategory::find((int) $data['category_id']) : null;
-        if ($data['category_id'] !== null && (!$category || !VaultCategory::isSelectableForCompany($category, (int) $company['id']))) {
-            $errors['category_id'] = 'Tipo de credencial inválido.';
+        if ($current === null && $data['category_id'] === null) {
+            $errors['category_id'] = 'Selecione uma categoria.';
+        } elseif ($data['category_id'] !== null && (!$category || !VaultCategory::isSelectableForCompany($category, (int) $company['id']))) {
+            $errors['category_id'] = 'Categoria inválida.';
         }
 
         if ($current === null && ($data['secret_value'] === null || $data['secret_value'] === '')) {
