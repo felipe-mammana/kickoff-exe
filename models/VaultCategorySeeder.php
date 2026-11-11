@@ -28,17 +28,17 @@ final class VaultCategorySeeder
                         'name' => 'Roteadores',
                         'icon' => 'router',
                         'fields' => [
-                            ['label' => 'IP de acesso', 'key' => 'ip_de_acesso', 'type' => 'text', 'required' => false],
-                            ['label' => 'LAN', 'key' => 'lan', 'type' => 'text', 'required' => false],
-                            ['label' => 'Nome do Wi-Fi', 'key' => 'nome_do_wifi', 'type' => 'text', 'required' => false],
+                            ['label' => 'IP de acesso', 'key' => 'ip_de_acesso', 'type' => 'text', 'placeholder' => '192.168.1.1', 'required' => false],
+                            ['label' => 'LAN', 'key' => 'lan', 'type' => 'text', 'placeholder' => '192.168.1.0/24', 'required' => false],
+                            ['label' => 'Nome do Wi-Fi', 'key' => 'nome_do_wifi', 'type' => 'text', 'placeholder' => 'Wi-Fi Empresa', 'required' => false],
                         ],
                     ],
                     [
                         'name' => 'Wi-Fi',
                         'icon' => 'wifi',
                         'fields' => [
-                            ['label' => 'SSID', 'key' => 'ssid', 'type' => 'text', 'required' => false],
-                            ['label' => 'IP de acesso', 'key' => 'ip_de_acesso', 'type' => 'text', 'required' => false],
+                            ['label' => 'SSID', 'key' => 'ssid', 'type' => 'text', 'placeholder' => 'Wi-Fi Empresa', 'required' => false],
+                            ['label' => 'IP de acesso', 'key' => 'ip_de_acesso', 'type' => 'text', 'placeholder' => '192.168.1.1', 'required' => false],
                         ],
                     ],
                 ],

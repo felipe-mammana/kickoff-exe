@@ -306,6 +306,7 @@ class AppSetting
                 'label' => self::limitText($label, 80),
                 'key' => self::limitText($key, 60),
                 'type' => $type,
+                'placeholder' => self::limitText(trim((string) ($field['placeholder'] ?? '')), 160),
                 'required' => !empty($field['required']),
             ];
             if (count($items) >= 20) {

@@ -19,6 +19,10 @@ As categorias padrão são globais (`company_id IS NULL`). Categorias criadas pa
 
 Os campos personalizados de Roteadores e Wi-Fi pertencem à configuração do Cofre em `app_settings`; não são colunas de `vault_categories`.
 
+Na tela **Configurações > Cofre**, administradores com `vault.configure` podem criar categorias globais ou vinculadas a uma empresa ativa. Subcategorias são criadas selecionando uma categoria pai ativa e herdam obrigatoriamente o mesmo escopo; a aplicação não permite um terceiro nível. A mesma autorização e as mesmas validações são aplicadas no servidor, independentemente dos valores enviados pelo navegador.
+
+Cada campo personalizado pode receber uma **Máscara / exemplo**, como `192.168.1.1`. Esse conteúdo é somente o `placeholder` visual exibido em tom reduzido enquanto o campo está vazio: ele não formata nem valida o valor digitado, não é salvo junto à credencial e não é enviado ao Vault KV v2. A configuração do exemplo fica em `app_settings`, junto às demais definições do campo.
+
 A apresentação e a seleção operacional de categorias usam diretamente `vault_categories`. A lista histórica em código permanece somente como definição canônica do seeder e como compatibilidade de leitura dos campos personalizados anteriores; ela não gera opções de interface nem autoriza categorias submetidas pelo navegador.
 
 ## Restauração em homologação

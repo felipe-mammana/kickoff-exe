@@ -16,6 +16,16 @@ $auditRetentionDays = (int) ($auditRetentionDays ?? 365);
 $deviceSettings = is_array($deviceSettings ?? null) ? $deviceSettings : AppSetting::deviceSettings();
 $vaultSettings = is_array($vaultSettings ?? null) ? $vaultSettings : AppSetting::vaultSettings();
 $vaultCategoryTree = is_array($vaultCategoryTree ?? null) ? $vaultCategoryTree : [];
+$vaultCompanies = is_array($vaultCompanies ?? null) ? $vaultCompanies : [];
+$vaultIconOptions = is_array($vaultIconOptions ?? null) ? $vaultIconOptions : VaultCategory::iconOptions();
+$vaultSettingsCategoryErrors = $_SESSION['vault_settings_category_errors'] ?? [];
+$vaultSettingsCategoryOld = $_SESSION['vault_settings_category_old'] ?? [];
+$openVaultCategoryModal = (string) ($_GET['open_category_modal'] ?? '');
+unset($_SESSION['vault_settings_category_errors'], $_SESSION['vault_settings_category_old']);
+$activeVaultRootCategories = array_values(array_filter(
+    $vaultCategoryTree,
+    static fn (array $category): bool => !empty($category['is_active']) && empty($category['parent_id'])
+));
 $deviceTypes = is_array($deviceTypes ?? null) ? $deviceTypes : Machine::deviceTypes();
 $deviceFieldLabels = is_array($deviceFieldLabels ?? null) ? $deviceFieldLabels : AppSetting::deviceFieldLabels();
 $photoMimeLabels = is_array($photoMimeLabels ?? null) ? $photoMimeLabels : ['image/jpeg' => 'JPG / JPEG', 'image/png' => 'PNG', 'image/webp' => 'WEBP'];
@@ -60,6 +70,10 @@ $renderVaultCustomFields = static function (string $baseName, array $fields) use
                                 <option value="<?= e($type) ?>" <?= (string) ($field['type'] ?? 'text') === $type ? 'selected' : '' ?>><?= e($label) ?></option>
                             <?php endforeach; ?>
                         </select>
+                    </label>
+                    <label class="field">
+                        <span>Máscara / exemplo</span>
+                        <input type="text" name="<?= e($baseName) ?>[fields][<?= (int) $fieldIndex ?>][placeholder]" value="<?= e((string) ($field['placeholder'] ?? '')) ?>" maxlength="160" placeholder="Ex.: 192.168.1.1">
                     </label>
                     <label class="toggle-field vault-default-field-required">
                         <input type="checkbox" name="<?= e($baseName) ?>[fields][<?= (int) $fieldIndex ?>][required]" value="1" <?= !empty($field['required']) ? 'checked' : '' ?>>
@@ -565,6 +579,10 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                         <h3>Categorias do cofre</h3>
                         <p>Registros carregados de <code>vault_categories</code>. Categorias inativas são exibidas apenas para referência administrativa.</p>
                     </div>
+                    <div class="form-actions">
+                        <button class="btn btn-muted" type="button" data-vault-modal-open="settings-subcategory" <?= !$activeVaultRootCategories ? 'disabled title="Cadastre uma categoria ativa primeiro"' : '' ?>><?= icon('folder-plus') ?><span>Nova subcategoria</span></button>
+                        <button class="btn btn-primary" type="button" data-vault-modal-open="settings-category"><?= icon('plus') ?><span>Nova categoria</span></button>
+                    </div>
                 </div>
                 <div class="vault-default-category-list" data-vault-category-list>
                     <?php if (!$vaultCategoryTree): ?>
@@ -635,6 +653,109 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
 
                 <button class="btn btn-primary vault-save-button" type="submit"><?= icon('save') ?><span>Salvar cofre de senhas</span></button>
             </form>
+
+            <div class="company-modal vault-modal" data-vault-modal="settings-category" <?= $openVaultCategoryModal === 'settings-category' ? '' : 'hidden' ?>>
+                <div class="company-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-vault-category-title">
+                    <header class="modal-head">
+                        <div><span class="eyebrow">Organização do cofre</span><h2 id="settings-vault-category-title">Nova categoria</h2></div>
+                        <button class="icon-btn" type="button" data-vault-modal-close aria-label="Fechar"><?= icon('x') ?></button>
+                    </header>
+                    <form class="company-form modal-company-form vault-credential-form" action="/?route=vault.categories.store" method="post" novalidate>
+                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                        <input type="hidden" name="return_to" value="settings">
+                        <input type="hidden" name="parent_id" value="">
+                        <label class="field <?= isset($vaultSettingsCategoryErrors['name']) ? 'has-error' : '' ?>">
+                            <span>Nome da categoria</span>
+                            <input type="text" name="name" value="<?= e((string) ($vaultSettingsCategoryOld['name'] ?? '')) ?>" maxlength="120" required data-vault-modal-focus>
+                            <?php if (isset($vaultSettingsCategoryErrors['name'])): ?><small><?= e((string) $vaultSettingsCategoryErrors['name']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field <?= isset($vaultSettingsCategoryErrors['category_scope']) ? 'has-error' : '' ?>">
+                            <span>Escopo</span>
+                            <?php $categoryScope = (string) ($vaultSettingsCategoryOld['category_scope'] ?? 'global'); ?>
+                            <select name="category_scope" required data-vault-category-scope>
+                                <option value="global" <?= $categoryScope === 'global' ? 'selected' : '' ?>>Global — disponível para todas as empresas</option>
+                                <option value="company" <?= $categoryScope === 'company' ? 'selected' : '' ?>>Somente uma empresa</option>
+                            </select>
+                            <?php if (isset($vaultSettingsCategoryErrors['category_scope'])): ?><small><?= e((string) $vaultSettingsCategoryErrors['category_scope']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field <?= isset($vaultSettingsCategoryErrors['company_id']) ? 'has-error' : '' ?>" data-vault-category-company-field <?= $categoryScope === 'company' ? '' : 'hidden' ?>>
+                            <span>Empresa</span>
+                            <select name="company_id" data-vault-category-company <?= $categoryScope === 'company' ? 'required' : 'disabled' ?>>
+                                <option value="">Selecione</option>
+                                <?php foreach ($vaultCompanies as $vaultCompany): ?>
+                                    <option value="<?= (int) $vaultCompany['id'] ?>" <?= (int) ($vaultSettingsCategoryOld['company_id'] ?? 0) === (int) $vaultCompany['id'] ? 'selected' : '' ?>><?= e((string) $vaultCompany['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (isset($vaultSettingsCategoryErrors['company_id'])): ?><small><?= e((string) $vaultSettingsCategoryErrors['company_id']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field <?= isset($vaultSettingsCategoryErrors['description']) ? 'has-error' : '' ?>">
+                            <span>Descrição</span>
+                            <input type="text" name="description" value="<?= e((string) ($vaultSettingsCategoryOld['description'] ?? '')) ?>" maxlength="255">
+                            <?php if (isset($vaultSettingsCategoryErrors['description'])): ?><small><?= e((string) $vaultSettingsCategoryErrors['description']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field">
+                            <span>Ícone</span>
+                            <select name="icon">
+                                <?php foreach ($vaultIconOptions as $iconName => $iconLabel): ?>
+                                    <option value="<?= e((string) $iconName) ?>" <?= (string) ($vaultSettingsCategoryOld['icon'] ?? 'folder') === (string) $iconName ? 'selected' : '' ?>><?= e((string) $iconLabel) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <div class="form-actions">
+                            <button class="btn btn-muted" type="button" data-vault-modal-close>Cancelar</button>
+                            <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Criar categoria</span></button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="company-modal vault-modal" data-vault-modal="settings-subcategory" <?= $openVaultCategoryModal === 'settings-subcategory' ? '' : 'hidden' ?>>
+                <div class="company-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-vault-subcategory-title">
+                    <header class="modal-head">
+                        <div><span class="eyebrow">Organização do cofre</span><h2 id="settings-vault-subcategory-title">Nova subcategoria</h2></div>
+                        <button class="icon-btn" type="button" data-vault-modal-close aria-label="Fechar"><?= icon('x') ?></button>
+                    </header>
+                    <form class="company-form modal-company-form vault-credential-form" action="/?route=vault.categories.store" method="post" novalidate>
+                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                        <input type="hidden" name="return_to" value="settings">
+                        <label class="field <?= isset($vaultSettingsCategoryErrors['parent_id']) ? 'has-error' : '' ?>">
+                            <span>Categoria pai</span>
+                            <select name="parent_id" required data-vault-modal-focus>
+                                <option value="">Selecione</option>
+                                <?php foreach ($activeVaultRootCategories as $rootCategory): ?>
+                                    <?php $scopeLabel = $rootCategory['company_id'] === null ? 'Global' : (string) ($rootCategory['company_name'] ?? 'Empresa'); ?>
+                                    <option value="<?= (int) $rootCategory['id'] ?>" <?= (int) ($vaultSettingsCategoryOld['parent_id'] ?? 0) === (int) $rootCategory['id'] ? 'selected' : '' ?>><?= e($scopeLabel . ' — ' . (string) $rootCategory['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <small>A subcategoria herdará automaticamente o escopo da categoria pai.</small>
+                            <?php if (isset($vaultSettingsCategoryErrors['parent_id'])): ?><small><?= e((string) $vaultSettingsCategoryErrors['parent_id']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field <?= isset($vaultSettingsCategoryErrors['name']) ? 'has-error' : '' ?>">
+                            <span>Nome da subcategoria</span>
+                            <input type="text" name="name" value="<?= e((string) ($vaultSettingsCategoryOld['name'] ?? '')) ?>" maxlength="120" required>
+                            <?php if (isset($vaultSettingsCategoryErrors['name'])): ?><small><?= e((string) $vaultSettingsCategoryErrors['name']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field <?= isset($vaultSettingsCategoryErrors['description']) ? 'has-error' : '' ?>">
+                            <span>Descrição</span>
+                            <input type="text" name="description" value="<?= e((string) ($vaultSettingsCategoryOld['description'] ?? '')) ?>" maxlength="255">
+                            <?php if (isset($vaultSettingsCategoryErrors['description'])): ?><small><?= e((string) $vaultSettingsCategoryErrors['description']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field">
+                            <span>Ícone</span>
+                            <select name="icon">
+                                <?php foreach ($vaultIconOptions as $iconName => $iconLabel): ?>
+                                    <option value="<?= e((string) $iconName) ?>" <?= (string) ($vaultSettingsCategoryOld['icon'] ?? 'folder') === (string) $iconName ? 'selected' : '' ?>><?= e((string) $iconLabel) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <div class="form-actions">
+                            <button class="btn btn-muted" type="button" data-vault-modal-close>Cancelar</button>
+                            <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Criar subcategoria</span></button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <template data-vault-custom-field-template>
                 <div class="vault-default-field-row" data-vault-custom-field>
                     <input type="hidden" name="__BASE__[fields][__FIELD__][key]" value="">
@@ -649,6 +770,10 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                                 <option value="<?= e($type) ?>"><?= e($label) ?></option>
                             <?php endforeach; ?>
                         </select>
+                    </label>
+                    <label class="field">
+                        <span>Máscara / exemplo</span>
+                        <input type="text" name="__BASE__[fields][__FIELD__][placeholder]" value="" maxlength="160" placeholder="Ex.: 192.168.1.1">
                     </label>
                     <label class="toggle-field vault-default-field-required">
                         <input type="checkbox" name="__BASE__[fields][__FIELD__][required]" value="1">

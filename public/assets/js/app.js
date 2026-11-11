@@ -243,6 +243,24 @@
         bindVaultDefaultCategoryControls(vaultCategoryList);
     }
 
+    document.querySelectorAll('[data-vault-category-scope]').forEach(function (scopeSelect) {
+        const form = scopeSelect.closest('form');
+        const companyField = form?.querySelector('[data-vault-category-company-field]');
+        const companySelect = form?.querySelector('[data-vault-category-company]');
+
+        function syncVaultCategoryScope() {
+            const companyScoped = scopeSelect.value === 'company';
+            if (companyField) companyField.hidden = !companyScoped;
+            if (companySelect) {
+                companySelect.disabled = !companyScoped;
+                companySelect.required = companyScoped;
+            }
+        }
+
+        scopeSelect.addEventListener('change', syncVaultCategoryScope);
+        syncVaultCategoryScope();
+    });
+
     document.querySelectorAll('.company-attachment-form').forEach(function (form) {
         const input = form.querySelector('[data-attachment-input]');
         const selected = form.querySelector('[data-attachment-selected]');
@@ -1166,6 +1184,7 @@
 
             input.name = 'custom_fields[' + key + ']';
             input.value = values && Object.prototype.hasOwnProperty.call(values, key) ? values[key] : '';
+            input.placeholder = field.placeholder || '';
             input.required = Boolean(field.required);
             input.maxLength = field.type === 'textarea' ? 5000 : 255;
             label.append(labelText, input);

@@ -84,6 +84,8 @@ class SettingsController
             'deviceSettings' => can_permission('settings.manage') ? AppSetting::deviceSettings() : null,
             'vaultSettings' => can_permission('vault.configure') ? AppSetting::vaultSettings() : null,
             'vaultCategoryTree' => can_permission('vault.configure') ? self::vaultCategoryTree() : [],
+            'vaultCompanies' => can_permission('vault.configure') ? Company::all(true) : [],
+            'vaultIconOptions' => can_permission('vault.configure') ? VaultCategory::iconOptions() : [],
             'deviceTypes' => Machine::deviceTypes(),
             'deviceFieldLabels' => AppSetting::deviceFieldLabels(),
             'vaultCustomFieldTypeLabels' => AppSetting::vaultCustomFieldTypeLabels(),

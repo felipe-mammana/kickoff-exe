@@ -428,19 +428,60 @@ class VaultController
         require_vault_access();
         verify_csrf();
 
-        $company = self::requireCompany((int) ($_POST['company_id'] ?? 0));
-        [$data, $errors] = self::validatedCategoryData((int) $company['id']);
+        $returnToSettings = ($_POST['return_to'] ?? '') === 'settings';
+        $company = null;
+        $companyId = null;
+        $contextErrors = [];
+
+        if ($returnToSettings) {
+            $parentId = (int) ($_POST['parent_id'] ?? 0);
+            if ($parentId > 0) {
+                $parent = VaultCategory::find($parentId);
+                if ($parent !== null && $parent['company_id'] !== null) {
+                    $companyId = (int) $parent['company_id'];
+                    $company = self::findAccessibleCompany($companyId);
+                    if ($company === null || empty($company['is_active'])) {
+                        $contextErrors['parent_id'] = 'A empresa da categoria pai não está disponível.';
+                    }
+                }
+            } else {
+                $scope = (string) ($_POST['category_scope'] ?? '');
+                if ($scope === 'company') {
+                    $companyId = (int) ($_POST['company_id'] ?? 0);
+                    $company = self::findAccessibleCompany($companyId);
+                    if ($company === null || empty($company['is_active'])) {
+                        $contextErrors['company_id'] = 'Selecione uma empresa ativa válida.';
+                    }
+                } elseif ($scope !== 'global') {
+                    $contextErrors['category_scope'] = 'Selecione um escopo válido.';
+                }
+            }
+        } else {
+            $company = self::requireCompany((int) ($_POST['company_id'] ?? 0));
+            $companyId = (int) $company['id'];
+        }
+
+        [$data, $errors] = self::validatedCategoryData($companyId);
+        $errors = $contextErrors + $errors;
 
         if ($errors) {
-            $_SESSION['vault_category_errors'] = $errors;
-            $_SESSION['vault_category_old'] = $data;
-            flash('danger', 'Revise os campos da categoria.');
+            $old = $data + [
+                'category_scope' => (string) ($_POST['category_scope'] ?? ''),
+                'company_id' => (int) ($_POST['company_id'] ?? 0),
+            ];
             $modal = !empty($data['parent_id']) ? 'subcategory' : 'category';
+            $sessionPrefix = $returnToSettings ? 'vault_settings_category_' : 'vault_category_';
+            $_SESSION[$sessionPrefix . 'errors'] = $errors;
+            $_SESSION[$sessionPrefix . 'old'] = $old;
+            flash('danger', 'Revise os campos da categoria.');
+            if ($returnToSettings) {
+                redirect('/?route=settings.vault&open_category_modal=settings-' . $modal);
+            }
             redirect('/?route=vault.show&id=' . (int) $company['id'] . '&open_category_modal=' . $modal);
         }
 
         $userId = (int) current_user()['id'];
-        $data['company_id'] = (int) $company['id'];
+        $data['company_id'] = $companyId;
         $data['created_by'] = $userId;
         $data['updated_by'] = $userId;
         $categoryId = VaultCategory::create($data);
@@ -449,12 +490,15 @@ class VaultController
             'action_type' => 'vault_category_created',
             'affected_table' => 'vault_categories',
             'affected_record_id' => $categoryId,
-            'company_id' => (int) $company['id'],
+            'company_id' => $companyId,
             'description' => 'Categoria do cofre cadastrada.',
             'new_data' => $data,
         ]);
 
         flash('success', 'Categoria cadastrada com sucesso.');
+        if ($returnToSettings) {
+            redirect('/?route=settings.vault');
+        }
         $redirect = '/?route=vault.show&id=' . (int) $company['id'];
         if (!empty($data['parent_id'])) {
             $redirect .= '&parent_id=' . (int) $data['parent_id'];
@@ -562,7 +606,7 @@ class VaultController
         return [$data, $errors];
     }
 
-    private static function validatedCategoryData(int $companyId): array
+    private static function validatedCategoryData(?int $companyId): array
     {
         $parentId = (int) ($_POST['parent_id'] ?? 0);
         $name = trim((string) ($_POST['name'] ?? ''));
@@ -588,8 +632,19 @@ class VaultController
         }
 
         $parent = $data['parent_id'] !== null ? VaultCategory::find((int) $data['parent_id']) : null;
-        if ($data['parent_id'] !== null && (!$parent || empty($parent['is_active']) || !VaultCategory::isVisibleForCompany($parent, $companyId))) {
-            $errors['parent_id'] = 'Categoria pai inválida.';
+        if ($data['parent_id'] !== null) {
+            $parentIsInvalid = $parent === null
+                || empty($parent['is_active'])
+                || !empty($parent['parent_id']);
+            if (!$parentIsInvalid) {
+                $parentCompanyId = $parent['company_id'] === null ? null : (int) $parent['company_id'];
+                $parentIsInvalid = $companyId === null
+                    ? $parentCompanyId !== null
+                    : !VaultCategory::isVisibleForCompany($parent, $companyId);
+            }
+            if ($parentIsInvalid) {
+                $errors['parent_id'] = 'Categoria pai inválida.';
+            }
         }
 
         return [$data, $errors];

@@ -334,8 +334,36 @@ try {
     check('Seletor do cofre inclui categoria global e categoria da empresa', in_array($vaultCategoryId, $selectableForCompany, true) && in_array($companyOnlyCategoryId, $selectableForCompany, true));
     check('Seletor do cofre nao vaza categoria de outra empresa', !in_array($companyOnlyCategoryId, $selectableForOtherCompany, true));
     check('Base de icones do cofre contem opcoes variadas', count(VaultCategory::iconOptions()) >= 24 && array_key_exists('server', VaultCategory::iconOptions()));
+    $categoryValidator = new ReflectionMethod(VaultController::class, 'validatedCategoryData');
+    $categoryValidator->setAccessible(true);
+    $_POST = ['parent_id' => $vaultCategoryId, 'name' => 'Subcategoria global', 'description' => '', 'icon' => 'folder'];
+    [, $globalChildErrors] = $categoryValidator->invoke(null, null);
+    check('Configuracoes aceitam subcategoria global sob categoria global', !isset($globalChildErrors['parent_id']));
+    $_POST = ['parent_id' => $companyOnlyCategoryId, 'name' => 'Subcategoria sem escopo', 'description' => '', 'icon' => 'folder'];
+    [, $scopeMismatchErrors] = $categoryValidator->invoke(null, null);
+    check('Subcategoria global nao pode usar categoria pai de empresa', isset($scopeMismatchErrors['parent_id']));
+    [, $companyChildErrors] = $categoryValidator->invoke(null, $companyId);
+    check('Subcategoria de empresa aceita categoria pai da mesma empresa', !isset($companyChildErrors['parent_id']));
+    $_POST = ['parent_id' => $vaultSubcategoryId, 'name' => 'Terceiro nivel', 'description' => '', 'icon' => 'folder'];
+    [, $nestedCategoryErrors] = $categoryValidator->invoke(null, $companyId);
+    check('Categorias do cofre permanecem limitadas a dois niveis', isset($nestedCategoryErrors['parent_id']));
+    $_POST = [];
     $vaultCategorySeeder = new VaultCategorySeeder(db());
     $defaultVaultCategories = VaultCategorySeeder::defaultCategories();
+    $normalizedCustomFields = AppSetting::normalizeVaultCustomFields([[
+        'label' => 'IP de acesso',
+        'key' => 'ip_de_acesso',
+        'type' => 'text',
+        'placeholder' => '192.168.1.1',
+        'required' => false,
+    ]]);
+    check('Campo personalizado preserva mascara como exemplo visual', ($normalizedCustomFields[0]['placeholder'] ?? null) === '192.168.1.1');
+    $longPlaceholderFields = AppSetting::normalizeVaultCustomFields([[
+        'label' => 'Campo longo',
+        'type' => 'text',
+        'placeholder' => str_repeat('x', 200),
+    ]]);
+    check('Mascara de campo personalizado respeita limite seguro', strlen((string) ($longPlaceholderFields[0]['placeholder'] ?? '')) === 160);
     $firstSeed = $vaultCategorySeeder->synchronize($defaultVaultCategories, $adminId);
     $secondSeed = $vaultCategorySeeder->synchronize($defaultVaultCategories, $adminId);
     check('Seeder cria as 10 categorias padrao historicas', $firstSeed['created'] === 10);
