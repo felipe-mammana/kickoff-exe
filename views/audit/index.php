@@ -45,6 +45,8 @@ $actionLabels = [
     'user_deactivated' => 'Usuário desativado',
     'audit_retention_updated' => 'Retenção de auditoria atualizada',
     'audit_logs_retention_cleaned' => 'Logs antigos removidos',
+    'protected_audit_viewed' => 'Arquivo protegido consultado',
+    'audit_history_redacted' => 'Histórico de auditoria saneado',
     'clean_database_exported' => 'Banco limpo exportado',
     'full_backup_exported' => 'Backup completo exportado',
     'database_imported' => 'Banco importado',
@@ -89,6 +91,8 @@ $actionClasses = [
     'user_2fa_email_test_sent' => 'info',
     'audit_retention_updated' => 'info',
     'audit_logs_retention_cleaned' => 'warning',
+    'protected_audit_viewed' => 'warning',
+    'audit_history_redacted' => 'info',
     'clean_database_exported' => 'info',
     'full_backup_exported' => 'warning',
     'database_imported' => 'danger',
@@ -187,6 +191,10 @@ foreach ($filters as $filterValue) {
             <a class="link-primary" href="/?route=audit.index">Limpar filtros</a>
         <?php endif; ?>
     </header>
+
+    <?php if (!empty($filterError)): ?>
+        <p class="audit-inline-message danger" role="alert"><?= e((string) $filterError) ?></p>
+    <?php endif; ?>
 
     <form class="audit-filter-grid" method="get" action="/">
         <input type="hidden" name="route" value="audit.index">

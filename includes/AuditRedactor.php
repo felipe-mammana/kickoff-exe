@@ -8,7 +8,7 @@ class AuditRedactor
         if (!is_array($value)) return $value;
         foreach ($value as $key => $item) {
             $name = mb_strtolower((string) $key, 'UTF-8');
-            if (preg_match('/password|senha|secret|token|(^|_)code($|_)|codigo|código|notes|observa|custom_fields|campos personalizados/', $name)) {
+            if (preg_match('/password|senha|secret|token|authorization|cookie|app_key|private_key|ciphertext|nonce|(^|_)(?:code|codigo|código|dek|wrapped_dek|auth_tag)($|_)|notes|observa|custom_fields|campos personalizados/', $name)) {
                 $value[$key] = '[protegido]';
             } else {
                 $value[$key] = self::clean($item);

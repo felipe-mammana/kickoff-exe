@@ -38,6 +38,7 @@ class AuditLog
         'devices' => 'Dispositivos',
         'vault' => 'Cofre',
         'users' => 'Usuários',
+        'audit' => 'Auditoria',
         'settings' => 'Configurações',
         'maintenance' => 'Backup e manutenção',
         'export' => 'Exportações',
@@ -152,14 +153,20 @@ class AuditLog
                 $params[$key] = $action;
             }
             $sql .= ' AND a.action_type IN (' . implode(', ', $placeholders) . ')';
+        } elseif (!empty($filters['criticality'])) {
+            $sql .= ' AND 1 = 0';
         }
 
-        if (!empty($filters['date_from'])) {
+        if (self::hasInvalidDateRange($filters)) {
+            $sql .= ' AND 1 = 0';
+        } elseif (!empty($filters['date_from'])) {
             $sql .= ' AND a.created_at >= :date_from';
             $params['date_from'] = $filters['date_from'] . ' 00:00:00';
-        }
-
-        if (!empty($filters['date_to'])) {
+            if (!empty($filters['date_to'])) {
+                $sql .= ' AND a.created_at <= :date_to';
+                $params['date_to'] = $filters['date_to'] . ' 23:59:59';
+            }
+        } elseif (!empty($filters['date_to'])) {
             $sql .= ' AND a.created_at <= :date_to';
             $params['date_to'] = $filters['date_to'] . ' 23:59:59';
         }
@@ -168,7 +175,7 @@ class AuditLog
         $stmt = db()->prepare($sql);
         $stmt->execute($params);
 
-        return $stmt->fetchAll();
+        return self::sanitizeRows($stmt->fetchAll());
     }
 
     public static function actionTypes(): array
@@ -203,6 +210,10 @@ class AuditLog
 
         if (str_starts_with($actionType, 'user_')) {
             return 'users';
+        }
+
+        if (str_starts_with($actionType, 'audit_') || str_starts_with($actionType, 'protected_audit_')) {
+            return 'audit';
         }
 
         if (str_starts_with($actionType, 'api_token_')) {
@@ -265,12 +276,16 @@ class AuditLog
             }
         }
 
-        if (!empty($filters['date_from'])) {
+        if (self::hasInvalidDateRange($filters)) {
+            $sql .= ' AND 1 = 0';
+        } elseif (!empty($filters['date_from'])) {
             $sql .= ' AND a.created_at >= :date_from';
             $params['date_from'] = $filters['date_from'] . ' 00:00:00';
-        }
-
-        if (!empty($filters['date_to'])) {
+            if (!empty($filters['date_to'])) {
+                $sql .= ' AND a.created_at <= :date_to';
+                $params['date_to'] = $filters['date_to'] . ' 23:59:59';
+            }
+        } elseif (!empty($filters['date_to'])) {
             $sql .= ' AND a.created_at <= :date_to';
             $params['date_to'] = $filters['date_to'] . ' 23:59:59';
         }
@@ -318,7 +333,7 @@ class AuditLog
         );
         $stmt->execute(['machine_id' => $machineId]);
 
-        return $stmt->fetchAll();
+        return self::sanitizeRows($stmt->fetchAll());
     }
 
     public static function byCompany(int $companyId): array
@@ -332,7 +347,7 @@ class AuditLog
         );
         $stmt->execute(['company_id' => $companyId]);
 
-        return $stmt->fetchAll();
+        return self::sanitizeRows($stmt->fetchAll());
     }
 
     public static function latestAccountAccesses(int $userId, int $limit = 8): array
@@ -364,6 +379,31 @@ class AuditLog
         }
 
         return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private static function sanitizeRows(array $rows): array
+    {
+        foreach ($rows as &$row) {
+            foreach (['old_data', 'new_data'] as $column) {
+                if (array_key_exists($column, $row)) {
+                    $row[$column] = AuditRedactor::historical(is_string($row[$column]) ? $row[$column] : null);
+                }
+            }
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    private static function hasInvalidDateRange(array $filters): bool
+    {
+        $from = trim((string) ($filters['date_from'] ?? ''));
+        $to = trim((string) ($filters['date_to'] ?? ''));
+        if (($from !== '' && !ProtectedAuditFiles::isValidDate($from)) || ($to !== '' && !ProtectedAuditFiles::isValidDate($to))) {
+            return true;
+        }
+
+        return $from !== '' && $to !== '' && $from > $to;
     }
 
     private static function limitString($value, int $maxLength): ?string

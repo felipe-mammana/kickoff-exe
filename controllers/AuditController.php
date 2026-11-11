@@ -17,16 +17,31 @@ class AuditController
             'date_from' => trim((string) ($_GET['date_from'] ?? '')),
             'date_to' => trim((string) ($_GET['date_to'] ?? '')),
         ];
+        $filterErrors = [];
+        foreach (['date_from' => 'Data inicial', 'date_to' => 'Data final'] as $key => $label) {
+            if ($filters[$key] !== '' && !ProtectedAuditFiles::isValidDate($filters[$key])) {
+                $filterErrors[] = $label . ' inválida.';
+            }
+        }
+        if (!$filterErrors && $filters['date_from'] !== '' && $filters['date_to'] !== '' && $filters['date_from'] > $filters['date_to']) {
+            $filterErrors[] = 'A data inicial não pode ser posterior à data final.';
+        }
+        if (!in_array($filters['criticality'], ['', 'critical'], true)) {
+            $filterErrors[] = 'Criticidade inválida.';
+        }
+
+        $logs = $filterErrors ? [] : AuditLog::search($filters);
 
         view('audit/index', [
             'title' => 'Logs',
-            'logs' => AuditLog::search($filters),
+            'logs' => $logs,
             'users' => User::all(),
             'companies' => Company::all(),
             'modules' => AuditLog::modules(),
             'actionTypes' => AuditLog::actionTypes(),
-            'criticalCount' => AuditLog::criticalCount($filters),
+            'criticalCount' => $filterErrors ? 0 : AuditLog::criticalCount($filters),
             'filters' => $filters,
+            'filterError' => implode(' ', $filterErrors),
         ]);
     }
 }

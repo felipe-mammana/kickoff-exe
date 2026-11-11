@@ -35,9 +35,6 @@ try {
         case 'settings.auditFiles':
             ProtectedAuditController::index();
             break;
-        case 'settings.auditFiles':
-            ProtectedAuditController::index();
-            break;
         case 'settings.microsoft.index':
         case 'settings.microsoft.connect':
         case 'settings.microsoft.callback':

@@ -1907,6 +1907,103 @@ body.sidebar-collapsed .sidebar-profile {
     margin-bottom: 1rem;
 }
 
+.audit-inline-message {
+    margin: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    background: var(--surface-2);
+}
+
+.audit-inline-message.danger {
+    border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+}
+
+.audit-file-layout {
+    display: grid;
+    grid-template-columns: minmax(18rem, 0.75fr) minmax(0, 1.25fr);
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+}
+
+.audit-file-query .company-form {
+    padding: var(--panel-pad);
+}
+
+.audit-file-query .audit-inline-message,
+.audit-file-list-panel .audit-inline-message {
+    margin: 0;
+}
+
+.audit-file-list-panel .empty-state {
+    margin: var(--space-3);
+}
+
+.audit-file-table {
+    min-width: 620px;
+}
+
+.audit-protected-record-list {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--panel-pad);
+}
+
+.audit-protected-record {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+}
+
+.audit-protected-record.is-error {
+    border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+
+.audit-protected-record > header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.audit-protected-record > header div {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.audit-protected-record > header small,
+.audit-protected-record > p {
+    color: var(--muted);
+}
+
+.audit-protected-record > p {
+    margin: 0;
+}
+
+.audit-protected-record details summary {
+    cursor: pointer;
+    color: var(--accent-strong);
+    font-weight: 800;
+}
+
+.audit-protected-record pre {
+    max-height: 28rem;
+    overflow: auto;
+    margin: var(--space-2) 0 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: var(--text);
+    background: var(--surface);
+}
+
 .audit-filter-grid {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -6260,6 +6357,7 @@ form[id^="delete-photo-"] {
     .stats-grid,
     .asset-metrics,
     .audit-summary-grid,
+    .audit-file-layout,
     .dashboard-activity .activity-list,
     .device-summary-grid,
     .fields-grid,
