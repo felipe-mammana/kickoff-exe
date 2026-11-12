@@ -3,12 +3,13 @@ $settingsTopic = $settingsTopic ?? null;
 $twoFactorEnabled = !empty($accountUser['two_factor_enabled']);
 $twoFactorAuthenticatorEnabled = !empty($twoFactorAuthenticatorEnabled);
 $twoFactorEmailSetupPending = !empty($twoFactorEmailSetupPending);
-$sessionStartedAt = $accountUser['active_session_started_at'] ?? null;
 $preferredTheme = $accountUser['preferred_theme'] ?? 'light';
 $sidebarDefault = $accountUser['sidebar_default'] ?? 'expanded';
 $tablePageSize = (int) ($accountUser['table_page_size'] ?? 25);
 $datetimeFormat = $accountUser['datetime_format'] ?? 'd/m/Y H:i';
 $sessionTimeoutMinutes = (int) ($accountUser['session_timeout_minutes'] ?? 480);
+$sessionTimeoutOptions = User::sessionTimeoutOptions();
+$sessionTimeoutLabel = $sessionTimeoutOptions[$sessionTimeoutMinutes] ?? ($sessionTimeoutMinutes . ' minutos');
 $vaultRequirePasswordReveal = !empty($accountUser['vault_require_password_reveal']);
 $activeSessions = $activeSessions ?? [];
 $recentAccesses = $recentAccesses ?? [];
@@ -92,7 +93,6 @@ $topics = [
     'account' => ['route' => 'settings.account', 'icon' => 'user', 'eyebrow' => 'Segurança & perfil', 'title' => 'Configurações da conta', 'card_title' => 'Conta', 'description' => 'Dados do perfil e troca da senha de acesso.'],
     'preferences' => ['route' => 'settings.preferences', 'icon' => 'settings', 'eyebrow' => 'Preferências', 'title' => 'Preferências do sistema', 'card_title' => 'Preferências do sistema', 'description' => 'Tema, menu lateral, tabelas e formato de data.'],
     'two_factor' => ['route' => 'settings.twoFactor', 'icon' => 'shield', 'eyebrow' => 'Acesso seguro', 'title' => 'Autenticação em dois fatores', 'card_title' => 'Autenticação em dois fatores', 'description' => 'Senha, aplicativo autenticador e código por e-mail no login.', 'status' => $twoFactorEnabled ? 'Ativo' : 'Inativo', 'status_class' => $twoFactorEnabled ? 'success' : 'neutral'],
-    'session_limit' => ['route' => 'settings.sessionLimit', 'icon' => 'history', 'eyebrow' => 'Sessões', 'title' => 'Limite de sessão', 'card_title' => 'Limite de sessão', 'description' => 'Apenas uma sessão ativa por usuário.', 'status' => 'Ativo', 'status_class' => 'success'],
     'security' => ['route' => 'settings.security', 'icon' => 'file-clock', 'eyebrow' => 'Segurança', 'title' => 'Segurança da conta', 'card_title' => 'Segurança', 'description' => 'Sessões, acessos, expiração e proteção do cofre.'],
 ];
 
@@ -154,14 +154,6 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                 <strong><?= $twoFactorEnabled ? 'Ativo' : 'Inativo' ?></strong>
             </div>
             <i class="settings-status-dot <?= $twoFactorEnabled ? 'success' : 'warning' ?>" aria-hidden="true"></i>
-        </article>
-        <article class="settings-hero-card">
-            <span class="summary-icon"><?= icon('history') ?></span>
-            <div>
-                <span>Limite simultâneo</span>
-                <strong>1 sessão</strong>
-            </div>
-            <span class="status-chip success">Ativo</span>
         </article>
     </section>
 
@@ -359,28 +351,28 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
-        <?php elseif ($settingsTopic === 'session_limit'): ?>
-            <div class="settings-check-list settings-detail-card">
-                <div><?= icon('check-circle') ?><span>Uma conta, uma sessão</span><small>Quando este usuário entra em outro dispositivo, a sessão anterior é encerrada automaticamente.</small></div>
-                <div><?= icon('check-circle') ?><span>Sessão atual registrada</span><small><?= $sessionStartedAt ? e((string) $sessionStartedAt) : 'Será registrada no próximo login.' ?></small></div>
-            </div>
         <?php elseif ($settingsTopic === 'security'): ?>
             <div class="settings-security-layout">
                 <div class="settings-security-row">
                     <section class="settings-security-card">
-                        <div class="settings-form-head"><h3>Sessões ativas</h3><p>O sistema permite apenas uma sessão ativa por usuário.</p></div>
+                        <div class="settings-form-head"><h3>Sessões ativas</h3><p>O sistema permite apenas uma sessão ativa por usuário; um novo login encerra a anterior.</p></div>
                         <div class="settings-session-list">
                             <?php if (!$activeSessions): ?><p class="muted-text">Nenhuma sessão ativa registrada.</p><?php else: ?><?php foreach ($activeSessions as $session): ?>
                                 <div><?= icon('check-circle') ?><span>Sessão atual</span><small>Início: <?= e((string) ($session['started_at'] ?? 'Não registrado')) ?> · IP: <?= e((string) ($session['ip_address'] ?? 'Não registrado')) ?></small><small class="settings-session-user-agent" title="<?= e((string) ($session['user_agent'] ?? '')) ?>">Navegador: <?= e((string) ($session['user_agent'] ?? 'Não registrado')) ?></small></div>
                             <?php endforeach; ?><?php endif; ?>
                         </div>
                         <form action="/?route=settings.sessions.endOther" method="post" data-confirm="Encerrar outras sessões e manter apenas esta?"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><button class="btn btn-warning" type="submit"><?= icon('log-out') ?><span>Encerrar outras sessões</span></button></form>
+                        <div class="settings-session-facts" aria-label="Políticas de sessão">
+                            <div><strong>Expiração máxima</strong><small><?= e($sessionTimeoutLabel) ?> após o início da sessão.</small></div>
+                            <div><strong>Inatividade da sessão</strong><small>Não encerra a sessão web por inatividade; a presença fica offline após 2 minutos sem atividade.</small></div>
+                            <div><strong>Bloqueio do Cofre</strong><small>O Cofre é bloqueado separadamente após 20 minutos sem atividade.</small></div>
+                        </div>
                     </section>
                     <section class="settings-security-card">
                         <form class="company-form settings-security-form settings-security-form-compact" action="/?route=settings.security.update" method="post" novalidate data-account-confirmation-form data-vault-password-enabled="<?= $vaultRequirePasswordReveal ? '1' : '0' ?>">
                             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                             <div class="settings-form-head"><h3>Regras de segurança</h3><p>Defina expiração da sessão e reforço para revelar senhas do cofre.</p></div>
-                            <label class="field"><span>Tempo de expiração da sessão</span><select name="session_timeout_minutes" required><?php foreach ([30 => '30 minutos', 60 => '1 hora', 120 => '2 horas', 240 => '4 horas', 480 => '8 horas', 720 => '12 horas', 1440 => '24 horas'] as $minutes => $label): ?><option value="<?= $minutes ?>" <?= $sessionTimeoutMinutes === $minutes ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
+                            <label class="field"><span>Tempo de expiração da sessão</span><select name="session_timeout_minutes" required><?php foreach ($sessionTimeoutOptions as $minutes => $label): ?><option value="<?= (int) $minutes ?>" <?= $sessionTimeoutMinutes === (int) $minutes ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
                             <?php if (can_access_vault()): ?>
                             <label class="toggle-field settings-security-toggle"><input type="checkbox" name="vault_require_password_reveal" value="1" <?= $vaultRequirePasswordReveal ? 'checked' : '' ?>><span>Exigir senha para revelar credenciais do cofre</span></label>
                             <?php endif; ?>

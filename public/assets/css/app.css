@@ -2928,6 +2928,34 @@ body.sidebar-collapsed .sidebar-profile {
     white-space: nowrap;
 }
 
+.settings-session-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: var(--space-2);
+    min-width: 0;
+    padding-top: var(--space-2);
+    border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.settings-session-facts > div {
+    display: grid;
+    gap: 0.3rem;
+    min-width: 0;
+    padding: var(--space-2);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+
+.settings-session-facts strong {
+    font-size: 0.82rem;
+}
+
+.settings-session-facts small {
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
 .settings-access-list-compact {
     grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
     max-height: 24rem;
@@ -2953,13 +2981,22 @@ body.sidebar-collapsed .sidebar-profile {
 .settings-admin-form {
     max-width: none;
     grid-template-columns: 1fr;
+    gap: var(--space-5);
 }
 
-.settings-config-grid,
-.settings-two-column {
+.settings-config-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
     gap: var(--space-3);
+    align-items: start;
+    min-width: 0;
+}
+
+.settings-two-column {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: var(--space-4);
+    align-items: start;
     min-width: 0;
 }
 
@@ -2968,9 +3005,9 @@ body.sidebar-collapsed .sidebar-profile {
     gap: var(--space-2);
     min-width: 0;
     padding: var(--space-3);
-    border: 1px solid var(--border);
+    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
     border-radius: var(--radius);
-    background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+    background: color-mix(in srgb, var(--surface-2) 48%, var(--surface));
 }
 
 .settings-prefix-title {
@@ -3021,10 +3058,11 @@ body.sidebar-collapsed .sidebar-profile {
 
 .settings-rule-section {
     display: grid;
-    gap: var(--space-3);
+    gap: var(--space-4);
     min-width: 0;
-    padding-top: var(--space-4);
-    border-top: 1px solid var(--border);
+    margin-top: var(--space-4);
+    padding-top: var(--space-5);
+    border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
 }
 
 .settings-checkbox-grid {
@@ -3036,6 +3074,11 @@ body.sidebar-collapsed .sidebar-profile {
 
 .settings-checkbox-grid.compact {
     grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.settings-checkbox-grid.compact .toggle-field {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.84rem;
 }
 
 .settings-checkbox-grid .toggle-field,
@@ -3057,17 +3100,20 @@ body.sidebar-collapsed .sidebar-profile {
 
 .settings-mini-card {
     display: grid;
-    gap: var(--space-3);
+    gap: var(--space-2);
     min-width: 0;
     padding: var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+    border: none;
+    border-top: 2px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+    border-radius: 0;
+    background: color-mix(in srgb, var(--surface-2) 32%, transparent);
 }
 
 .settings-mini-card h4 {
     margin: 0;
-    font-size: 0.98rem;
+    font-size: 0.92rem;
+    font-weight: 800;
+    color: var(--text);
 }
 
 .vault-default-head {
@@ -3084,13 +3130,12 @@ body.sidebar-collapsed .sidebar-profile {
 
 .vault-settings-form {
     gap: var(--space-5);
-    background: color-mix(in srgb, var(--surface) 88%, transparent);
 }
 
 .vault-settings-intro {
     align-items: center;
     padding-bottom: var(--space-4);
-    border-bottom: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
 }
 
 .vault-settings-intro h3 {
@@ -3105,13 +3150,14 @@ body.sidebar-collapsed .sidebar-profile {
 
 .vault-default-category-card {
     display: grid;
-    gap: var(--space-4);
+    gap: var(--space-3);
     min-width: 0;
     padding: var(--space-4);
-    border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    border-left: 3px solid var(--accent);
     border-radius: var(--radius-lg);
-    background: linear-gradient(135deg, color-mix(in srgb, var(--surface-2) 96%, transparent), color-mix(in srgb, var(--surface) 90%, transparent));
-    box-shadow: 0 8px 22px color-mix(in srgb, var(--bg) 42%, transparent);
+    background: color-mix(in srgb, var(--surface-2) 36%, var(--surface));
+    box-shadow: none;
 }
 
 .vault-default-category-main,
@@ -3124,10 +3170,10 @@ body.sidebar-collapsed .sidebar-profile {
 }
 
 .vault-category-editor {
-    padding: var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: color-mix(in srgb, var(--surface-3) 44%, var(--surface));
+    padding: 0 0 var(--space-2) 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
 }
 
 .vault-category-editor .field:first-of-type input {
@@ -3156,9 +3202,10 @@ body.sidebar-collapsed .sidebar-profile {
     gap: var(--space-2);
     min-width: 0;
     padding: 0;
-    border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
-    border-radius: var(--radius);
-    background: color-mix(in srgb, var(--surface) 84%, transparent);
+    border: none;
+    border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+    border-radius: 0;
+    background: transparent;
     overflow: hidden;
 }
 
@@ -3169,8 +3216,8 @@ body.sidebar-collapsed .sidebar-profile {
     gap: var(--space-2);
     cursor: pointer;
     list-style: none;
-    min-height: 3rem;
-    padding: 0 var(--space-3);
+    min-height: 2.75rem;
+    padding: var(--space-2) 0;
 }
 
 .vault-default-subcategory-head::-webkit-details-marker,
@@ -3185,9 +3232,10 @@ body.sidebar-collapsed .sidebar-profile {
 
 .vault-default-subcategory-content {
     display: grid;
-    gap: var(--space-2);
+    gap: var(--space-3);
     min-width: 0;
-    padding: 0 var(--space-3) var(--space-3);
+    padding: var(--space-2) 0 var(--space-2) var(--space-3);
+    border-left: 2px solid color-mix(in srgb, var(--accent) 30%, var(--border));
 }
 
 .vault-default-subcategory-head strong {
@@ -3211,9 +3259,10 @@ body.sidebar-collapsed .sidebar-profile {
     display: grid;
     gap: var(--space-2);
     padding: var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: color-mix(in srgb, var(--surface-2) 72%, var(--surface));
+    border: none;
+    border-left: 3px solid color-mix(in srgb, var(--accent) 50%, var(--border));
+    border-radius: 0 var(--radius) var(--radius) 0;
+    background: color-mix(in srgb, var(--surface-2) 65%, var(--surface));
 }
 
 .vault-default-subcategory-main {
@@ -3225,9 +3274,10 @@ body.sidebar-collapsed .sidebar-profile {
     gap: var(--space-2);
     min-width: 0;
     padding: 0;
-    border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
-    border-radius: var(--radius);
-    background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+    border: none;
+    border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+    border-radius: 0;
+    background: transparent;
     overflow: hidden;
 }
 
@@ -3238,8 +3288,8 @@ body.sidebar-collapsed .sidebar-profile {
     gap: var(--space-2);
     cursor: pointer;
     list-style: none;
-    min-height: 3rem;
-    padding: 0 var(--space-3);
+    min-height: 2.75rem;
+    padding: var(--space-2) 0;
 }
 
 .vault-default-fields-head > div {
@@ -3284,9 +3334,10 @@ body.sidebar-collapsed .sidebar-profile {
 .vault-default-fields-content {
     display: grid;
     justify-items: start;
-    gap: var(--space-2);
+    gap: var(--space-3);
     min-width: 0;
-    padding: 0 var(--space-3) var(--space-3);
+    padding: var(--space-2) 0 var(--space-3) var(--space-3);
+    border-left: 2px solid color-mix(in srgb, var(--accent) 30%, var(--border));
 }
 
 .vault-default-field-list {
@@ -3308,9 +3359,12 @@ body.sidebar-collapsed .sidebar-profile {
 
 .settings-required-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
-    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    gap: var(--space-4);
     min-width: 0;
+    border: none;
+    background: transparent;
+    padding: 0;
 }
 
 .settings-expiration-field {
@@ -5699,7 +5753,6 @@ form[id^="delete-photo-"] {
 
 .account-role-card,
 .settings-check-list > div,
-.settings-mini-card,
 .settings-session-list > div,
 .settings-access-list > div {
     border-radius: var(--radius);
@@ -5746,20 +5799,17 @@ form[id^="delete-photo-"] {
 
 .settings-rule-section {
     gap: var(--space-4);
-    padding: var(--space-5);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+    margin-top: var(--space-4);
+    padding: var(--space-5) 0 0;
+    border: none;
+    border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    border-radius: 0;
+    background: transparent;
 }
 
 .settings-config-grid,
 .settings-required-list {
     gap: var(--space-4);
-}
-
-.settings-prefix-card,
-.settings-mini-card {
-    padding: var(--space-4);
 }
 
 @media (max-width: 1080px) {
@@ -6282,10 +6332,12 @@ form[id^="delete-photo-"] {
 .vault-access-rules {
     display: grid;
     gap: var(--space-4);
-    padding: var(--space-4);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+    margin-top: var(--space-4);
+    padding: var(--space-5) 0 0;
+    border: none;
+    border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    border-radius: 0;
+    background: transparent;
 }
 
 .vault-save-button {

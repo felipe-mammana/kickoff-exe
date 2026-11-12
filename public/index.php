@@ -171,9 +171,6 @@ try {
         case 'settings.twoFactor':
             SettingsController::twoFactor();
             break;
-        case 'settings.sessionLimit':
-            SettingsController::sessionLimit();
-            break;
         case 'settings.security':
             SettingsController::security();
             break;

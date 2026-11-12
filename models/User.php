@@ -10,6 +10,19 @@ class User
         'viewer' => 'Usuário',
     ];
 
+    public static function sessionTimeoutOptions(): array
+    {
+        return [
+            30 => '30 minutos',
+            60 => '1 hora',
+            120 => '2 horas',
+            240 => '4 horas',
+            480 => '8 horas',
+            720 => '12 horas',
+            1440 => '24 horas',
+        ];
+    }
+
     public static function all(): array
     {
         self::ensureRoleColumn();

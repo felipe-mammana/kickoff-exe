@@ -24,11 +24,6 @@ class SettingsController
         self::render('two_factor');
     }
 
-    public static function sessionLimit(): void
-    {
-        self::render('session_limit');
-    }
-
     public static function security(): void
     {
         self::render('security');
@@ -580,7 +575,7 @@ class SettingsController
         }
 
         $timeout = (int) ($_POST['session_timeout_minutes'] ?? 480);
-        $allowedTimeouts = [30, 60, 120, 240, 480, 720, 1440];
+        $allowedTimeouts = array_map('intval', array_keys(User::sessionTimeoutOptions()));
         if (!in_array($timeout, $allowedTimeouts, true)) {
             flash('danger', 'Tempo de sessão inválido.');
             redirect('/?route=settings.security');
