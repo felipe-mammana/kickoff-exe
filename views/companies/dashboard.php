@@ -91,14 +91,14 @@
                     <?php if (can_permission('machines.create')): ?>
                         <a class="icon-btn primary-action" href="/?route=machines.create&company_id=<?= (int) $company['id'] ?>" aria-label="Cadastrar dispositivo" title="Cadastrar dispositivo"><?= icon('plus') ?></a>
                     <?php endif; ?>
-                    <a class="icon-btn export-btn <?= !$machines ? 'disabled' : '' ?>" href="<?= e(export_url('devices', 'csv', array_merge(['company_id' => (int) $company['id']], $filters))) ?>" data-export-link data-export-format="CSV" aria-label="Exportar CSV" title="Exportar CSV" aria-disabled="<?= !$machines ? 'true' : 'false' ?>">
-                        <?= icon('file-spreadsheet') ?>
+                    <a class="icon-btn export-btn export-btn-labeled <?= !$machines ? 'disabled' : '' ?>" href="<?= e(export_url('devices', 'csv', array_merge(['company_id' => (int) $company['id']], $filters))) ?>" data-export-link data-export-format="CSV" aria-label="Exportar dispositivos em CSV" title="Exportar dispositivos em CSV" aria-disabled="<?= !$machines ? 'true' : 'false' ?>">
+                        <?= icon('file-spreadsheet') ?><span>CSV</span>
                     </a>
-                    <a class="icon-btn export-btn <?= !$machines ? 'disabled' : '' ?>" href="<?= e(export_url('devices', 'json', array_merge(['company_id' => (int) $company['id']], $filters))) ?>" data-export-link data-export-format="JSON" aria-label="Exportar JSON" title="Exportar JSON" aria-disabled="<?= !$machines ? 'true' : 'false' ?>">
-                        <?= icon('braces') ?>
+                    <a class="icon-btn export-btn export-btn-labeled <?= !$machines ? 'disabled' : '' ?>" href="<?= e(export_url('devices', 'json', array_merge(['company_id' => (int) $company['id']], $filters))) ?>" data-export-link data-export-format="JSON" aria-label="Exportar dispositivos em JSON" title="Exportar dispositivos em JSON" aria-disabled="<?= !$machines ? 'true' : 'false' ?>">
+                        <?= icon('braces') ?><span>JSON</span>
                     </a>
-                    <a class="icon-btn export-btn <?= !$machines ? 'disabled' : '' ?>" href="<?= e(export_url('devices', 'docx', array_merge(['company_id' => (int) $company['id']], $filters))) ?>" data-export-link data-export-format="DOCX" aria-label="Exportar DOCX" title="Exportar DOCX" aria-disabled="<?= !$machines ? 'true' : 'false' ?>">
-                        <?= icon('file-text') ?>
+                    <a class="icon-btn export-btn export-btn-labeled <?= !$machines ? 'disabled' : '' ?>" href="<?= e(export_url('devices', 'docx', array_merge(['company_id' => (int) $company['id']], $filters))) ?>" data-export-link data-export-format="DOCX" aria-label="Exportar dispositivos em DOCX" title="Exportar dispositivos em DOCX" aria-disabled="<?= !$machines ? 'true' : 'false' ?>">
+                        <?= icon('file-text') ?><span>DOCX</span>
                     </a>
                 </div>
             </div>

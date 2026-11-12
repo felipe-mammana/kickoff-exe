@@ -1125,6 +1125,13 @@ body.sidebar-collapsed .sidebar-profile {
     color: var(--accent);
 }
 
+.export-btn-labeled {
+    width: auto;
+    min-width: 4.6rem;
+    padding: 0 0.65rem;
+    font-size: 0.78rem;
+}
+
 .toast-stack {
     position: fixed;
     right: clamp(1rem, 3vw, 2rem);
