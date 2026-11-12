@@ -6,8 +6,27 @@ class AccountChallengeController
     private static ?string $approved = null;
     private const ACTIONS = ['password' => 'updatePassword', 'email' => 'updateProfile', 'disable-2fa' => 'disableTwoFactor', 'replace-totp' => 'enableTwoFactor', 'replace-email-2fa' => 'enableEmailTwoFactor', 'admin-reset' => 'resetPassword'];
 
+    public static function requiresProof(array $user, string $action): bool
+    {
+        if (!isset(self::ACTIONS[$action])) {
+            throw new InvalidArgumentException('Ação de confirmação inválida.');
+        }
+
+        // Reset administrativo é uma operação privilegiada: a prova pertence
+        // ao administrador que executa a ação, não ao usuário afetado.
+        if ($action === 'admin-reset' || $action === 'disable-2fa') {
+            return true;
+        }
+
+        return !empty($user['two_factor_enabled']);
+    }
+
     public static function requireProof(array $user, string $action): void
     {
+        if (!self::requiresProof($user, $action)) {
+            self::$approved = null;
+            return;
+        }
         if (self::$approved === $action) {
             self::$approved = null;
             return;

@@ -293,7 +293,7 @@ try {
     $newPassword = 'New-Security-Password-123';
     $userBeforeReset = User::find($securityUserId);
     $response = $adminClient->request('users.resetPassword', ['id' => $securityUserId, 'password' => $newPassword, 'password_confirmation' => $newPassword]);
-    check('Confirmacao: operacao aguarda segundo fator', str_contains($response['headers'], 'account.challenge'));
+    check('Reset: usuario com 2FA exige prova do administrador', str_contains($response['headers'], 'account.challenge'));
     $response = approveAccountChange($adminClient, $mailFile, $securityAdminId);
     check('Reset: administrador redefine senha e remove sessao no banco', $response['status'] === 302 && empty(User::find($securityUserId)['active_session_token']));
     check('Reset: login concorrente com dados antigos nao consegue criar sessao', !User::setActiveSession($securityUserId, bin2hex(random_bytes(32)), $userBeforeReset) && empty(User::find($securityUserId)['active_session_token']));
@@ -305,12 +305,29 @@ try {
     $response = $pendingClient->login($profile['email'], $securityPassword);
     check('Reset: senha antiga nao inicia novo desafio 2FA', !isset($pendingClient->session()[1]['pending_2fa_user_id']));
     User::disableTwoFactor($securityUserId);
-    check('Reset: nova senha permite entrar', $pendingClient->login($profile['email'], $newPassword)['status'] === 302);
+    check('Reset: usuario sem 2FA permite entrar', $pendingClient->login($profile['email'], $newPassword)['status'] === 302);
+    $response = $adminClient->request('users.resetPassword', ['id' => $securityUserId, 'password' => $newPassword, 'password_confirmation' => $newPassword]);
+    check('Reset: usuario sem 2FA ainda exige prova do administrador', str_contains($response['headers'], 'account.challenge'));
+    $response = approveAccountChange($adminClient, $mailFile, $securityAdminId);
+    check('Reset: administrador autorizado redefine usuario sem 2FA', $response['status'] === 302 && password_verify($newPassword, User::find($securityUserId)['password_hash']));
+    check('Reset: usuario redefinido volta a autenticar', $pendingClient->login($profile['email'], $newPassword)['status'] === 302);
+    $wrongCurrent = $pendingClient->request('settings.password.update', ['current_password' => 'wrong-current-password', 'password' => $securityPassword, 'password_confirmation' => $securityPassword]);
+    check('Senha: senha atual incorreta recusa antes de qualquer desafio', !str_contains($wrongCurrent['headers'], 'account.challenge') && password_verify($newPassword, User::find($securityUserId)['password_hash']));
     $response = $pendingClient->request('settings.password.update', ['current_password' => $newPassword, 'password' => $securityPassword, 'password_confirmation' => $securityPassword]);
-    check('Confirmacao: operacao aguarda segundo fator', str_contains($response['headers'], 'account.challenge'));
-    $response = approveAccountChange($pendingClient, $mailFile, $securityUserId);
-    check('Senha: troca pelo proprio usuario encerra sessao e volta ao login', $response['status'] === 302 && str_contains($response['headers'], 'route=login') && empty(User::find($securityUserId)['active_session_token']));
-    check('Senha: login funciona apos a troca', $pendingClient->login($profile['email'], $securityPassword)['status'] === 302);
+    check('Senha sem 2FA: troca propria encerra sessao sem desafio 2FA', $response['status'] === 302 && str_contains($response['headers'], 'route=login') && empty(User::find($securityUserId)['active_session_token']));
+    check('Senha sem 2FA: login funciona apos a troca direta', $pendingClient->login($profile['email'], $securityPassword)['status'] === 302);
+
+    $tempSecret = TwoFactorAuth::generateSecret();
+    User::enableTwoFactor($securityUserId, $tempSecret);
+    $responseWith2Fa = $pendingClient->request('settings.password.update', ['current_password' => $securityPassword, 'password' => $newPassword, 'password_confirmation' => $newPassword]);
+    check('Senha com 2FA: operacao aguarda segundo fator', str_contains($responseWith2Fa['headers'], 'account.challenge'));
+    $responseWith2Fa = approveAccountChange($pendingClient, $mailFile, $securityUserId);
+    check('Senha com 2FA: prova adicional conclui a troca', $responseWith2Fa['status'] === 302 && password_verify($newPassword, User::find($securityUserId)['password_hash']));
+    User::disableTwoFactor($securityUserId);
+    check('Senha: usuario volta a entrar apos desativar 2FA', $pendingClient->login($profile['email'], $newPassword)['status'] === 302);
+    $response = $pendingClient->request('settings.password.update', ['current_password' => $newPassword, 'password' => $securityPassword, 'password_confirmation' => $securityPassword]);
+    check('Senha sem 2FA: segunda troca propria nao exige desafio', $response['status'] === 302 && str_contains($response['headers'], 'route=login'));
+    check('Senha: login com senha preservada funciona', $pendingClient->login($profile['email'], $securityPassword)['status'] === 302);
 
     $proofSecret = TwoFactorAuth::generateSecret();
     User::enableTwoFactor($securityUserId, $proofSecret);
@@ -326,6 +343,7 @@ try {
     $pendingClient->request('settings.2fa.disable', ['password' => $securityPassword]);
     approveAccountChange($pendingClient, $mailFile, $securityUserId);
     check('2FA: codigo no email atual autoriza desativacao', (int) User::find($securityUserId)['two_factor_enabled'] === 0);
+    User::enableEmailTwoFactor($securityUserId);
     $pendingClient->request('settings.password.update', ['current_password' => $securityPassword, 'password' => 'Unapplied-Password-123', 'password_confirmation' => 'Unapplied-Password-123']);
     [$proofPath, $proofSession] = $pendingClient->session();
     check('Confirmacao: senha pendente nao fica em claro na sessao', !str_contains(serialize($proofSession), 'Unapplied-Password-123'));

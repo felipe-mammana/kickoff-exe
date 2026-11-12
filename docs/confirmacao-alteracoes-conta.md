@@ -1,8 +1,11 @@
 # Confirmacao adicional de alteracoes de conta
 
-Troca de senha, troca de email, desativacao e substituicao de 2FA ativo exigem
-codigo no email atual ou TOTP do autenticador ja cadastrado, alem das verificacoes
-de senha existentes. Cadastro inicial de 2FA preserva seu fluxo de configuracao.
+Quando o 2FA está habilitado, troca de senha, troca de email e substituição do
+fator ativo exigem código no email atual ou TOTP do autenticador já cadastrado,
+além das verificações de senha existentes. Usuários sem 2FA não são obrigados a
+informar um código inexistente durante a troca própria permitida. A desativação
+de 2FA continua exigindo uma prova adicional antes de remover a proteção.
+Cadastro inicial de 2FA preserva seu fluxo de configuração.
 Reset de senha de terceiros e alteracao administrativa de email exigem segundo
 fator do administrador que realiza a operacao, nao do usuario afetado.
 

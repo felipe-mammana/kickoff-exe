@@ -490,7 +490,9 @@ class SettingsController
             redirect('/?route=settings.account');
         }
 
-        AccountChallengeController::requireProof($user, 'password');
+        if (AccountChallengeController::requiresProof($user, 'password')) {
+            AccountChallengeController::requireProof($user, 'password');
+        }
         User::updatePassword((int) $user['id'], $password);
 
         AuditLog::record([
@@ -818,7 +820,7 @@ class SettingsController
             redirect('/?route=settings.twoFactor');
         }
 
-        if (!empty($user['two_factor_enabled'])) AccountChallengeController::requireProof($user, 'replace-email-2fa');
+        if (AccountChallengeController::requiresProof($user, 'replace-email-2fa')) AccountChallengeController::requireProof($user, 'replace-email-2fa');
         User::enableEmailTwoFactor((int) $user['id']);
         SecurityRateLimit::clear('2fa-settings', (int) $user['id']);
         unset($_SESSION['two_factor_setup_secret'], $_SESSION['two_factor_email_setup_code_hash'], $_SESSION['two_factor_email_setup_code_expires_at']);
@@ -861,7 +863,7 @@ class SettingsController
             redirect('/?route=settings.twoFactor');
         }
 
-        if (!empty($user['two_factor_enabled'])) AccountChallengeController::requireProof($user, 'replace-totp');
+        if (AccountChallengeController::requiresProof($user, 'replace-totp')) AccountChallengeController::requireProof($user, 'replace-totp');
         User::enableTwoFactor((int) $user['id'], $secret);
         SecurityRateLimit::clear('2fa-settings', (int) $user['id']);
         unset($_SESSION['two_factor_setup_secret']);
