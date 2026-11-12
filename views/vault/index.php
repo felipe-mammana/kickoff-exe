@@ -9,7 +9,7 @@ $vaultCustomFieldConfig = $vaultCustomFieldConfig ?? [];
 $selectedCompanyId = (int) ($formOld['company_id'] ?? 0);
 $selectedCategoryId = (int) ($formOld['category_id'] ?? 0);
 ?>
-<script type="application/json" data-vault-custom-field-config><?= e(json_encode($vaultCustomFieldConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></script>
+<script type="application/json" data-vault-custom-field-config><?= json_encode($vaultCustomFieldConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
 
 <nav class="breadcrumbs" aria-label="Breadcrumb">
     <a href="/">Home</a>
