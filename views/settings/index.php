@@ -100,12 +100,12 @@ if (can_permission('settings.manage')) {
     $topics['audit'] = ['route' => 'settings.audit', 'icon' => 'file-clock', 'eyebrow' => 'Auditoria', 'title' => 'Auditoria do sistema', 'card_title' => 'Auditoria', 'description' => 'Retenção de logs, exportação por período e eventos críticos.'];
     $topics['devices'] = ['route' => 'settings.devices', 'icon' => 'monitor-cog', 'eyebrow' => 'Empresas e dispositivos', 'title' => 'Empresas e dispositivos', 'card_title' => 'Empresas e dispositivos', 'description' => 'Prefixos, categorias, obrigatoriedade e uploads.'];
     $topics['vault'] = ['route' => 'settings.vault', 'icon' => 'lock', 'eyebrow' => 'Cofre de senhas', 'title' => 'Cofre de senhas', 'card_title' => 'Cofre de senhas', 'description' => 'Categorias, cópia, revelação, logs e validade das credenciais.'];
-    $topics['auditFiles'] = ['route' => 'settings.auditFiles', 'icon' => 'lock', 'eyebrow' => 'Auditoria', 'title' => 'Arquivos de auditoria', 'card_title' => 'Arquivos de auditoria', 'description' => 'Registros protegidos com confirmacao de senha.'];
+    $topics['auditFiles'] = ['route' => 'settings.auditFiles', 'icon' => 'lock', 'eyebrow' => 'Auditoria', 'title' => 'Arquivos de auditoria', 'card_title' => 'Arquivos de auditoria', 'description' => 'Registros protegidos com confirmação de senha.'];
 }
 
 unset($topics['vault']);
 if (can_permission('vault.configure')) {
-    $topics['vault'] = ['route' => 'settings.vault', 'icon' => 'lock', 'eyebrow' => 'Cofre', 'title' => 'Cofre de senhas', 'card_title' => 'Cofre de senhas', 'description' => 'Configuracoes do cofre.'];
+    $topics['vault'] = ['route' => 'settings.vault', 'icon' => 'lock', 'eyebrow' => 'Cofre', 'title' => 'Cofre de senhas', 'card_title' => 'Cofre de senhas', 'description' => 'Configurações do cofre.'];
 }
 if (can_permission('audit.view')) $topics['auditFiles'] = ['route' => 'settings.auditFiles', 'icon' => 'lock', 'eyebrow' => 'Auditoria', 'title' => 'Arquivos de auditoria', 'card_title' => 'Arquivos de auditoria', 'description' => ''];
 $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $topics[$settingsTopic] : null;
@@ -132,7 +132,7 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
         </div>
         <div class="header-actions">
             <?php if (can_permission('settings.manage')): ?>
-                <a class="btn btn-muted" href="/?route=settings.microsoft.index"><?= icon('mail') ?><span>Email Microsoft</span></a>
+                <a class="btn btn-muted" href="/?route=settings.microsoft.index"><?= icon('mail') ?><span>E-mail Microsoft</span></a>
                 <a class="btn btn-muted" href="/?route=audit.index"><?= icon('file-clock') ?><span>Auditoria</span></a>
             <?php endif; ?>
             <a class="btn btn-primary" href="/"><?= icon('layout-dashboard') ?><span>Dashboard</span></a>
@@ -140,14 +140,14 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
     </section>
 
     <section class="settings-hero-grid">
-        <article class="settings-hero-card">
+        <article class="settings-hero-card settings-hero-account">
             <span class="settings-avatar"><?= e($initials) ?></span>
             <div>
                 <strong><?= e($accountUser['name']) ?></strong>
                 <span><?= e($accountUser['email']) ?></span>
             </div>
         </article>
-        <article class="settings-hero-card">
+        <article class="settings-hero-card settings-hero-two-factor <?= $twoFactorEnabled ? 'is-enabled' : 'is-disabled' ?>">
             <span class="summary-icon"><?= icon('shield') ?></span>
             <div>
                 <span>2FA da conta</span>
