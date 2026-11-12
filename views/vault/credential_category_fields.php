@@ -31,7 +31,7 @@ foreach ($categoryRows as $categoryRow) {
 <label class="field" data-vault-subcategory-field <?= $selectedRootCategoryId > 0 ? '' : 'hidden' ?>>
     <span>Subcategoria</span>
     <select name="subcategory_id" data-vault-category-child>
-        <option value="">Sem subcategoria</option>
+        <option value="">Selecione uma subcategoria</option>
         <?php foreach ($categoryRows as $categoryRow): ?>
             <?php if (empty($categoryRow['parent_id'])) continue; ?>
             <option value="<?= (int) $categoryRow['id'] ?>" data-parent-id="<?= (int) $categoryRow['parent_id'] ?>" data-company-ids="<?= e((string) ($categoryRow['allowed_company_ids'] ?? '')) ?>" <?= $selectedSubcategoryId === (int) $categoryRow['id'] ? 'selected' : '' ?>>
@@ -39,5 +39,4 @@ foreach ($categoryRows as $categoryRow) {
             </option>
         <?php endforeach; ?>
     </select>
-    <small data-vault-subcategory-help>Opcional.</small>
 </label>

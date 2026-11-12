@@ -1206,7 +1206,6 @@
         const child = form?.querySelector('[data-vault-category-child]');
         const effective = form?.querySelector('[data-vault-effective-category]');
         const childField = form?.querySelector('[data-vault-subcategory-field]');
-        const childHelp = form?.querySelector('[data-vault-subcategory-help]');
         if (!root || !child || !effective) {
             return;
         }
@@ -1241,10 +1240,11 @@
         }
         if (childField) childField.hidden = root.value === '';
         child.disabled = root.value === '' || availableChildren === 0;
-        if (childHelp) {
-            childHelp.textContent = availableChildren > 0
-                ? 'Opcional. Escolha uma subcategoria desta categoria.'
-                : 'Esta categoria não possui subcategorias disponíveis.';
+        const placeholder = child.options[0];
+        if (placeholder) {
+            placeholder.textContent = availableChildren > 0
+                ? 'Selecione uma subcategoria'
+                : 'Nenhuma subcategoria disponível';
         }
         effective.value = child.value || root.value;
         if (notify) {
