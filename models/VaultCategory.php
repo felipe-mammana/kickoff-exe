@@ -70,7 +70,7 @@ class VaultCategory
                     AND EXISTS (
                         SELECT 1 FROM company_vault_categories enabled
                         WHERE enabled.company_id = :enabled_company_id
-                          AND enabled.category_id = COALESCE(c.parent_id, c.id)
+                          AND enabled.category_id = c.id
                     )
                 )
             )';
@@ -120,7 +120,7 @@ class VaultCategory
                     AND EXISTS (
                         SELECT 1 FROM company_vault_categories enabled
                         WHERE enabled.company_id = :enabled_company_id
-                          AND enabled.category_id = COALESCE(c.parent_id, c.id)
+                          AND enabled.category_id = c.id
                     )
                 )
             )';
@@ -172,13 +172,13 @@ class VaultCategory
         $sql .= ') ORDER BY COALESCE(company.name, ""), COALESCE(parent.name, c.name), c.parent_id IS NOT NULL, c.name';
         $stmt = db()->prepare($sql);
         $stmt->execute($params);
-        $allowedByRoot = CompanyVaultCategory::allowedCompaniesByRoot($companyIds);
+        $allowedByCategory = CompanyVaultCategory::allowedCompaniesByCategory($companyIds);
         $rows = [];
         foreach ($stmt->fetchAll() as $row) {
             if ($row['company_id'] !== null) {
                 $localCompanyId = (int) $row['company_id'];
                 if (!empty($row['parent_id']) && $row['parent_company_id'] === null
-                    && !in_array($localCompanyId, $allowedByRoot[(int) $row['parent_id']] ?? [], true)
+                    && !in_array($localCompanyId, $allowedByCategory[(int) $row['parent_id']] ?? [], true)
                 ) {
                     continue;
                 }
@@ -186,8 +186,13 @@ class VaultCategory
                 $rows[] = $row;
                 continue;
             }
-            $rootId = !empty($row['parent_id']) ? (int) $row['parent_id'] : (int) $row['id'];
-            $allowedCompanyIds = $allowedByRoot[$rootId] ?? [];
+            $allowedCompanyIds = $allowedByCategory[(int) $row['id']] ?? [];
+            if (!empty($row['parent_id'])) {
+                $allowedCompanyIds = array_values(array_intersect(
+                    $allowedCompanyIds,
+                    $allowedByCategory[(int) $row['parent_id']] ?? []
+                ));
+            }
             if (!$allowedCompanyIds) continue;
             $row['allowed_company_ids'] = implode(',', $allowedCompanyIds);
             $rows[] = $row;
@@ -269,8 +274,7 @@ class VaultCategory
             return (int) $category['company_id'] === $companyId;
         }
 
-        $rootId = !empty($category['parent_id']) ? (int) $category['parent_id'] : (int) $category['id'];
-        return CompanyVaultCategory::isEnabled($companyId, $rootId);
+        return CompanyVaultCategory::isEnabled($companyId, (int) $category['id']);
     }
 
     public static function isSelectableForCompany(array $category, int $companyId): bool
@@ -342,6 +346,32 @@ class VaultCategory
         $sql .= ' ORDER BY name';
 
         return db()->query($sql)->fetchAll();
+    }
+
+    public static function globalTree(bool $activeOnly = true): array
+    {
+        $sql = 'SELECT * FROM vault_categories WHERE company_id IS NULL';
+        if ($activeOnly) $sql .= ' AND is_active = 1';
+        $sql .= ' ORDER BY parent_id IS NOT NULL, name';
+        $rows = db()->query($sql)->fetchAll();
+        $roots = [];
+        $children = [];
+        foreach ($rows as $row) {
+            if ($row['parent_id'] === null) {
+                $row['children'] = [];
+                $roots[(int) $row['id']] = $row;
+            } else {
+                $children[] = $row;
+            }
+        }
+        foreach ($children as $child) {
+            $parentId = (int) $child['parent_id'];
+            if (isset($roots[$parentId])) {
+                $roots[$parentId]['children'][] = $child;
+            }
+        }
+
+        return array_values($roots);
     }
 
     public static function duplicateNameExists(string $name, ?int $companyId): bool

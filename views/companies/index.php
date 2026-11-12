@@ -140,12 +140,25 @@
             <fieldset class="company-vault-category-fieldset">
                 <legend>Categorias do Cofre</legend>
                 <p>Escolha, se necessário, quais categorias globais serão disponibilizadas para esta empresa.</p>
-                <div class="company-vault-category-grid">
+                <div class="company-vault-category-grid" data-company-vault-categories>
                     <?php foreach ((array) ($vaultCategories ?? []) as $vaultCategory): ?>
-                        <label class="check-card">
-                            <input type="checkbox" name="vault_category_ids[]" value="<?= (int) $vaultCategory['id'] ?>">
-                            <span><?= icon((string) ($vaultCategory['icon'] ?? 'folder')) ?> <?= e((string) $vaultCategory['name']) ?></span>
-                        </label>
+                        <?php $rootId = (int) $vaultCategory['id']; ?>
+                        <div class="company-vault-category-group">
+                            <label class="check-card">
+                                <input type="checkbox" name="vault_category_ids[]" value="<?= $rootId ?>" data-company-vault-root>
+                                <span><?= icon((string) ($vaultCategory['icon'] ?? 'folder')) ?> <?= e((string) $vaultCategory['name']) ?></span>
+                            </label>
+                            <?php if (!empty($vaultCategory['children'])): ?>
+                                <div class="company-vault-subcategory-list">
+                                    <?php foreach ($vaultCategory['children'] as $vaultSubcategory): ?>
+                                        <label class="check-card compact">
+                                            <input type="checkbox" name="vault_category_ids[]" value="<?= (int) $vaultSubcategory['id'] ?>" data-company-vault-child data-parent-id="<?= $rootId ?>" disabled>
+                                            <span><?= icon((string) ($vaultSubcategory['icon'] ?? 'folder')) ?> <?= e((string) $vaultSubcategory['name']) ?></span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     <?php endforeach; ?>
                 </div>
             </fieldset>

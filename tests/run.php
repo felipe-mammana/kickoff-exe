@@ -309,7 +309,9 @@ try {
     check('Empresa preserva selecao de categorias globais do cofre', CompanyVaultCategory::selectedIds($companyId) === [$vaultCategoryId]);
     check('Categoria do cofre aceita subcategoria', (int) ($vaultSubcategory['parent_id'] ?? 0) === $vaultCategoryId);
     check('Categorias principais do cofre nao misturam subcategorias', count(VaultCategory::withCountsByParent(null, $companyId)) === 1);
-    check('Subcategorias do cofre abrem dentro da principal', count(VaultCategory::withCountsByParent($vaultCategoryId, $companyId)) === 1);
+    check('Subcategoria global nao aparece antes de ser habilitada para a empresa', VaultCategory::withCountsByParent($vaultCategoryId, $companyId) === []);
+    CompanyVaultCategory::replaceForCompany($companyId, [$vaultCategoryId, $vaultSubcategoryId]);
+    check('Subcategoria habilitada abre dentro da categoria principal', count(VaultCategory::withCountsByParent($vaultCategoryId, $companyId)) === 1);
     $otherCompanyId = Company::create([
         'name' => 'Empresa Isolada',
         'tag_pattern' => 'ISO',
@@ -349,6 +351,12 @@ try {
     $_POST = ['vault_category_ids' => [$vaultCategoryId]];
     [$validatedCompanyVaultCategoryIds, $validCompanyVaultCategoryErrors] = $companyVaultCategoryValidator->invoke(null);
     check('Cadastro de empresa aceita categorias globais validas', $validatedCompanyVaultCategoryIds === [$vaultCategoryId] && !$validCompanyVaultCategoryErrors);
+    $_POST = ['vault_category_ids' => [$vaultSubcategoryId]];
+    [, $orphanSubcategoryErrors] = $companyVaultCategoryValidator->invoke(null);
+    check('Cadastro de empresa rejeita subcategoria sem categoria principal', isset($orphanSubcategoryErrors['vault_category_ids']));
+    $_POST = ['vault_category_ids' => [$vaultCategoryId, $vaultSubcategoryId]];
+    [$validatedHierarchyIds, $validHierarchyErrors] = $companyVaultCategoryValidator->invoke(null);
+    check('Cadastro de empresa aceita categoria e subcategoria habilitadas juntas', $validatedHierarchyIds === [$vaultCategoryId, $vaultSubcategoryId] && !$validHierarchyErrors);
     $_POST = ['vault_category_ids' => [PHP_INT_MAX]];
     [, $invalidCompanyVaultCategoryErrors] = $companyVaultCategoryValidator->invoke(null);
     check('Cadastro de empresa rejeita categoria manipulada na requisicao', isset($invalidCompanyVaultCategoryErrors['vault_category_ids']));
@@ -460,7 +468,8 @@ try {
         'updated_by' => $adminId,
     ]);
     $vaultCredential = VaultCredential::find($vaultCredentialId);
-    check('Categoria global em uso fica protegida contra remocao da empresa', in_array($vaultCategoryId, CompanyVaultCategory::requiredGlobalRootIds($companyId), true));
+    $requiredVaultCategoryIds = CompanyVaultCategory::requiredGlobalCategoryIds($companyId);
+    check('Categoria e subcategoria globais em uso ficam protegidas contra remocao da empresa', in_array($vaultCategoryId, $requiredVaultCategoryIds, true) && in_array($vaultSubcategoryId, $requiredVaultCategoryIds, true));
     check('Credencial do cofre armazena somente referencia Vault', !array_key_exists('secret_value', $vaultCredential)
         && (int) ($vaultCredential['vault_version'] ?? 0) === 1);
     check('Credencial do cofre salva campos personalizados', VaultCredential::customFields($vaultCredential)['ip_de_acesso'] === '192.168.0.1');
@@ -479,9 +488,21 @@ try {
     check('Edicao de metadados preserva referencia Vault', (int) ($vaultCredentialUpdated['vault_version'] ?? 0) === 1);
     check('Edicao do cofre atualiza campos personalizados', VaultCredential::customFields($vaultCredentialUpdated)['ip_de_acesso'] === '192.168.0.254');
     check('Credencial do cofre aparece na categoria principal', count(VaultCredential::filtered(['company_id' => $companyId, 'category_id' => $vaultCategoryId])) === 1);
-    db()->prepare('UPDATE vault_categories SET is_active = 0 WHERE id = :id')->execute(['id' => $vaultSubcategoryId]);
     $vaultValidator = new ReflectionMethod(VaultController::class, 'validatedData');
     $vaultValidator->setAccessible(true);
+    $_POST = [
+        'company_id' => $companyId,
+        'category_root_id' => $vaultCategoryId,
+        'subcategory_id' => $vaultSubcategoryId,
+        'title' => 'Credencial hierarquica',
+        'secret_value' => 'segredo',
+    ];
+    [$hierarchicalCredentialData, $hierarchicalCredentialErrors] = $vaultValidator->invoke(null, $company);
+    check('Backend aceita categoria e subcategoria coerentes', (int) $hierarchicalCredentialData['category_id'] === $vaultSubcategoryId && !isset($hierarchicalCredentialErrors['category_id']));
+    $_POST['subcategory_id'] = $companyOnlyCategoryId;
+    [, $mismatchedSubcategoryErrors] = $vaultValidator->invoke(null, $company);
+    check('Backend rejeita subcategoria que nao pertence a categoria escolhida', isset($mismatchedSubcategoryErrors['category_id']));
+    db()->prepare('UPDATE vault_categories SET is_active = 0 WHERE id = :id')->execute(['id' => $vaultSubcategoryId]);
     $_POST = [
         'company_id' => $companyId,
         'category_id' => '',

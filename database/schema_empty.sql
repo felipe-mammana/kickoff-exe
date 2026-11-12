@@ -191,7 +191,7 @@ CREATE TABLE IF NOT EXISTS company_vault_categories (
     INDEX idx_company_vault_categories_category (category_id, company_id),
     CONSTRAINT fk_company_vault_categories_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
     CONSTRAINT fk_company_vault_categories_category FOREIGN KEY (category_id) REFERENCES vault_categories(id) ON DELETE CASCADE
-) ENGINE=InnoDB COMMENT='company_vault_categories:v1:complete';
+) ENGINE=InnoDB COMMENT='company_vault_categories:v2:complete';
 
 CREATE TABLE IF NOT EXISTS company_attachments (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

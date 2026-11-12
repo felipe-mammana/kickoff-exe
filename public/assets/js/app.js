@@ -1195,153 +1195,113 @@
     }
 
     function syncVaultFormCustomFields(form, values) {
-        const category = form?.querySelector('[data-vault-create-category], [data-vault-edit-category]');
+        const category = form?.querySelector('[data-vault-effective-category]');
         const container = form?.querySelector('[data-vault-custom-fields]');
         renderVaultCustomFields(container, category?.value || '', values || vaultCustomValuesFrom(container, {}));
     }
 
-    function syncVaultCategorySearchInput(select) {
-        const combobox = select?.closest('[data-vault-category-combobox]');
-        const input = combobox?.querySelector('[data-vault-category-search-input]');
-        const selected = select?.selectedOptions?.[0];
-        if (input) {
-            input.value = selected && selected.value !== '' ? selected.textContent.trim() : '';
-        }
-    }
-
-    function syncVaultCategoriesForCompany(form, notify = true) {
+    function syncVaultCategoryHierarchy(form, notify = true) {
         const company = form?.querySelector('[data-vault-create-company]');
-        const category = form?.querySelector('[data-vault-create-category]');
-        if (!company || !category) {
+        const root = form?.querySelector('[data-vault-category-root]');
+        const child = form?.querySelector('[data-vault-category-child]');
+        const effective = form?.querySelector('[data-vault-effective-category]');
+        const childField = form?.querySelector('[data-vault-subcategory-field]');
+        const childHelp = form?.querySelector('[data-vault-subcategory-help]');
+        if (!root || !child || !effective) {
             return;
         }
 
-        const companyId = company.value;
-        Array.from(category.options).forEach(function (option) {
+        const companyId = company?.value || '';
+        Array.from(root.options).forEach(function (option) {
             const allowedCompanyIds = (option.dataset.companyIds || '').split(',').filter(Boolean);
-            const visible = option.value === '' || (companyId !== '' && allowedCompanyIds.includes(companyId));
+            const visible = option.value === '' || (!company || (companyId !== '' && allowedCompanyIds.includes(companyId)));
             option.hidden = !visible;
             option.disabled = !visible;
         });
-        if (category.selectedOptions[0]?.disabled) {
-            category.value = '';
+        if (root.selectedOptions[0]?.disabled) {
+            root.value = '';
         }
-        syncVaultCategorySearchInput(category);
+
+        let availableChildren = 0;
+        Array.from(child.options).forEach(function (option) {
+            if (option.value === '') {
+                option.hidden = false;
+                option.disabled = false;
+                return;
+            }
+            const allowedCompanyIds = (option.dataset.companyIds || '').split(',').filter(Boolean);
+            const companyAllowed = !company || (companyId !== '' && allowedCompanyIds.includes(companyId));
+            const visible = root.value !== '' && option.dataset.parentId === root.value && companyAllowed;
+            option.hidden = !visible;
+            option.disabled = !visible;
+            if (visible) availableChildren += 1;
+        });
+        if (child.selectedOptions[0]?.disabled || child.selectedOptions[0]?.dataset.parentId !== root.value) {
+            child.value = '';
+        }
+        if (childField) childField.hidden = root.value === '';
+        child.disabled = root.value === '' || availableChildren === 0;
+        if (childHelp) {
+            childHelp.textContent = availableChildren > 0
+                ? 'Opcional. Escolha uma subcategoria desta categoria.'
+                : 'Esta categoria não possui subcategorias disponíveis.';
+        }
+        effective.value = child.value || root.value;
         if (notify) {
-            category.dispatchEvent(new Event('change', { bubbles: true }));
+            effective.dispatchEvent(new Event('change', { bubbles: true }));
         }
     }
 
-    function initVaultCategoryCombobox(select) {
-        const combobox = select.closest('[data-vault-category-combobox]');
-        const input = combobox?.querySelector('[data-vault-category-search-input]');
-        const optionsBox = combobox?.querySelector('[data-vault-category-options]');
-        const company = select.closest('form')?.querySelector('[data-vault-create-company]');
-
-        if (!combobox || !input || !optionsBox) {
-            return;
-        }
-
-        const options = Array.from(select.options).map(function (option) {
-            return {
-                value: option.value,
-                label: option.textContent.trim(),
-                element: option
-            };
+    function selectVaultCategory(form, categoryId) {
+        const root = form?.querySelector('[data-vault-category-root]');
+        const child = form?.querySelector('[data-vault-category-child]');
+        if (!root || !child) return;
+        const childOption = Array.from(child.options).find(function (option) {
+            return option.value === String(categoryId || '');
         });
-
-        function closeOptions() {
-            optionsBox.hidden = true;
-            input.setAttribute('aria-expanded', 'false');
-        }
-
-        function selectOption(value, label) {
-            select.value = value;
-            input.value = value !== '' ? label : '';
-            closeOptions();
-            select.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        function renderOptions() {
-            const query = input.value.trim().toLowerCase();
-            const matches = options.filter(function (option) {
-                if (company && option.value === '') {
-                    return false;
-                }
-                return !option.element.hidden && !option.element.disabled && option.label.toLowerCase().includes(query);
-            });
-
-            optionsBox.replaceChildren();
-            if (!matches.length) {
-                const empty = document.createElement('div');
-                empty.className = 'vault-category-option-empty';
-                empty.textContent = company
-                    ? (company.value ? 'Nenhuma categoria disponível para esta empresa.' : 'Selecione uma empresa para carregar as categorias.')
-                    : 'Nenhuma categoria disponível.';
-                optionsBox.appendChild(empty);
-            } else {
-                matches.forEach(function (option) {
-                    const button = document.createElement('button');
-                    button.type = 'button';
-                    button.className = 'vault-category-option';
-                    button.textContent = option.label;
-                    button.addEventListener('mousedown', function (event) {
-                        event.preventDefault();
-                    });
-                    button.addEventListener('click', function () {
-                        selectOption(option.value, option.label);
-                    });
-                    optionsBox.appendChild(button);
-                });
-            }
-
-            optionsBox.hidden = false;
-            input.setAttribute('aria-expanded', 'true');
-        }
-
-        input.addEventListener('focus', renderOptions);
-        input.addEventListener('input', function () {
-            const exact = options.find(function (option) {
-                return !option.element.hidden && !option.element.disabled && option.label.toLowerCase() === input.value.trim().toLowerCase();
-            });
-            select.value = exact ? exact.value : '';
-            renderOptions();
-            select.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-        input.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape') {
-                closeOptions();
-            }
-        });
-        input.addEventListener('blur', function () {
-            setTimeout(function () {
-                syncVaultCategorySearchInput(select);
-                closeOptions();
-            }, 120);
-        });
-
-        syncVaultCategorySearchInput(select);
+        root.value = childOption?.dataset.parentId || String(categoryId || '');
+        syncVaultCategoryHierarchy(form, false);
+        child.value = childOption && !childOption.disabled ? childOption.value : '';
+        syncVaultCategoryHierarchy(form);
     }
 
     document.querySelectorAll('[data-vault-create-company]').forEach(function (company) {
         const form = company.closest('form');
-        syncVaultCategoriesForCompany(form, false);
+        syncVaultCategoryHierarchy(form, false);
         company.addEventListener('change', function () {
-            syncVaultCategoriesForCompany(form);
+            syncVaultCategoryHierarchy(form);
         });
     });
 
-    document.querySelectorAll('[data-vault-create-category], [data-vault-edit-category]').forEach(function (select) {
-        initVaultCategoryCombobox(select);
+    document.querySelectorAll('[data-vault-category-root], [data-vault-category-child]').forEach(function (select) {
         select.addEventListener('change', function () {
-            const form = select.closest('form');
+            syncVaultCategoryHierarchy(select.closest('form'));
+        });
+    });
+
+    document.querySelectorAll('[data-vault-effective-category]').forEach(function (category) {
+        category.addEventListener('change', function () {
+            const form = category.closest('form');
             const container = form?.querySelector('[data-vault-custom-fields]');
             if (container) {
                 container.setAttribute('data-vault-custom-values', '{}');
             }
             syncVaultFormCustomFields(form, {});
         });
-        syncVaultFormCustomFields(select.closest('form'));
+        syncVaultFormCustomFields(category.closest('form'));
+    });
+
+    document.querySelectorAll('[data-company-vault-categories]').forEach(function (container) {
+        container.querySelectorAll('[data-company-vault-root]').forEach(function (root) {
+            const syncChildren = function () {
+                container.querySelectorAll('[data-company-vault-child][data-parent-id="' + root.value + '"]').forEach(function (child) {
+                    child.disabled = !root.checked;
+                    if (!root.checked) child.checked = false;
+                });
+            };
+            root.addEventListener('change', syncChildren);
+            syncChildren();
+        });
     });
 
     function randomPasswordIndex(max) {
@@ -1846,7 +1806,6 @@
                 const id = modal.querySelector('[data-vault-edit-id]');
                 const lockVersion = modal.querySelector('[data-vault-edit-lock-version]');
                 const title = modal.querySelector('[data-vault-edit-title]');
-                const category = modal.querySelector('[data-vault-edit-category]');
                 const username = modal.querySelector('[data-vault-edit-username]');
                 const serviceUrl = modal.querySelector('[data-vault-edit-service-url]');
                 const notes = modal.querySelector('[data-vault-edit-notes]');
@@ -1855,8 +1814,7 @@
                 if (id) id.value = button.getAttribute('data-vault-id') || '';
                 if (lockVersion) lockVersion.value = button.getAttribute('data-vault-lock-version') || '';
                 if (title) title.value = button.getAttribute('data-vault-title') || '';
-                if (category) category.value = button.getAttribute('data-vault-category-id') || '';
-                syncVaultCategorySearchInput(category);
+                selectVaultCategory(modal.querySelector('form'), button.getAttribute('data-vault-category-id') || '');
                 if (username) username.value = button.getAttribute('data-vault-username') || '';
                 if (serviceUrl) serviceUrl.value = button.getAttribute('data-vault-service-url') || '';
                 if (notes) notes.value = button.getAttribute('data-vault-notes') || '';
@@ -1959,13 +1917,11 @@
                 if (icon && cardIcon) icon.innerHTML = cardIcon.innerHTML;
             } else if (modalName === 'create') {
                 const company = modal.querySelector('[data-vault-create-company]');
-                const category = modal.querySelector('[data-vault-create-category]');
                 const companyId = button.getAttribute('data-vault-company-id') || '';
                 const categoryId = button.getAttribute('data-vault-category-id') || '';
                 if (company && companyId) company.value = companyId;
-                syncVaultCategoriesForCompany(modal.querySelector('form'), false);
-                if (category) category.value = categoryId;
-                syncVaultCategorySearchInput(category);
+                syncVaultCategoryHierarchy(modal.querySelector('form'), false);
+                selectVaultCategory(modal.querySelector('form'), categoryId);
                 resetVaultPasswordGenerators(modal, false);
                 syncVaultFormCustomFields(modal.querySelector('form'), {});
 

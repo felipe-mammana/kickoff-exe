@@ -11,7 +11,7 @@ class CompanyController
         view('companies/index', [
             'title' => 'Empresas',
             'companies' => Company::all(),
-            'vaultCategories' => VaultCategory::globalRoots(),
+            'vaultCategories' => VaultCategory::globalTree(),
         ]);
     }
 
@@ -24,7 +24,7 @@ class CompanyController
             'company' => null,
             'errors' => [],
             'action' => '/?route=companies.store',
-            'vaultCategories' => VaultCategory::globalRoots(),
+            'vaultCategories' => VaultCategory::globalTree(),
             'selectedVaultCategoryIds' => [],
         ]);
     }
@@ -44,7 +44,7 @@ class CompanyController
                 'company' => $data,
                 'errors' => $errors,
                 'action' => '/?route=companies.store',
-                'vaultCategories' => VaultCategory::globalRoots(),
+                'vaultCategories' => VaultCategory::globalTree(),
                 'selectedVaultCategoryIds' => $vaultCategoryIds,
             ]);
             return;
@@ -100,7 +100,7 @@ class CompanyController
             'company' => $company,
             'errors' => [],
             'action' => '/?route=companies.update&id=' . (int) $company['id'],
-            'vaultCategories' => VaultCategory::globalRoots(),
+            'vaultCategories' => VaultCategory::globalTree(),
             'selectedVaultCategoryIds' => CompanyVaultCategory::selectedIds((int) $company['id']),
         ]);
     }
@@ -121,7 +121,7 @@ class CompanyController
                 'company' => array_merge($company, $data),
                 'errors' => $errors,
                 'action' => '/?route=companies.update&id=' . (int) $company['id'],
-                'vaultCategories' => VaultCategory::globalRoots(),
+                'vaultCategories' => VaultCategory::globalTree(),
                 'selectedVaultCategoryIds' => $vaultCategoryIds,
             ]);
             return;
@@ -554,15 +554,32 @@ class CompanyController
         $input = is_array($input) ? $input : [];
         $ids = array_values(array_unique(array_filter(array_map('intval', $input), static fn (int $id): bool => $id > 0)));
         sort($ids);
-        $availableIds = array_map(static fn (array $category): int => (int) $category['id'], VaultCategory::globalRoots());
+        $availableIds = [];
+        $parentByChild = [];
+        foreach (VaultCategory::globalTree() as $category) {
+            $rootId = (int) $category['id'];
+            $availableIds[] = $rootId;
+            foreach ((array) ($category['children'] ?? []) as $child) {
+                $childId = (int) $child['id'];
+                $availableIds[] = $childId;
+                $parentByChild[$childId] = $rootId;
+            }
+        }
         $errors = [];
 
         if (array_diff($ids, $availableIds)) {
             $errors['vault_category_ids'] = 'Uma ou mais categorias selecionadas são inválidas.';
         }
 
+        foreach ($ids as $id) {
+            if (isset($parentByChild[$id]) && !in_array($parentByChild[$id], $ids, true)) {
+                $errors['vault_category_ids'] = 'Selecione a categoria principal antes de escolher suas subcategorias.';
+                break;
+            }
+        }
+
         if ($companyId !== null) {
-            $requiredIds = CompanyVaultCategory::requiredGlobalRootIds($companyId);
+            $requiredIds = CompanyVaultCategory::requiredGlobalCategoryIds($companyId);
             if (array_diff($requiredIds, $ids)) {
                 $errors['vault_category_ids'] = 'Não é possível remover uma categoria que possui credenciais ou subcategorias da empresa.';
             }

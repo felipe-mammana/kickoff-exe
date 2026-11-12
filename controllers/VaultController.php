@@ -554,7 +554,19 @@ class VaultController
 
     private static function validatedData(array $company, ?array $current = null): array
     {
-        $categoryId = (int) ($_POST['category_id'] ?? 0);
+        $submittedCategoryId = (int) ($_POST['category_id'] ?? 0);
+        $rootCategoryId = (int) ($_POST['category_root_id'] ?? 0);
+        $subcategoryId = (int) ($_POST['subcategory_id'] ?? 0);
+        if ($rootCategoryId <= 0 && $submittedCategoryId > 0) {
+            $submittedCategory = VaultCategory::find($submittedCategoryId);
+            if ($submittedCategory !== null && !empty($submittedCategory['parent_id'])) {
+                $rootCategoryId = (int) $submittedCategory['parent_id'];
+                $subcategoryId = $submittedCategoryId;
+            } else {
+                $rootCategoryId = $submittedCategoryId;
+            }
+        }
+        $categoryId = $subcategoryId > 0 ? $subcategoryId : $rootCategoryId;
         $secret = trim((string) ($_POST['secret_value'] ?? ''));
         $data = [
             'company_id' => (int) $company['id'],
@@ -576,11 +588,16 @@ class VaultController
             $errors['title'] = 'Deve ter no máximo 160 caracteres.';
         }
 
+        $rootCategory = $rootCategoryId > 0 ? VaultCategory::find($rootCategoryId) : null;
         $category = $data['category_id'] !== null ? VaultCategory::find((int) $data['category_id']) : null;
         if ($current === null && $data['category_id'] === null) {
             $errors['category_id'] = 'Selecione uma categoria.';
-        } elseif ($data['category_id'] !== null && (!$category || !VaultCategory::isSelectableForCompany($category, (int) $company['id']))) {
+        } elseif (!$rootCategory || !empty($rootCategory['parent_id']) || !VaultCategory::isSelectableForCompany($rootCategory, (int) $company['id'])) {
             $errors['category_id'] = 'Categoria inválida.';
+        } elseif ($subcategoryId > 0 && (!$category
+            || (int) ($category['parent_id'] ?? 0) !== $rootCategoryId
+            || !VaultCategory::isSelectableForCompany($category, (int) $company['id']))) {
+            $errors['category_id'] = 'Subcategoria inválida para a categoria selecionada.';
         }
 
         if ($current === null && ($data['secret_value'] === null || $data['secret_value'] === '')) {
@@ -692,9 +709,12 @@ class VaultController
 
     private static function submittedCreateOldData(): array
     {
+        $categoryId = (int) ($_POST['subcategory_id'] ?? 0);
+        if ($categoryId <= 0) $categoryId = (int) ($_POST['category_root_id'] ?? ($_POST['category_id'] ?? 0));
+
         return [
             'company_id' => (int) ($_POST['company_id'] ?? 0),
-            'category_id' => (int) ($_POST['category_id'] ?? 0),
+            'category_id' => $categoryId,
             'title' => trim((string) ($_POST['title'] ?? '')),
             'service_url' => self::nullable('service_url'),
             'username' => self::nullable('username'),

@@ -8,13 +8,6 @@ $credentialCategories = $credentialCategories ?? [];
 $vaultCustomFieldConfig = $vaultCustomFieldConfig ?? [];
 $selectedCompanyId = (int) ($formOld['company_id'] ?? 0);
 $selectedCategoryId = (int) ($formOld['category_id'] ?? 0);
-$categoryName = '';
-foreach ($credentialCategories as $category) {
-    if ((int) $category['id'] === $selectedCategoryId) {
-        $categoryName = !empty($category['parent_name']) ? $category['parent_name'] . ' / ' . $category['name'] : $category['name'];
-        break;
-    }
-}
 ?>
 <script type="application/json" data-vault-custom-field-config><?= e(json_encode($vaultCustomFieldConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?></script>
 
@@ -60,20 +53,7 @@ foreach ($credentialCategories as $category) {
                 <span>Nome</span><input type="text" name="title" value="<?= e($formOld['title'] ?? '') ?>" maxlength="160" required>
                 <?php if (isset($formErrors['title'])): ?><small><?= e($formErrors['title']) ?></small><?php endif; ?>
             </label>
-            <label class="field <?= isset($formErrors['category_id']) ? 'has-error' : '' ?>">
-                <span>Categoria</span>
-                <div class="vault-category-combobox" data-vault-category-combobox>
-                    <input type="text" value="<?= e($categoryName) ?>" placeholder="Selecione ou busque uma categoria" autocomplete="off" data-vault-category-search-input>
-                    <select class="vault-native-category-select" name="category_id" required data-vault-create-category tabindex="-1" aria-hidden="true">
-                        <option value="">Selecione uma categoria</option>
-                        <?php foreach ($credentialCategories as $category): ?>
-                            <option value="<?= (int) $category['id'] ?>" data-company-ids="<?= e((string) ($category['allowed_company_ids'] ?? '')) ?>" <?= $selectedCategoryId === (int) $category['id'] ? 'selected' : '' ?>><?= e(!empty($category['parent_name']) ? $category['parent_name'] . ' / ' . $category['name'] : $category['name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <div class="vault-category-options" data-vault-category-options hidden></div>
-                </div>
-                <?php if (isset($formErrors['category_id'])): ?><small><?= e($formErrors['category_id']) ?></small><?php endif; ?>
-            </label>
+            <?php $selectedCredentialCategoryId = $selectedCategoryId; require __DIR__ . '/credential_category_fields.php'; ?>
             <div class="field-wide vault-dynamic-custom-fields <?= isset($formErrors['custom_fields']) ? 'has-error' : '' ?>" data-vault-custom-fields data-vault-custom-values="<?= e(json_encode((array) ($formOld['custom_fields'] ?? []), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_APOS | JSON_HEX_QUOT)) ?>">
                 <?php if (isset($formErrors['custom_fields'])): ?><small><?= e($formErrors['custom_fields']) ?></small><?php endif; ?>
             </div>
