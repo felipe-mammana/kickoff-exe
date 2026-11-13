@@ -5026,8 +5026,9 @@ body.sidebar-collapsed .sidebar-profile {
 }
 
 .vault-password-generator-panel > .btn-primary,
-.vault-password-generator-panel > .btn-primary .icon {
-    color: #fff;
+.vault-password-generator-panel > .btn-primary .icon,
+.vault-password-generator-panel > .btn-primary span {
+    color: #fff !important;
 }
 
 .vault-dynamic-custom-fields {
