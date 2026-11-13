@@ -586,7 +586,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                 <textarea name="notes" rows="3"><?= e($formOld['notes'] ?? '') ?></textarea>
                 <?php if (isset($formErrors['notes'])): ?><small><?= e($formErrors['notes']) ?></small><?php endif; ?>
             </label>
-            <div class="form-actions field-wide">
+            <div class="form-actions form-actions-bar field-wide" role="group" aria-label="Ações da credencial">
                 <button class="btn btn-muted" type="button" data-vault-modal-close>Cancelar</button>
                 <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar</span></button>
             </div>
@@ -628,7 +628,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                     </label>
                 <?php endforeach; ?>
             </fieldset>
-            <div class="form-actions">
+            <div class="form-actions form-actions-bar" role="group" aria-label="Ações da categoria">
                 <button class="btn btn-muted" type="button" data-vault-modal-close>Cancelar</button>
                 <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar</span></button>
             </div>
@@ -671,7 +671,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                     </label>
                 <?php endforeach; ?>
             </fieldset>
-            <div class="form-actions">
+            <div class="form-actions form-actions-bar" role="group" aria-label="Ações da subcategoria">
                 <button class="btn btn-muted" type="button" data-vault-modal-close>Cancelar</button>
                 <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar</span></button>
             </div>
@@ -853,7 +853,7 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                 <textarea name="notes" rows="3" data-vault-edit-notes><?= e($formOld['notes'] ?? '') ?></textarea>
                 <?php if (isset($formErrors['notes'])): ?><small><?= e($formErrors['notes']) ?></small><?php endif; ?>
             </label>
-            <div class="form-actions field-wide">
+            <div class="form-actions form-actions-bar field-wide" role="group" aria-label="Ações da credencial">
                 <button class="btn btn-muted" type="button" data-vault-modal-close>Cancelar</button>
                 <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar</span></button>
             </div>

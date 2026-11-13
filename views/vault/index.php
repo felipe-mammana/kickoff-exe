@@ -61,7 +61,7 @@ $selectedCategoryId = (int) ($formOld['category_id'] ?? 0);
             <label class="field <?= isset($formErrors['secret_value']) ? 'has-error' : '' ?>"><span>Senha / segredo</span><input type="password" name="secret_value" maxlength="5000" required><?php if (isset($formErrors['secret_value'])): ?><small><?= e($formErrors['secret_value']) ?></small><?php endif; ?></label>
             <label class="field field-wide"><span>URL</span><input type="text" name="service_url" value="<?= e($formOld['service_url'] ?? '') ?>" maxlength="255"></label>
             <label class="field field-wide"><span>Observações</span><textarea name="notes" rows="3" maxlength="5000"><?= e($formOld['notes'] ?? '') ?></textarea></label>
-            <div class="form-actions field-wide"><button class="btn btn-muted" type="button" data-vault-modal-close>Cancelar</button><button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar</span></button></div>
+            <div class="form-actions form-actions-bar field-wide" role="group" aria-label="Ações da credencial"><button class="btn btn-muted" type="button" data-vault-modal-close>Cancelar</button><button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar</span></button></div>
         </form>
     </div>
 </div>

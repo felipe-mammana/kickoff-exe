@@ -102,6 +102,11 @@ textarea,
     transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
+:where(button, a, input, select, textarea, summary):focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent) 72%, #fff);
+    outline-offset: 2px;
+}
+
 .app-frame {
     display: grid;
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
