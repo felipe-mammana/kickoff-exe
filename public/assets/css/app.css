@@ -4971,19 +4971,27 @@ body.sidebar-collapsed .sidebar-profile {
 }
 
 .settings-sticky-actions {
-    position: sticky;
-    right: auto;
-    bottom: var(--space-3);
-    left: auto;
-    z-index: 10;
-    margin-top: var(--space-5);
-    margin-bottom: 0;
-    padding: var(--space-3);
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: var(--sidebar-width);
+    z-index: 35;
+    margin: 0;
+    padding: var(--space-3) max(clamp(1rem, 3vw, 2rem), calc((100vw - var(--sidebar-width) - 1180px) / 2));
     border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
-    background: color-mix(in srgb, var(--surface) 94%, transparent);
-    box-shadow: var(--shadow);
+    border-bottom: 0;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
+    box-shadow: 0 -8px 24px color-mix(in srgb, var(--bg) 28%, transparent);
     backdrop-filter: blur(14px);
+}
+
+body.sidebar-collapsed .settings-sticky-actions {
+    left: 84px;
+}
+
+.settings-detail-shell {
+    padding-bottom: 6rem;
 }
 
 .settings-add-widget {
@@ -6634,13 +6642,12 @@ form[id^="delete-photo-"] {
     }
 
     .settings-sticky-actions {
-        position: sticky;
-        right: auto;
-        bottom: var(--space-2);
-        left: auto;
-        flex-direction: column-reverse;
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
         padding: var(--space-2);
-        border-radius: var(--radius-lg);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     }
 
     .settings-sticky-actions .btn {
