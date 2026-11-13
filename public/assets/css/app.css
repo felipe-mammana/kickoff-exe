@@ -5725,6 +5725,29 @@ form[id^="delete-photo-"] {
     transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
+.settings-topic-devices {
+    border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--surface-2)), var(--surface-2));
+}
+
+.settings-topic-vault {
+    border-color: color-mix(in srgb, #7c5ce6 48%, var(--border));
+    background:
+        linear-gradient(135deg, color-mix(in srgb, #7c5ce6 13%, var(--surface-2)), var(--surface-2));
+}
+
+.settings-topic-devices .settings-topic-icon {
+    border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+    color: var(--accent);
+}
+
+.settings-topic-vault .settings-topic-icon {
+    border-color: color-mix(in srgb, #7c5ce6 60%, var(--border));
+    background: color-mix(in srgb, #7c5ce6 12%, var(--surface-2));
+    color: #8f78ed;
+}
+
 .settings-topic-card:hover {
     transform: translateY(-2px);
     border-color: color-mix(in srgb, var(--accent) 52%, var(--border));

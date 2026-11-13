@@ -159,7 +159,7 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
 
     <section class="settings-card-list">
         <?php foreach ($topics as $key => $topic): ?>
-            <article class="settings-topic-card <?= in_array($key, ['account', 'preferences', 'two_factor'], true) ? 'wide' : '' ?>">
+            <article class="settings-topic-card settings-topic-<?= e((string) $key) ?> <?= in_array($key, ['account', 'preferences', 'two_factor'], true) ? 'wide' : '' ?>">
                 <div class="settings-topic-main">
                     <span class="settings-topic-icon"><?= icon($topic['icon']) ?></span>
                     <div>
