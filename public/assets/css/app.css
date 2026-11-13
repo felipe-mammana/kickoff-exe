@@ -5025,6 +5025,11 @@ body.sidebar-collapsed .sidebar-profile {
     min-width: 12rem;
 }
 
+.vault-password-generator-panel > .btn-primary,
+.vault-password-generator-panel > .btn-primary .icon {
+    color: #fff;
+}
+
 .vault-dynamic-custom-fields {
     display: grid;
     gap: var(--space-2);
