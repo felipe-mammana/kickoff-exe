@@ -224,7 +224,9 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                     </div>
                     <label class="field"><span>Nome</span><input type="text" name="name" value="<?= e($accountUser['name']) ?>" maxlength="120" required></label>
                     <label class="field"><span>E-mail</span><input type="email" name="email" value="<?= e($accountUser['email']) ?>" maxlength="160" required></label>
-                    <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar perfil</span></button>
+                    <div class="form-actions-bar settings-sticky-actions">
+                        <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar perfil</span></button>
+                    </div>
                     <?php
                     $confirmationId = 'account-email';
                     $confirmationTitle = 'Confirmar troca de e-mail';
@@ -238,7 +240,9 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                     <label class="field"><span>Senha atual</span><input type="password" name="current_password" autocomplete="current-password" required></label>
                     <label class="field"><span>Nova senha</span><input type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" pattern="(?=.*\p{Ll})(?=.*\p{Lu})(?=.*[0-9])(?=.*[^\p{L}\p{N}\s]).{8,}" title="Minimo 8 caracteres: maiuscula, minuscula, numero e especial." required><?php require BASE_PATH . '/views/partials/password-requirements.php'; ?></label>
                     <label class="field"><span>Confirmar nova senha</span><input type="password" name="password_confirmation" autocomplete="new-password" minlength="8" required></label>
-                    <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Alterar senha</span></button>
+                    <div class="form-actions-bar settings-sticky-actions">
+                        <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Alterar senha</span></button>
+                    </div>
                 </form>
             </div>
         <?php elseif ($settingsTopic === 'preferences'): ?>
@@ -248,7 +252,9 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                 <label class="field"><span>Menu no computador</span><select name="sidebar_default" required><option value="expanded" <?= $sidebarDefault === 'expanded' ? 'selected' : '' ?>>Aberto</option><option value="collapsed" <?= $sidebarDefault === 'collapsed' ? 'selected' : '' ?>>Recolhido</option></select></label>
                 <label class="field"><span>Itens por tabela</span><select name="table_page_size" required><?php foreach ([10, 25, 50, 100] as $size): ?><option value="<?= $size ?>" <?= $tablePageSize === $size ? 'selected' : '' ?>><?= $size ?> itens</option><?php endforeach; ?></select></label>
                 <label class="field"><span>Formato de data</span><select name="datetime_format" required><option value="d/m/Y H:i" <?= $datetimeFormat === 'd/m/Y H:i' ? 'selected' : '' ?>>31/08/2026 14:30</option><option value="d/m/Y" <?= $datetimeFormat === 'd/m/Y' ? 'selected' : '' ?>>31/08/2026</option><option value="Y-m-d H:i" <?= $datetimeFormat === 'Y-m-d H:i' ? 'selected' : '' ?>>2026-08-31 14:30</option><option value="Y-m-d" <?= $datetimeFormat === 'Y-m-d' ? 'selected' : '' ?>>2026-08-31</option></select></label>
-                <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar preferências</span></button>
+                <div class="form-actions-bar settings-sticky-actions">
+                    <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar preferências</span></button>
+                </div>
             </form>
         <?php elseif ($settingsTopic === 'two_factor'): ?>
             <?php if ($twoFactorEnabled): ?>
@@ -376,7 +382,9 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                             <?php if (can_access_vault()): ?>
                             <label class="toggle-field settings-security-toggle"><input type="checkbox" name="vault_require_password_reveal" value="1" <?= $vaultRequirePasswordReveal ? 'checked' : '' ?>><span>Exigir senha para revelar credenciais do cofre</span></label>
                             <?php endif; ?>
-                            <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar segurança</span></button>
+                            <div class="form-actions-bar settings-sticky-actions">
+                                <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar segurança</span></button>
+                            </div>
                             <?php
                             $confirmationId = 'account-vault';
                             $confirmationTitle = 'Desativar confirmação de senha';
@@ -410,7 +418,9 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                                 <?php endforeach; ?>
                             </select>
                         </label>
-                        <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar retenção</span></button>
+                        <div class="form-actions-bar settings-sticky-actions">
+                            <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar retenção</span></button>
+                        </div>
                     </form>
                 </section>
 
@@ -561,7 +571,9 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                     </div>
                 </div>
 
-                <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar empresas e dispositivos</span></button>
+                <div class="form-actions-bar settings-sticky-actions">
+                    <button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar empresas e dispositivos</span></button>
+                </div>
             </form>
         <?php elseif ($settingsTopic === 'vault' && can_permission('vault.configure')): ?>
             <form class="company-form settings-security-form settings-detail-card settings-admin-form vault-settings-form" action="/?route=settings.vault.update" method="post" novalidate>
@@ -571,7 +583,7 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                         <h3>Categorias do cofre</h3>
                         <p>Registros carregados de <code>vault_categories</code>. Categorias inativas são exibidas apenas para referência administrativa.</p>
                     </div>
-                    <div class="form-actions">
+                    <div class="form-actions settings-add-widget">
                         <button class="btn btn-muted" type="button" data-vault-modal-open="settings-subcategory" <?= !$activeVaultRootCategories ? 'disabled title="Cadastre uma categoria ativa primeiro"' : '' ?>><?= icon('folder-plus') ?><span>Nova subcategoria</span></button>
                         <button class="btn btn-primary" type="button" data-vault-modal-open="settings-category"><?= icon('plus') ?><span>Nova categoria</span></button>
                     </div>
@@ -643,7 +655,9 @@ $activeTopic = is_string($settingsTopic) && isset($topics[$settingsTopic]) ? $to
                     </label>
                 </div>
 
-                <button class="btn btn-primary vault-save-button" type="submit"><?= icon('save') ?><span>Salvar cofre de senhas</span></button>
+                <div class="form-actions-bar settings-sticky-actions">
+                    <button class="btn btn-primary vault-save-button" type="submit"><?= icon('save') ?><span>Salvar cofre de senhas</span></button>
+                </div>
             </form>
 
             <div class="company-modal vault-modal" data-vault-modal="settings-category" <?= $openVaultCategoryModal === 'settings-category' ? '' : 'hidden' ?>>

@@ -4970,6 +4970,25 @@ body.sidebar-collapsed .sidebar-profile {
     backdrop-filter: blur(14px);
 }
 
+.settings-sticky-actions {
+    margin-top: var(--space-5);
+    margin-bottom: 0;
+    background: color-mix(in srgb, var(--surface-2) 94%, transparent);
+}
+
+.settings-add-widget {
+    position: sticky;
+    top: var(--space-3);
+    z-index: 12;
+    margin: 0;
+    padding: var(--space-2);
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(12px);
+}
+
 .company-filter-panel {
     display: grid;
     grid-template-columns: minmax(260px, 1fr) minmax(180px, 0.35fr) auto;
