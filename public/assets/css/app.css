@@ -4971,27 +4971,19 @@ body.sidebar-collapsed .sidebar-profile {
 }
 
 .settings-sticky-actions {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: var(--sidebar-width);
-    z-index: 35;
-    margin: 0;
-    padding: 0.75rem max(clamp(1rem, 3vw, 2rem), calc((100vw - var(--sidebar-width) - 1180px) / 2));
+    position: sticky;
+    right: auto;
+    bottom: var(--space-3);
+    left: auto;
+    z-index: 10;
+    margin-top: var(--space-5);
+    margin-bottom: 0;
+    padding: var(--space-3);
     border: 1px solid var(--border);
-    border-bottom: 0;
-    border-radius: 0;
-    border-right: 0;
-    background: var(--surface-2);
-    box-shadow: 0 -8px 24px color-mix(in srgb, var(--bg) 28%, transparent);
-}
-
-body.sidebar-collapsed .settings-sticky-actions {
-    left: 84px;
-}
-
-.settings-detail-shell {
-    padding-bottom: 5.5rem;
+    border-radius: var(--radius-xl);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
 }
 
 .settings-add-widget {
@@ -5741,29 +5733,6 @@ form[id^="delete-photo-"] {
 .settings-topic-card {
     min-height: 7rem;
     transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
-}
-
-.settings-topic-devices {
-    border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
-    background:
-        linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--surface-2)), var(--surface-2));
-}
-
-.settings-topic-vault {
-    border-color: color-mix(in srgb, #7c5ce6 48%, var(--border));
-    background:
-        linear-gradient(135deg, color-mix(in srgb, #7c5ce6 13%, var(--surface-2)), var(--surface-2));
-}
-
-.settings-topic-devices .settings-topic-icon {
-    border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
-    color: var(--accent);
-}
-
-.settings-topic-vault .settings-topic-icon {
-    border-color: color-mix(in srgb, #7c5ce6 60%, var(--border));
-    background: color-mix(in srgb, #7c5ce6 12%, var(--surface-2));
-    color: #8f78ed;
 }
 
 .settings-topic-card:hover {
@@ -6665,18 +6634,17 @@ form[id^="delete-photo-"] {
     }
 
     .settings-sticky-actions {
-        position: fixed;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        padding-inline: var(--space-3);
-        flex-direction: row;
-        border-radius: 0;
+        position: sticky;
+        right: auto;
+        bottom: var(--space-2);
+        left: auto;
+        flex-direction: column-reverse;
+        padding: var(--space-2);
+        border-radius: var(--radius-lg);
     }
 
     .settings-sticky-actions .btn {
-        width: auto;
-        flex: 1 1 0;
+        width: 100%;
     }
 
     .company-filter-panel .btn {
