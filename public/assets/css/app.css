@@ -4875,7 +4875,7 @@ body.sidebar-collapsed .sidebar-profile {
 }
 
 .vault-password-generator-field {
-    grid-column: auto;
+    grid-column: 1 / -1;
     display: grid;
     gap: var(--space-2);
     min-width: 0;
@@ -6788,6 +6788,10 @@ form[id^="delete-photo-"] {
     }
 
     .vault-credential-grid .field-wide {
+        grid-column: auto;
+    }
+
+    .vault-password-generator-field {
         grid-column: auto;
     }
 
