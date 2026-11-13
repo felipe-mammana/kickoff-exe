@@ -9,6 +9,10 @@ final class VaultImportParser
     private const MAX_ROWS = 600;
     private const MAX_COLUMNS = 50;
     private const MAX_CELL_BYTES = 5000;
+    private const HYPERLINK_RELATIONSHIP_TYPES = [
+        'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
+        'http://purl.oclc.org/ooxml/officeDocument/relationships/hyperlink',
+    ];
 
     /** @var array<string, string[]> */
     private const ALIASES = [
@@ -98,12 +102,7 @@ final class VaultImportParser
             ) {
                 throw new InvalidArgumentException('O arquivo contém conteúdo ativo ou incorporado e foi rejeitado.');
             }
-            if (str_ends_with($lower, '.rels')) {
-                $relationships = $zip->get($name, 1_048_576);
-                if (preg_match('/TargetMode\s*=\s*["\']External["\']/i', $relationships)) {
-                    throw new InvalidArgumentException('O arquivo contém vínculos externos e foi rejeitado.');
-                }
-            }
+            if (str_ends_with($lower, '.rels')) self::assertSafeRelationships($zip->get($name, 1_048_576), $name);
         }
 
         $contentTypes = $zip->get('[Content_Types].xml', 1_048_576);
@@ -224,7 +223,7 @@ final class VaultImportParser
         }
         $records = array_merge($records, self::recordsFromTextBlock($block, $context, 'DOCX texto'));
 
-        return self::deduplicateParsedRecords($records);
+        return self::attachHyperlinks(self::deduplicateParsedRecords($records), self::externalHyperlinks($zip, 'word/_rels/document.xml.rels'), 'DOCX');
     }
 
     private static function wordNodeText(DOMXPath $xpath, DOMNode $node): string
@@ -265,12 +264,17 @@ final class VaultImportParser
         $sheetNames = array_slice(array_values($sheetNames), 0, 20);
 
         $records = [];
+        $allHyperlinks = [];
         $rowBudget = self::MAX_ROWS;
         foreach ($sheetNames as $sheetIndex => $sheetName) {
             if ($rowBudget <= 0) {
                 break;
             }
             $sheet = self::loadXml($zip->get($sheetName, 8_388_608), 'XLSX');
+            $relsPath = preg_replace('#^xl/worksheets/([^/]+)\.xml$#', 'xl/worksheets/_rels/$1.xml.rels', $sheetName);
+            if (is_string($relsPath) && $zip->has($relsPath)) {
+                $allHyperlinks = array_merge($allHyperlinks, self::externalHyperlinks($zip, $relsPath));
+            }
             $xpath = new DOMXPath($sheet);
             $xpath->registerNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
             $rows = [];
@@ -314,7 +318,75 @@ final class VaultImportParser
             $records = array_merge($records, self::recordsFromRows($rows, 'XLSX planilha ' . ($sheetIndex + 1)));
         }
 
-        return self::deduplicateParsedRecords($records);
+        return self::attachHyperlinks(self::deduplicateParsedRecords($records), $allHyperlinks, 'XLSX');
+    }
+
+    private static function assertSafeRelationships(string $xml, string $name): void
+    {
+        $document = self::loadXml($xml, 'relacionamentos OOXML');
+        foreach ($document->getElementsByTagName('Relationship') as $relationship) {
+            if (!$relationship instanceof DOMElement) {
+                continue;
+            }
+            $targetMode = $relationship->getAttribute('TargetMode');
+            $type = $relationship->getAttribute('Type');
+            $target = $relationship->getAttribute('Target');
+            $looksExternal = (bool) preg_match('/^(?:[a-z][a-z0-9+.-]*:|\\\\|\/\\/)/i', $target);
+            if (strcasecmp($targetMode, 'External') !== 0 && !$looksExternal) continue;
+            if (strcasecmp($targetMode, 'External') !== 0
+                || !in_array($type, self::HYPERLINK_RELATIONSHIP_TYPES, true)
+                || self::validateHyperlinkTarget($target) === null) {
+                throw new InvalidArgumentException('O arquivo contém um relacionamento externo não permitido e foi rejeitado.');
+            }
+        }
+    }
+
+    /** @return array<string,string> */
+    private static function externalHyperlinks(SafeZipReader $zip, string $relsPath): array
+    {
+        if (!$zip->has($relsPath)) return [];
+        $document = self::loadXml($zip->get($relsPath, 1_048_576), 'relacionamentos OOXML');
+        $links = [];
+        foreach ($document->getElementsByTagName('Relationship') as $relationship) {
+            if (!$relationship instanceof DOMElement || strcasecmp($relationship->getAttribute('TargetMode'), 'External') !== 0) continue;
+            $target = self::validateHyperlinkTarget($relationship->getAttribute('Target'));
+            if (in_array($relationship->getAttribute('Type'), self::HYPERLINK_RELATIONSHIP_TYPES, true) && $target !== null) {
+                $links[$relationship->getAttribute('Id')] = $target;
+            }
+        }
+        return $links;
+    }
+
+    private static function validateHyperlinkTarget(string $target): ?string
+    {
+        $target = trim($target);
+        if ($target === '' || strlen($target) > 2048 || preg_match('/[\x00-\x1F\x7F\r\n]/', $target)) return null;
+        $parts = parse_url($target);
+        if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) return null;
+        $scheme = strtolower((string) $parts['scheme']);
+        if (!in_array($scheme, ['http', 'https'], true) || isset($parts['user']) || isset($parts['pass'])) return null;
+        if (preg_match('/\s/', (string) $parts['host'])) return null;
+        if (isset($parts['port']) && ((int) $parts['port'] < 1 || (int) $parts['port'] > 65535)) return null;
+        return $target;
+    }
+
+    /** @param array<int,array<string,mixed>> $records @param array<string,string> $links */
+    private static function attachHyperlinks(array $records, array $links, string $format): array
+    {
+        $links = array_values(array_unique(array_filter($links, 'is_string')));
+        if (!$links) return $records;
+        if (count($records) === 1 && count($links) === 1 && trim((string) ($records[0]['service_url'] ?? '')) === '') {
+            $records[0]['service_url'] = $links[0];
+            return $records;
+        }
+        $suffix = implode("\n", array_map(static fn (string $link): string => 'Link externo: ' . $link, $links));
+        foreach ($records as &$record) {
+            $record['notes'] = mb_substr(trim((string) ($record['notes'] ?? '') . "\n" . $suffix), 0, self::MAX_CELL_BYTES);
+            $record['warnings'][] = 'Hyperlinks encontrados; confirme manualmente o campo de acesso.';
+            $record['warnings'] = array_values(array_unique($record['warnings']));
+        }
+        unset($record);
+        return $records;
     }
 
     private static function columnIndex(string $reference): int

@@ -80,6 +80,59 @@ try {
         && ($docxResult['records'][2]['title'] ?? '') === 'Switch laboratório'
         && ($docxResult['records'][1]['username'] ?? '') !== ($docxResult['records'][2]['username'] ?? ''));
 
+    $linkedDocx = new SimpleZipWriter();
+    $linkedDocx->addFile('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+    $linkedDocx->addFile('word/_rels/document.xml.rels', '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://admin.example.test:8443/painel?origem=docx" TargetMode="External"/></Relationships>');
+    $linkedDocx->addFile('word/document.xml', '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body><w:p><w:r><w:t>Equipamento linkado</w:t></w:r></w:p><w:p><w:r><w:t>Usuário: admin.link</w:t></w:r></w:p><w:p><w:r><w:t>Senha: Segredo-Link-1</w:t></w:r></w:p><w:p><w:hyperlink r:id="rId1"><w:r><w:t>Painel administrativo</w:t></w:r></w:hyperlink></w:p></w:body></w:document>');
+    $linkedDocxPath = $makeTemp('.docx', $linkedDocx->output());
+    $linkedDocxResult = VaultImportParser::parseFile($linkedDocxPath, 'link.docx', 'application/zip');
+    check('DOCX aceita hyperlink HTTPS como texto', ($linkedDocxResult['records'][0]['service_url'] ?? '') === 'https://admin.example.test:8443/painel?origem=docx');
+
+    $linkedXlsx = new SimpleZipWriter();
+    $linkedXlsx->addFile('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
+    $linkedXlsx->addFile('xl/workbook.xml', '<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheets><sheet name="Acessos" sheetId="1"/></sheets></workbook>');
+    $linkedXlsx->addFile('xl/worksheets/_rels/sheet1.xml.rels', '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="http://192.0.2.44:8080/admin/login" TargetMode="External"/></Relationships>');
+    $linkedXlsx->addFile('xl/worksheets/sheet1.xml', '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Nome</t></is></c><c r="B1" t="inlineStr"><is><t>Usuário</t></is></c><c r="C1" t="inlineStr"><is><t>Senha</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>VPN administrativa</t></is></c><c r="B2" t="inlineStr"><is><t>vpn.admin</t></is></c><c r="C2" t="inlineStr"><is><t>Segredo-Link-2</t></is></c></row></sheetData><hyperlinks><hyperlink ref="A2" r:id="rId1"/></hyperlinks></worksheet>');
+    $linkedXlsxPath = $makeTemp('.xlsx', $linkedXlsx->output());
+    $linkedXlsxResult = VaultImportParser::parseFile($linkedXlsxPath, 'link.xlsx', 'application/zip');
+    check('XLSX aceita hyperlink HTTP com IP e porta', ($linkedXlsxResult['records'][0]['service_url'] ?? '') === 'http://192.0.2.44:8080/admin/login');
+
+    $multipleLinks = new SimpleZipWriter();
+    $multipleLinks->addFile('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+    $multipleLinks->addFile('word/_rels/document.xml.rels', '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://admin.example.test/um" TargetMode="External"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="http://192.0.2.55:8081/dois" TargetMode="External"/></Relationships>');
+    $multipleLinks->addFile('word/document.xml', '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body><w:p><w:r><w:t>Senha: Segredo-Link-5</w:t></w:r></w:p><w:p><w:hyperlink r:id="rId1"><w:r><w:t>Painel 1</w:t></w:r></w:hyperlink><w:hyperlink r:id="rId2"><w:r><w:t>Painel 2</w:t></w:r></w:hyperlink></w:p></w:body></w:document>');
+    $multipleLinksPath = $makeTemp('.docx', $multipleLinks->output());
+    $multipleLinksResult = VaultImportParser::parseFile($multipleLinksPath, 'varios-links.docx', 'application/zip');
+    check('Múltiplos hyperlinks são preservados para revisão manual', ($multipleLinksResult['records'][0]['service_url'] ?? '') === ''
+        && str_contains((string) ($multipleLinksResult['records'][0]['notes'] ?? ''), 'https://admin.example.test/um')
+        && str_contains((string) ($multipleLinksResult['records'][0]['notes'] ?? ''), 'http://192.0.2.55:8081/dois'));
+
+    $invalidLink = new SimpleZipWriter();
+    $invalidLink->addFile('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+    $invalidLink->addFile('word/_rels/document.xml.rels', '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="javascript:alert(1)" TargetMode="External"/></Relationships>');
+    $invalidLink->addFile('word/document.xml', '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Senha: Segredo-Link-3</w:t></w:r></w:p></w:body></w:document>');
+    $invalidLinkPath = $makeTemp('.docx', $invalidLink->output());
+    $invalidRejected = false;
+    try {
+        VaultImportParser::parseFile($invalidLinkPath, 'invalido.docx', 'application/zip');
+    } catch (InvalidArgumentException $error) {
+        $invalidRejected = str_contains($error->getMessage(), 'relacionamento externo');
+    }
+    check('Hyperlink com esquema malicioso continua rejeitado', $invalidRejected);
+
+    $forbiddenRelation = new SimpleZipWriter();
+    $forbiddenRelation->addFile('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+    $forbiddenRelation->addFile('word/_rels/document.xml.rels', '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/attachedTemplate" Target="https://evil.example.test/template.dotm" TargetMode="External"/></Relationships>');
+    $forbiddenRelation->addFile('word/document.xml', '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Senha: Segredo-Link-4</w:t></w:r></w:p></w:body></w:document>');
+    $forbiddenRelationPath = $makeTemp('.docx', $forbiddenRelation->output());
+    $forbiddenRejected = false;
+    try {
+        VaultImportParser::parseFile($forbiddenRelationPath, 'template.docx', 'application/zip');
+    } catch (InvalidArgumentException $error) {
+        $forbiddenRejected = str_contains($error->getMessage(), 'relacionamento externo');
+    }
+    check('Relacionamento externo não-hyperlink continua bloqueado', $forbiddenRejected);
+
     $dangerous = new SimpleZipWriter();
     $dangerous->addFile('[Content_Types].xml', '<?xml version="1.0"?><Types><Override ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
     $dangerous->addFile('word/document.xml', '<document/>');
