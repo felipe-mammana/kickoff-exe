@@ -81,7 +81,7 @@ $clients[] = $vaultPermissionClient = new AccountSecurityHttpClient($baseUrl);
 $vaultPermissionClient->login('vault-permissions@example.test', 'Vault-Permissions-123');
 $vaultPermissionClient->request('vault.index', ['vault_unlock' => 1, 'password' => 'Vault-Permissions-123']);
 check('Permissoes: cofre somente leitura abre', $vaultPermissionClient->request('vault.index')['status'] === 200);
-foreach (['vault.store', 'vault.update', 'vault.deactivate', 'vault.reveal', 'vault.categories.store', 'vault.export'] as $route) {
+foreach (['vault.store', 'vault.update', 'vault.deactivate', 'vault.reveal', 'vault.categories.store', 'vault.export', 'vault.import', 'vault.import.preview', 'vault.import.confirm', 'vault.import.cancel'] as $route) {
     check('Permissoes: leitura nao autoriza ' . $route, $vaultPermissionClient->request($route, [])['status'] === 403);
 }
 UserPermission::save($vaultTestUser, ['vault.view', 'vault.reveal'], []);

@@ -87,7 +87,9 @@ class UserPermission
     public static function routeKey(string $route): ?string
     {
         if (in_array($route, ['dashboard', 'users.update'], true)) return null;
-        $exact = ['dashboard' => 'reports.view', 'reports.index' => 'reports.view', 'vault.export' => 'vault.export', 'sessions.index' => 'sessions.view', 'sessions.terminate' => 'sessions.terminate', 'audit.index' => 'audit.view', 'settings.auditFiles' => 'audit.view',
+        $exact = ['dashboard' => 'reports.view', 'reports.index' => 'reports.view', 'vault.export' => 'vault.export',
+            'vault.import' => 'vault.create', 'vault.import.preview' => 'vault.create', 'vault.import.confirm' => 'vault.create', 'vault.import.cancel' => 'vault.create',
+            'sessions.index' => 'sessions.view', 'sessions.terminate' => 'sessions.terminate', 'audit.index' => 'audit.view', 'settings.auditFiles' => 'audit.view',
             'settings.vault' => 'vault.configure', 'settings.vault.update' => 'vault.configure',
             'users.index' => 'users.view', 'users.store' => 'users.create', 'users.update' => 'users.edit', 'users.resetPassword' => 'users.edit', 'users.setStatus' => 'users.edit',
             'vault.categories.store' => 'vault.configure'];

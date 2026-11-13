@@ -23,9 +23,12 @@ $selectedCategoryId = (int) ($formOld['category_id'] ?? 0);
         <p>Área separada para organizar credenciais das empresas com controle de acesso e auditoria.</p>
     </div>
     <?php if (can_permission('vault.create')): ?>
-        <button class="btn btn-primary" type="button" data-vault-modal-open="create" <?= !$accessibleCompanies ? 'disabled title="Nenhuma empresa ativa disponível"' : '' ?>>
-            <?= icon('plus') ?><span>Nova credencial</span>
-        </button>
+        <div class="header-actions">
+            <a class="btn btn-muted" href="/?route=vault.import"><?= icon('file-up') ?><span>Importar</span></a>
+            <button class="btn btn-primary" type="button" data-vault-modal-open="create" <?= !$accessibleCompanies ? 'disabled title="Nenhuma empresa ativa disponível"' : '' ?>>
+                <?= icon('plus') ?><span>Nova credencial</span>
+            </button>
+        </div>
     <?php endif; ?>
 </section>
 

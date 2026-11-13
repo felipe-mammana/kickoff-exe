@@ -2582,3 +2582,166 @@
         }
     });
 })();
+
+(function () {
+    const importForm = document.querySelector('[data-vault-import-form]');
+    const importFile = document.querySelector('[data-vault-import-file]');
+    const importFileName = document.querySelector('[data-vault-import-file-name]');
+
+    importFile?.addEventListener('change', function () {
+        const file = importFile.files?.[0];
+        if (importFileName) importFileName.textContent = file ? file.name : 'Nenhum arquivo selecionado';
+    });
+
+    if (!importForm) return;
+
+    const configNode = document.querySelector('[data-vault-import-field-config]');
+    let fieldConfig = {};
+    try {
+        fieldConfig = JSON.parse(configNode?.textContent || '{}');
+    } catch (error) {
+        fieldConfig = {};
+    }
+    const records = Array.from(importForm.querySelectorAll('[data-vault-import-record]'));
+    const selectAll = document.querySelector('[data-vault-import-select-all]');
+    const selectedCount = document.querySelector('[data-vault-import-selected-count]');
+    const submitButton = document.querySelector('[form="vault-import-confirm-form"][type="submit"]');
+
+    function normalize(value) {
+        return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    }
+
+    function mappedStandardValue(record, definition) {
+        const label = normalize((definition.label || '') + ' ' + (definition.key || ''));
+        let key = '';
+        if (label.includes('ssid') || label.includes('wifi')) key = 'ssid';
+        else if (label.includes('mac')) key = 'mac';
+        else if (label.includes('ip externo') || label.includes('ip publico') || label.includes('wan')) key = 'ip_external';
+        else if (label.includes('ip') || label.includes('lan')) key = 'ip_internal';
+        return key ? (record.querySelector('[data-vault-import-standard="' + key + '"]')?.value || '') : '';
+    }
+
+    function createCustomField(record, definition, value) {
+        const index = record.getAttribute('data-record-index') || '0';
+        const wrapper = document.createElement('label');
+        wrapper.className = 'field';
+        const label = document.createElement('span');
+        label.textContent = (definition.label || 'Campo') + (definition.required ? ' *' : '');
+        wrapper.appendChild(label);
+
+        const isTextarea = definition.type === 'textarea';
+        const input = document.createElement(isTextarea ? 'textarea' : 'input');
+        input.name = 'records[' + index + '][custom_fields][' + definition.key + ']';
+        input.value = value || '';
+        input.required = Boolean(definition.required);
+        if (isTextarea) {
+            input.rows = 2;
+            input.maxLength = 5000;
+        } else {
+            input.type = ['email', 'url', 'number'].includes(definition.type) ? definition.type : 'text';
+            input.maxLength = 255;
+            input.placeholder = definition.placeholder || '';
+        }
+        wrapper.appendChild(input);
+        return wrapper;
+    }
+
+    function renderCustomFields(record) {
+        const container = record.querySelector('[data-vault-import-custom-fields]');
+        const category = record.querySelector('[data-vault-import-category]');
+        if (!container || !category) return;
+        const current = {};
+        container.querySelectorAll('[name]').forEach(function (input) {
+            const match = input.name.match(/\[custom_fields\]\[([^\]]+)\]$/);
+            if (match) current[match[1]] = input.value;
+        });
+        container.replaceChildren();
+        (fieldConfig[category.value] || []).forEach(function (definition) {
+            if (!definition?.key) return;
+            const value = current[definition.key] ?? mappedStandardValue(record, definition);
+            container.appendChild(createCustomField(record, definition, value));
+        });
+    }
+
+    function filterCategories(record) {
+        const company = record.querySelector('[data-vault-import-company]');
+        const category = record.querySelector('[data-vault-import-category]');
+        if (!company || !category) return;
+        let selectedAllowed = category.value === '';
+        Array.from(category.options).forEach(function (option) {
+            if (!option.value) return;
+            const allowed = (option.getAttribute('data-company-ids') || '').split(',').filter(Boolean);
+            const visible = allowed.includes(company.value);
+            option.hidden = !visible;
+            option.disabled = !visible;
+            if (option.selected && visible) selectedAllowed = true;
+        });
+        if (!selectedAllowed) category.value = '';
+        renderCustomFields(record);
+    }
+
+    function updateRecordState(record) {
+        const selection = record.querySelector('[data-vault-import-select]');
+        const active = Boolean(selection?.checked) && !record.classList.contains('is-removed');
+        record.querySelectorAll('input, select, textarea').forEach(function (control) {
+            if (control === selection) return;
+            control.disabled = !active;
+        });
+        record.classList.toggle('is-disabled', !active);
+    }
+
+    function updateCount() {
+        const active = records.filter(function (record) {
+            return !record.classList.contains('is-removed') && record.querySelector('[data-vault-import-select]')?.checked;
+        }).length;
+        if (selectedCount) selectedCount.textContent = active + ' selecionado(s)';
+        if (submitButton) submitButton.disabled = active === 0;
+        if (selectAll) {
+            const visible = records.filter(record => !record.classList.contains('is-removed'));
+            selectAll.checked = visible.length > 0 && visible.every(record => record.querySelector('[data-vault-import-select]')?.checked);
+            selectAll.indeterminate = active > 0 && !selectAll.checked;
+        }
+    }
+
+    records.forEach(function (record) {
+        const selection = record.querySelector('[data-vault-import-select]');
+        const company = record.querySelector('[data-vault-import-company]');
+        const category = record.querySelector('[data-vault-import-category]');
+        const remove = record.querySelector('[data-vault-import-remove]');
+
+        selection?.addEventListener('change', function () {
+            updateRecordState(record);
+            updateCount();
+        });
+        company?.addEventListener('change', function () { filterCategories(record); });
+        category?.addEventListener('change', function () { renderCustomFields(record); });
+        remove?.addEventListener('click', function () {
+            if (selection) selection.checked = false;
+            record.classList.add('is-removed');
+            updateRecordState(record);
+            updateCount();
+        });
+        record.querySelector('[data-vault-import-secret-toggle]')?.addEventListener('click', function (event) {
+            const input = record.querySelector('[data-vault-import-secret]');
+            if (!input) return;
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            event.currentTarget.setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha');
+            event.currentTarget.setAttribute('title', show ? 'Ocultar senha' : 'Mostrar senha');
+        });
+        filterCategories(record);
+        updateRecordState(record);
+    });
+
+    selectAll?.addEventListener('change', function () {
+        records.forEach(function (record) {
+            if (record.classList.contains('is-removed')) return;
+            const selection = record.querySelector('[data-vault-import-select]');
+            if (selection) selection.checked = selectAll.checked;
+            updateRecordState(record);
+        });
+        updateCount();
+    });
+
+    updateCount();
+})();

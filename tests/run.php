@@ -719,6 +719,7 @@ try {
     require __DIR__ . '/password_security_database.php';
     require __DIR__ . '/account_security.php';
     require __DIR__ . '/vault_backup_security.php';
+    require __DIR__ . '/vault_import_parser.php';
     require __DIR__ . '/audit_recovery.php';
     require __DIR__ . '/session_presence.php';
 } catch (Throwable $exception) {

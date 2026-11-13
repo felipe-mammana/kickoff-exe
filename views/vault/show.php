@@ -173,6 +173,9 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
                 </details>
             <?php endif; ?>
             <?php if (can_permission('vault.create')): ?>
+                <a class="btn btn-muted" href="/?route=vault.import&amp;company_id=<?= (int) $company['id'] ?>">
+                    <?= icon('file-up') ?><span>Importar</span>
+                </a>
                 <button class="btn btn-primary" type="button" data-vault-modal-open="create" data-vault-company-id="<?= (int) $company['id'] ?>" data-vault-category-id="<?= (int) $credentialDefaultCategoryId ?>">
                     <?= icon('plus') ?><span>Nova credencial</span>
                 </button>

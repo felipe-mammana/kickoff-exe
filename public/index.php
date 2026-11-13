@@ -23,6 +23,18 @@ try {
         case 'vault.export':
             VaultController::export();
             break;
+        case 'vault.import':
+            VaultImportController::index();
+            break;
+        case 'vault.import.preview':
+            VaultImportController::preview();
+            break;
+        case 'vault.import.confirm':
+            VaultImportController::confirm();
+            break;
+        case 'vault.import.cancel':
+            VaultImportController::cancel();
+            break;
         case 'sessions.index':
             SessionController::index();
             break;

@@ -24,6 +24,300 @@
     --panel-pad: 1.25rem;
 }
 
+/* Importação assistida de credenciais */
+.vault-import-head,
+.vault-import-review-head,
+.vault-import-confirm-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+}
+
+.vault-import-head h1,
+.vault-import-head p,
+.vault-import-record h3 {
+    margin: 0;
+}
+
+.vault-import-head > div,
+.vault-import-review-head > div,
+.vault-import-confirm-bar > div:first-child {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.vault-import-head p,
+.vault-import-review-head p,
+.vault-import-confirm-bar span,
+.vault-import-source {
+    color: var(--muted);
+}
+
+.vault-import-steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+    margin: var(--space-5) 0;
+    padding: 0;
+    list-style: none;
+}
+
+.vault-import-steps li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--muted);
+}
+
+.vault-import-steps li > span {
+    display: inline-grid;
+    flex: 0 0 2rem;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: var(--surface-3);
+    color: var(--text);
+    font-weight: 900;
+    place-items: center;
+}
+
+.vault-import-steps li.active,
+.vault-import-steps li.complete {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    color: var(--text);
+}
+
+.vault-import-steps li.active > span,
+.vault-import-steps li.complete > span {
+    background: var(--accent);
+    color: #fff;
+}
+
+.vault-import-upload-panel,
+.vault-import-review-panel {
+    overflow: visible;
+}
+
+.vault-import-upload-form {
+    display: grid;
+    grid-template-columns: minmax(15rem, 0.35fr) minmax(0, 1fr);
+    gap: var(--space-4);
+    padding: var(--space-5);
+}
+
+.vault-import-upload-form .form-actions {
+    grid-column: 1 / -1;
+}
+
+.vault-import-drop-zone {
+    min-height: 13rem;
+}
+
+.vault-import-file-name {
+    max-width: 100%;
+    color: var(--text);
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.vault-import-select-all,
+.vault-import-record-select,
+.vault-import-duplicate label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--text);
+    font-weight: 850;
+}
+
+.vault-import-banner,
+.vault-import-warning-list,
+.vault-import-duplicate {
+    border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--warning) 9%, var(--surface));
+    color: var(--text);
+}
+
+.vault-import-banner {
+    margin: 0 var(--space-5) var(--space-3);
+    padding: var(--space-3);
+}
+
+.vault-import-record-list {
+    display: grid;
+    gap: var(--space-4);
+    padding: var(--space-5);
+}
+
+.vault-import-record {
+    display: grid;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-2);
+}
+
+.vault-import-record.needs-review {
+    border-color: color-mix(in srgb, var(--warning) 42%, var(--border));
+}
+
+.vault-import-record.is-removed {
+    display: none;
+}
+
+.vault-import-record-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.vault-import-source {
+    font-size: 0.8rem;
+    font-weight: 750;
+}
+
+.vault-import-warning-list,
+.vault-import-duplicate {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-3);
+}
+
+.vault-import-warning-list > span,
+.vault-import-duplicate > strong {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.vault-import-warning-list .icon,
+.vault-import-duplicate .icon {
+    width: 1rem;
+    height: 1rem;
+    color: var(--warning);
+}
+
+.vault-import-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+}
+
+.vault-import-grid > *,
+.vault-import-custom-fields > * {
+    min-width: 0;
+}
+
+.vault-import-grid .field-wide {
+    grid-column: 1 / -1;
+}
+
+.vault-import-custom-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+}
+
+.vault-import-custom-fields:empty {
+    display: none;
+}
+
+.vault-import-secret-input {
+    position: relative;
+    display: block;
+}
+
+.vault-import-secret-input input {
+    width: 100%;
+    padding-right: 3rem;
+    font-family: var(--font-mono);
+}
+
+.vault-import-secret-input .password-toggle-icon {
+    position: absolute;
+    top: 50%;
+    right: 0.45rem;
+    transform: translateY(-50%);
+}
+
+.vault-import-confirm-bar {
+    position: sticky;
+    z-index: 20;
+    bottom: 0;
+    padding: var(--space-4) var(--space-5);
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    box-shadow: 0 -0.75rem 2rem color-mix(in srgb, #000 12%, transparent);
+    backdrop-filter: blur(12px);
+}
+
+@media (max-width: 820px) {
+    .vault-import-head,
+    .vault-import-review-head,
+    .vault-import-confirm-bar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .vault-import-steps,
+    .vault-import-upload-form,
+    .vault-import-grid,
+    .vault-import-custom-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .vault-import-upload-form .form-actions,
+    .vault-import-grid .field-wide {
+        grid-column: auto;
+    }
+
+    .vault-import-record-head {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .vault-import-source {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
+    .vault-import-confirm-bar .form-actions,
+    .vault-import-confirm-bar .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 520px) {
+    .vault-import-steps {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+    }
+
+    .vault-import-steps li {
+        flex: 0 0 80%;
+        scroll-snap-align: start;
+    }
+
+    .vault-import-record-list,
+    .vault-import-upload-form {
+        padding: var(--space-3);
+    }
+
+    .vault-import-record {
+        padding: var(--space-3);
+    }
+}
+
 :root[data-theme="dark"] {
     --bg: #111820;
     --bg-soft: #171f29;

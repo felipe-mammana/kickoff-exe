@@ -17,6 +17,7 @@ Funcionalidades principais:
 - Filtros por empresa, tipo, etiqueta, colaborador, departamento, modelo, status e data de cadastro.
 - Auditoria de logins, empresas, dispositivos e fotos.
 - Gerenciamento administrativo de usuários, status de acesso e redefinicao de senha.
+- Importação assistida de credenciais DOCX, XLSX e CSV com prévia obrigatória e revisão antes da gravação no Cofre.
 - Exportação CSV, JSON e DOCX; o DOCX por empresa inclui resumo, filtros, categorias, dados técnicos e fotos por tópico.
 
 ## Estrutura
