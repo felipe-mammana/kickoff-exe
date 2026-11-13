@@ -4971,9 +4971,26 @@ body.sidebar-collapsed .sidebar-profile {
 }
 
 .settings-sticky-actions {
-    margin-top: var(--space-5);
-    margin-bottom: 0;
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: var(--sidebar-width);
+    z-index: 35;
+    margin: 0;
+    padding: 0.75rem clamp(1rem, 3vw, 2rem);
+    border-radius: 0;
+    border-right: 0;
+    border-bottom: 0;
     background: color-mix(in srgb, var(--surface-2) 94%, transparent);
+    box-shadow: 0 -8px 24px color-mix(in srgb, var(--bg) 28%, transparent);
+}
+
+body.sidebar-collapsed .settings-sticky-actions {
+    left: 84px;
+}
+
+.settings-detail-shell {
+    padding-bottom: 5.5rem;
 }
 
 .settings-add-widget {
@@ -5917,6 +5934,11 @@ form[id^="delete-photo-"] {
         pointer-events: auto;
     }
 
+    .settings-sticky-actions,
+    body.sidebar-collapsed .settings-sticky-actions {
+        left: 0;
+    }
+
     body.sidebar-collapsed .sidebar-brand span:last-child,
     body.sidebar-collapsed .side-nav a span:last-child,
     body.sidebar-collapsed .sidebar-profile div:last-child {
@@ -6639,6 +6661,20 @@ form[id^="delete-photo-"] {
 
     .form-actions-bar .btn {
         width: 100%;
+    }
+
+    .settings-sticky-actions {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        flex-direction: row;
+        border-radius: 0;
+    }
+
+    .settings-sticky-actions .btn {
+        width: auto;
+        flex: 1 1 0;
     }
 
     .company-filter-panel .btn {
