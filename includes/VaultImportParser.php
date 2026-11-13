@@ -46,15 +46,15 @@ final class VaultImportParser
         }
         self::assertMime($extension, strtolower(trim($mime)));
 
+        $warnings = [];
         if ($extension === 'csv') {
             $records = self::parseCsv($path);
         } else {
             $zip = new SafeZipReader($path);
-            self::assertSafeOfficePackage($zip, $extension);
+            $warnings = self::assertSafeOfficePackage($zip, $extension);
             $records = $extension === 'docx' ? self::parseDocx($zip) : self::parseXlsx($zip);
         }
 
-        $warnings = [];
         if (!$records) {
             throw new InvalidArgumentException('Nenhuma credencial reconhecível foi encontrada no arquivo.');
         }
@@ -90,17 +90,21 @@ final class VaultImportParser
         }
     }
 
-    private static function assertSafeOfficePackage(SafeZipReader $zip, string $extension): void
+    /** @return string[] */
+    private static function assertSafeOfficePackage(SafeZipReader $zip, string $extension): array
     {
+        $warnings = [];
         foreach ($zip->names() as $name) {
             $lower = strtolower($name);
             if (str_contains($lower, 'vbaproject')
                 || str_contains($lower, '/activex/')
                 || str_contains($lower, '/embeddings/')
-                || str_contains($lower, '/externallinks/')
                 || str_ends_with($lower, '.bin')
             ) {
                 throw new InvalidArgumentException('O arquivo contém conteúdo ativo ou incorporado e foi rejeitado.');
+            }
+            if (str_contains($lower, '/externallinks/')) {
+                $warnings[] = 'Referências externas da planilha foram ignoradas; os dados textuais foram preservados para revisão.';
             }
             if (str_ends_with($lower, '.rels')) self::assertSafeRelationships($zip->get($name, 1_048_576), $name);
         }
@@ -117,6 +121,7 @@ final class VaultImportParser
         ) {
             throw new InvalidArgumentException('Estrutura XLSX inválida ou protegida.');
         }
+        return array_values(array_unique($warnings));
     }
 
     /** @return array<int,array<string,mixed>> */

@@ -96,6 +96,10 @@ try {
     $linkedXlsxPath = $makeTemp('.xlsx', $linkedXlsx->output());
     $linkedXlsxResult = VaultImportParser::parseFile($linkedXlsxPath, 'link.xlsx', 'application/zip');
     check('XLSX aceita hyperlink HTTP com IP e porta', ($linkedXlsxResult['records'][0]['service_url'] ?? '') === 'http://192.0.2.44:8080/admin/login');
+    $linkedXlsx->addFile('xl/externalLinks/externalLink1.xml', '<externalLink xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"/>');
+    $ignoredExternalPath = $makeTemp('.xlsx', $linkedXlsx->output());
+    $ignoredExternalResult = VaultImportParser::parseFile($ignoredExternalPath, 'referencias.xlsx', 'application/zip');
+    check('Referência externa não necessária é ignorada com aviso', str_contains(implode(' ', $ignoredExternalResult['warnings']), 'ignoradas'));
 
     $multipleLinks = new SimpleZipWriter();
     $multipleLinks->addFile('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');

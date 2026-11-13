@@ -1362,6 +1362,45 @@
         return shufflePasswordCharacters(characters).join('');
     }
 
+    let openedPasswordGenerator = null;
+
+    function positionPasswordGenerator(field) {
+        const toggle = field?.querySelector('[data-vault-password-generator-toggle]');
+        const panel = field?.querySelector('[data-vault-password-generator]');
+        if (!toggle || !panel || panel.hidden) return;
+
+        const margin = 8;
+        const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const width = Math.min(544, Math.max(260, viewportWidth - (margin * 2)));
+        panel.style.width = width + 'px';
+        panel.style.maxWidth = 'calc(100vw - ' + (margin * 2) + 'px)';
+        panel.style.maxHeight = Math.max(180, viewportHeight - (margin * 2)) + 'px';
+
+        const anchor = toggle.getBoundingClientRect();
+        const panelHeight = panel.offsetHeight;
+        const rightAlignedLeft = anchor.right - width;
+        const left = Math.min(
+            Math.max(margin, rightAlignedLeft),
+            Math.max(margin, viewportWidth - width - margin)
+        );
+        let top = anchor.bottom + margin;
+        if (top + panelHeight > viewportHeight - margin && anchor.top - panelHeight - margin >= margin) {
+            top = anchor.top - panelHeight - margin;
+        }
+        top = Math.min(Math.max(margin, top), Math.max(margin, viewportHeight - panelHeight - margin));
+        panel.style.left = left + 'px';
+        panel.style.top = top + 'px';
+    }
+
+    function closePasswordGenerator(field) {
+        const toggle = field?.querySelector('[data-vault-password-generator-toggle]');
+        const panel = field?.querySelector('[data-vault-password-generator]');
+        if (panel) panel.hidden = true;
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        if (openedPasswordGenerator === field) openedPasswordGenerator = null;
+    }
+
     document.querySelectorAll('.vault-password-generator-field').forEach(function (field) {
         const toggle = field.querySelector('[data-vault-password-generator-toggle]');
         const panel = field.querySelector('[data-vault-password-generator]');
@@ -1375,8 +1414,15 @@
             }
 
             const shouldOpen = panel.hidden;
+            if (shouldOpen && openedPasswordGenerator && openedPasswordGenerator !== field) {
+                closePasswordGenerator(openedPasswordGenerator);
+            }
             panel.hidden = !shouldOpen;
             toggle.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+            openedPasswordGenerator = shouldOpen ? field : null;
+            if (shouldOpen) {
+                positionPasswordGenerator(field);
+            }
         });
 
         generate?.addEventListener('click', function () {
@@ -1403,6 +1449,13 @@
         });
     });
 
+    window.addEventListener('resize', function () {
+        if (openedPasswordGenerator) positionPasswordGenerator(openedPasswordGenerator);
+    });
+    window.addEventListener('scroll', function () {
+        if (openedPasswordGenerator) positionPasswordGenerator(openedPasswordGenerator);
+    }, { passive: true });
+
     function resetVaultPasswordGenerators(scope, clearOutput) {
         scope?.querySelectorAll('.vault-password-generator-field').forEach(function (field) {
             const toggle = field.querySelector('[data-vault-password-generator-toggle]');
@@ -1412,6 +1465,11 @@
 
             if (panel) {
                 panel.hidden = true;
+                panel.style.left = '';
+                panel.style.top = '';
+                panel.style.width = '';
+                panel.style.maxWidth = '';
+                panel.style.maxHeight = '';
             }
             if (toggle) {
                 toggle.setAttribute('aria-expanded', 'false');

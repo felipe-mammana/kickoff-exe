@@ -4898,11 +4898,13 @@ body.sidebar-collapsed .sidebar-profile {
 }
 
 .vault-password-generator-panel {
-    position: absolute;
+    position: fixed;
     z-index: 30;
-    top: calc(100% + var(--space-2));
-    right: 0;
-    width: min(34rem, calc(100vw - 3rem));
+    width: min(34rem, calc(100vw - 1rem));
+    max-width: calc(100vw - 1rem);
+    max-height: min(30rem, calc(100dvh - 1rem));
+    overflow: auto;
+    box-sizing: border-box;
     display: grid;
     gap: var(--space-3);
     min-width: 0;
@@ -7073,11 +7075,6 @@ form[id^="delete-photo-"] {
     .vault-password-input-row,
     .vault-password-option-grid {
         grid-template-columns: 1fr;
-    }
-
-    .vault-password-generator-panel {
-        position: static;
-        width: auto;
     }
 
     .vault-password-input-row .btn,
