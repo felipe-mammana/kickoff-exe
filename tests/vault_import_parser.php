@@ -103,13 +103,24 @@ try {
 
     $multipleLinks = new SimpleZipWriter();
     $multipleLinks->addFile('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
-    $multipleLinks->addFile('word/_rels/document.xml.rels', '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://admin.example.test/um" TargetMode="External"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="http://192.0.2.55:8081/dois" TargetMode="External"/></Relationships>');
-    $multipleLinks->addFile('word/document.xml', '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body><w:p><w:r><w:t>Senha: Segredo-Link-5</w:t></w:r></w:p><w:p><w:hyperlink r:id="rId1"><w:r><w:t>Painel 1</w:t></w:r></w:hyperlink><w:hyperlink r:id="rId2"><w:r><w:t>Painel 2</w:t></w:r></w:hyperlink></w:p></w:body></w:document>');
+    $multipleLinks->addFile('word/_rels/document.xml.rels', '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://admin.example.test/um" TargetMode="External"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="http://192.0.2.55:8081/dois" TargetMode="External"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="mailto:suporte@example.test?subject=Rede" TargetMode="External"/></Relationships>');
+    $multipleLinks->addFile('word/document.xml', '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body><w:p><w:r><w:t>Senha: Segredo-Link-5</w:t></w:r></w:p><w:p><w:hyperlink r:id="rId1"><w:r><w:t>Painel 1</w:t></w:r></w:hyperlink><w:hyperlink r:id="rId2"><w:r><w:t>Painel 2</w:t></w:r></w:hyperlink><w:hyperlink r:id="rId3"><w:r><w:t>Suporte</w:t></w:r></w:hyperlink></w:p></w:body></w:document>');
     $multipleLinksPath = $makeTemp('.docx', $multipleLinks->output());
     $multipleLinksResult = VaultImportParser::parseFile($multipleLinksPath, 'varios-links.docx', 'application/zip');
     check('Múltiplos hyperlinks são preservados para revisão manual', ($multipleLinksResult['records'][0]['service_url'] ?? '') === ''
         && str_contains((string) ($multipleLinksResult['records'][0]['notes'] ?? ''), 'https://admin.example.test/um')
-        && str_contains((string) ($multipleLinksResult['records'][0]['notes'] ?? ''), 'http://192.0.2.55:8081/dois'));
+        && str_contains((string) ($multipleLinksResult['records'][0]['notes'] ?? ''), 'http://192.0.2.55:8081/dois')
+        && str_contains((string) ($multipleLinksResult['records'][0]['notes'] ?? ''), 'mailto:suporte@example.test?subject=Rede'));
+
+    $singleMailto = new SimpleZipWriter();
+    $singleMailto->addFile('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+    $singleMailto->addFile('word/_rels/document.xml.rels', '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="mailto:admin@example.test" TargetMode="External"/></Relationships>');
+    $singleMailto->addFile('word/document.xml', '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body><w:p><w:r><w:t>Senha: Segredo-Mailto-1</w:t></w:r></w:p><w:p><w:hyperlink r:id="rId1"><w:r><w:t>Administrador</w:t></w:r></w:hyperlink></w:p></w:body></w:document>');
+    $singleMailtoPath = $makeTemp('.docx', $singleMailto->output());
+    $singleMailtoResult = VaultImportParser::parseFile($singleMailtoPath, 'mailto.docx', 'application/zip');
+    check('MAILTO inequívoco é mapeado para usuário sem virar URL', ($singleMailtoResult['records'][0]['username'] ?? '') === 'admin@example.test'
+        && ($singleMailtoResult['records'][0]['service_url'] ?? '') === ''
+        && str_contains((string) ($singleMailtoResult['records'][0]['notes'] ?? ''), 'mailto:admin@example.test'));
 
     $invalidLink = new SimpleZipWriter();
     $invalidLink->addFile('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');

@@ -367,9 +367,19 @@ final class VaultImportParser
         $target = trim($target);
         if ($target === '' || strlen($target) > 2048 || preg_match('/[\x00-\x1F\x7F\r\n]/', $target)) return null;
         $parts = parse_url($target);
-        if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) return null;
+        if (!is_array($parts) || !isset($parts['scheme'])) return null;
         $scheme = strtolower((string) $parts['scheme']);
-        if (!in_array($scheme, ['http', 'https'], true) || isset($parts['user']) || isset($parts['pass'])) return null;
+        if ($scheme === 'mailto') {
+            $address = (string) substr($target, strlen('mailto:'));
+            $address = explode('?', $address, 2)[0];
+            $address = rawurldecode($address);
+            return $address !== ''
+                && !preg_match('/[\s<>;,]/', $address)
+                && filter_var($address, FILTER_VALIDATE_EMAIL) !== false
+                ? $target
+                : null;
+        }
+        if (!in_array($scheme, ['http', 'https'], true) || !isset($parts['host']) || isset($parts['user']) || isset($parts['pass'])) return null;
         if (preg_match('/\s/', (string) $parts['host'])) return null;
         if (isset($parts['port']) && ((int) $parts['port'] < 1 || (int) $parts['port'] > 65535)) return null;
         return $target;
@@ -380,8 +390,18 @@ final class VaultImportParser
     {
         $links = array_values(array_unique(array_filter($links, 'is_string')));
         if (!$links) return $records;
-        if (count($records) === 1 && count($links) === 1 && trim((string) ($records[0]['service_url'] ?? '')) === '') {
-            $records[0]['service_url'] = $links[0];
+        $httpLinks = array_values(array_filter($links, static fn (string $link): bool => in_array(strtolower((string) parse_url($link, PHP_URL_SCHEME)), ['http', 'https'], true)));
+        $mailLinks = array_values(array_filter($links, static fn (string $link): bool => strtolower((string) parse_url($link, PHP_URL_SCHEME)) === 'mailto'));
+        if (count($records) === 1 && count($httpLinks) === 1 && count($mailLinks) === 0
+            && trim((string) ($records[0]['service_url'] ?? '')) === '') {
+            $records[0]['service_url'] = $httpLinks[0];
+            return $records;
+        }
+        if (count($records) === 1 && count($mailLinks) === 1 && count($httpLinks) === 0
+            && trim((string) ($records[0]['username'] ?? '')) === '') {
+            $address = self::mailtoAddress($mailLinks[0]);
+            if ($address !== '') $records[0]['username'] = $address;
+            $records[0]['notes'] = mb_substr(trim((string) ($records[0]['notes'] ?? '') . "\nLink mailto: " . $mailLinks[0]), 0, self::MAX_CELL_BYTES);
             return $records;
         }
         $suffix = implode("\n", array_map(static fn (string $link): string => 'Link externo: ' . $link, $links));
@@ -392,6 +412,13 @@ final class VaultImportParser
         }
         unset($record);
         return $records;
+    }
+
+    private static function mailtoAddress(string $link): string
+    {
+        $address = (string) substr($link, strlen('mailto:'));
+        $address = rawurldecode(explode('?', $address, 2)[0]);
+        return filter_var($address, FILTER_VALIDATE_EMAIL) !== false ? $address : '';
     }
 
     private static function columnIndex(string $reference): int
