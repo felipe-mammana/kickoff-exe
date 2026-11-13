@@ -179,6 +179,7 @@ body.sidebar-collapsed .sidebar {
 body.sidebar-collapsed .sidebar-brand {
     justify-content: center;
     padding-inline: 0;
+    width: 100%;
 }
 
 body.sidebar-collapsed .sidebar-brand span:last-child,
@@ -262,6 +263,7 @@ body.sidebar-collapsed .sidebar-logo-icon {
     display: block;
     width: 46px;
     height: 46px;
+    margin-inline: auto;
 }
 
 .side-nav {
@@ -280,6 +282,7 @@ body.sidebar-collapsed .sidebar-logo-icon {
     color: var(--muted);
     font-size: 0.92rem;
     font-weight: 600;
+    line-height: 1;
 }
 
 body.sidebar-collapsed .side-nav a {
@@ -299,6 +302,12 @@ body.sidebar-collapsed .side-nav a {
     height: 2rem;
     background: transparent;
     color: currentColor;
+    line-height: 0;
+}
+
+.nav-icon .icon {
+    display: block;
+    margin: 0;
 }
 
 .sidebar-profile {
