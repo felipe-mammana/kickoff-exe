@@ -163,18 +163,18 @@ $credentialDetailsAttributes = static function (array $credential) use ($credent
         <div class="vault-panel-actions">
             <?php if (can_permission('vault.export')): ?>
                 <details class="vault-export-confirmation">
-                    <summary class="btn btn-muted"><?= icon('download') ?><span>Exportar</span></summary>
+                    <summary class="btn btn-muted"><?= icon('upload') ?><span>Exportar</span></summary>
                     <form method="post" action="/?route=vault.export">
                         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                         <input type="hidden" name="company_id" value="<?= (int) $company['id'] ?>">
                         <label class="field"><span>Sua senha atual</span><input type="password" name="password" autocomplete="current-password" required></label>
-                        <button class="btn btn-primary" type="submit"><?= icon('download') ?><span>Baixar arquivo criptografado</span></button>
+                        <button class="btn btn-primary" type="submit"><?= icon('upload') ?><span>Baixar arquivo criptografado</span></button>
                     </form>
                 </details>
             <?php endif; ?>
             <?php if (can_permission('vault.create')): ?>
                 <a class="btn btn-muted" href="/?route=vault.import&amp;company_id=<?= (int) $company['id'] ?>">
-                    <?= icon('upload') ?><span>Importar</span>
+                    <?= icon('download') ?><span>Importar</span>
                 </a>
                 <button class="btn btn-primary" type="button" data-vault-modal-open="create" data-vault-company-id="<?= (int) $company['id'] ?>" data-vault-category-id="<?= (int) $credentialDefaultCategoryId ?>">
                     <?= icon('plus') ?><span>Nova credencial</span>

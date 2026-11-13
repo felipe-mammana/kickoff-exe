@@ -24,7 +24,7 @@ $selectedCategoryId = (int) ($formOld['category_id'] ?? 0);
     </div>
     <?php if (can_permission('vault.create')): ?>
         <div class="header-actions">
-            <a class="btn btn-muted" href="/?route=vault.import"><?= icon('upload') ?><span>Importar</span></a>
+            <a class="btn btn-muted" href="/?route=vault.import"><?= icon('download') ?><span>Importar</span></a>
             <button class="btn btn-primary" type="button" data-vault-modal-open="create" <?= !$accessibleCompanies ? 'disabled title="Nenhuma empresa ativa disponível"' : '' ?>>
                 <?= icon('plus') ?><span>Nova credencial</span>
             </button>
