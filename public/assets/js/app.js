@@ -1318,7 +1318,7 @@
             return values[0] % max;
         }
 
-        return Math.floor(Math.random() * max);
+        throw new Error('Este navegador não oferece geração criptograficamente segura.');
     }
 
     function shufflePasswordCharacters(characters) {
@@ -2587,10 +2587,74 @@
     const importForm = document.querySelector('[data-vault-import-form]');
     const importFile = document.querySelector('[data-vault-import-file]');
     const importFileName = document.querySelector('[data-vault-import-file-name]');
+    const importDrop = document.querySelector('[data-vault-import-drop]');
+    const importBrowse = document.querySelector('[data-vault-import-browse]');
+    const importFileMeta = document.querySelector('[data-vault-import-file-meta]');
+
+    function formatImportFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function updateImportFile(file) {
+        if (!file) {
+            if (importFileName) importFileName.textContent = 'Nenhum arquivo selecionado';
+            if (importFileMeta) importFileMeta.textContent = 'DOCX, XLSX ou CSV · até 8 MB';
+            importDrop?.classList.remove('has-file', 'has-error');
+            return;
+        }
+        const extension = (file.name.split('.').pop() || '').toLowerCase();
+        const allowed = ['docx', 'xlsx', 'csv'].includes(extension);
+        const sizeAllowed = file.size > 0 && file.size <= 8 * 1024 * 1024;
+        if (!allowed || !sizeAllowed) {
+            if (importFile) importFile.value = '';
+            if (importFileName) importFileName.textContent = 'Arquivo não aceito';
+            if (importFileMeta) importFileMeta.textContent = !allowed
+                ? 'Escolha um arquivo DOCX, XLSX ou CSV.'
+                : 'O arquivo deve ter no máximo 8 MB.';
+            importDrop?.classList.add('has-error');
+            importDrop?.classList.remove('has-file');
+            return;
+        }
+        if (importFileName) importFileName.textContent = file.name;
+        if (importFileMeta) importFileMeta.textContent = extension.toUpperCase() + ' · ' + formatImportFileSize(file.size);
+        importDrop?.classList.add('has-file');
+        importDrop?.classList.remove('has-error');
+    }
 
     importFile?.addEventListener('change', function () {
-        const file = importFile.files?.[0];
-        if (importFileName) importFileName.textContent = file ? file.name : 'Nenhum arquivo selecionado';
+        updateImportFile(importFile.files?.[0]);
+    });
+
+    importBrowse?.addEventListener('click', function () { importFile?.click(); });
+    importDrop?.addEventListener('click', function (event) {
+        if (event.target.closest('button, input')) return;
+        importFile?.click();
+    });
+    importDrop?.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            importFile?.click();
+        }
+    });
+    ['dragenter', 'dragover'].forEach(function (eventName) {
+        importDrop?.addEventListener(eventName, function (event) {
+            event.preventDefault();
+            importDrop.classList.add('is-dragging');
+        });
+    });
+    ['dragleave', 'drop'].forEach(function (eventName) {
+        importDrop?.addEventListener(eventName, function (event) {
+            event.preventDefault();
+            importDrop.classList.remove('is-dragging');
+        });
+    });
+    importDrop?.addEventListener('drop', function (event) {
+        const file = event.dataTransfer?.files?.[0];
+        if (!file || !importFile) return;
+        try { importFile.files = event.dataTransfer.files; } catch (error) { /* seleção visual ainda informa o usuário */ }
+        updateImportFile(file);
     });
 
     if (!importForm) return;

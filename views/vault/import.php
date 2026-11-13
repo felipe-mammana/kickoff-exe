@@ -83,13 +83,15 @@ $renderCustomFields = static function (int $index, int $categoryId, array $value
                 </select>
                 <small>Você poderá alterar a empresa individualmente na prévia.</small>
             </label>
-            <label class="attachment-drop-zone vault-import-drop-zone">
+            <div class="vault-import-drop-zone" data-vault-import-drop role="button" tabindex="0" aria-label="Selecionar arquivo para importação">
                 <span class="upload-icon"><?= icon('file-up') ?></span>
                 <strong>Escolha o documento ou planilha</strong>
                 <small>O processamento ocorre somente para gerar a prévia e o arquivo temporário é descartado pelo PHP ao fim da requisição.</small>
+                <button class="btn btn-muted" type="button" data-vault-import-browse><?= icon('folder') ?><span>Selecionar arquivo</span></button>
                 <input type="file" name="import_file" accept=".docx,.xlsx,.csv" required data-vault-import-file>
                 <span class="vault-import-file-name" data-vault-import-file-name>Nenhum arquivo selecionado</span>
-            </label>
+                <span class="vault-import-file-meta" data-vault-import-file-meta>DOCX, XLSX ou CSV · até 8 MB</span>
+            </div>
             <div class="form-actions form-actions-bar">
                 <a class="btn btn-muted" href="/?route=vault.index">Cancelar</a>
                 <button class="btn btn-primary" type="submit"><?= icon('scan-search') ?><span>Processar e revisar</span></button>

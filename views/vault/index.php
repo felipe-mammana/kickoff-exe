@@ -61,7 +61,41 @@ $selectedCategoryId = (int) ($formOld['category_id'] ?? 0);
                 <?php if (isset($formErrors['custom_fields'])): ?><small><?= e($formErrors['custom_fields']) ?></small><?php endif; ?>
             </div>
             <label class="field"><span>Usuário</span><input type="text" name="username" value="<?= e($formOld['username'] ?? '') ?>" maxlength="190"></label>
-            <label class="field <?= isset($formErrors['secret_value']) ? 'has-error' : '' ?>"><span>Senha / segredo</span><input type="password" name="secret_value" maxlength="5000" required><?php if (isset($formErrors['secret_value'])): ?><small><?= e($formErrors['secret_value']) ?></small><?php endif; ?></label>
+            <div class="field vault-password-generator-field <?= isset($formErrors['secret_value']) ? 'has-error' : '' ?>">
+                <span>Senha / segredo</span>
+                <div class="vault-password-input-row">
+                    <input type="password" name="secret_value" maxlength="5000" required data-vault-generated-password autocomplete="new-password">
+                    <button class="btn btn-muted compact-btn" type="button" data-vault-password-generator-toggle aria-expanded="false">
+                        <?= icon('key-round') ?><span>Gerar</span>
+                    </button>
+                </div>
+                <?php if (isset($formErrors['secret_value'])): ?><small><?= e($formErrors['secret_value']) ?></small><?php endif; ?>
+                <div class="vault-password-generator-panel" data-vault-password-generator hidden>
+                    <div class="vault-password-generator-head">
+                        <strong>Gerador de senha</strong>
+                        <span>Personalize e gere uma senha segura.</span>
+                    </div>
+                    <div class="vault-password-generator-controls">
+                        <fieldset class="vault-password-length-options">
+                            <legend>Tamanho</legend>
+                            <label><input type="radio" name="password_length_index" value="8"><span>8</span></label>
+                            <label><input type="radio" name="password_length_index" value="12" checked><span>12</span></label>
+                            <label><input type="radio" name="password_length_index" value="16"><span>16</span></label>
+                        </fieldset>
+                        <fieldset class="vault-password-option-grid">
+                            <legend>Caracteres</legend>
+                            <label><input type="checkbox" data-vault-password-option="uppercase" checked><span>ABCD</span></label>
+                            <label><input type="checkbox" data-vault-password-option="lowercase" checked><span>abcd</span></label>
+                            <label><input type="checkbox" data-vault-password-option="symbols" checked><span>!@#$</span></label>
+                            <label><input type="checkbox" data-vault-password-option="numbers" checked><span>1234</span></label>
+                        </fieldset>
+                    </div>
+                    <button class="btn btn-primary compact-btn" type="button" data-vault-password-generate>
+                        <?= icon('refresh-cw') ?><span>Gerar senha</span>
+                    </button>
+                    <small data-vault-password-generator-message hidden></small>
+                </div>
+            </div>
             <label class="field field-wide"><span>URL</span><input type="text" name="service_url" value="<?= e($formOld['service_url'] ?? '') ?>" maxlength="255"></label>
             <label class="field field-wide"><span>Observações</span><textarea name="notes" rows="3" maxlength="5000"><?= e($formOld['notes'] ?? '') ?></textarea></label>
             <div class="form-actions form-actions-bar field-wide" role="group" aria-label="Ações da credencial"><button class="btn btn-muted" type="button" data-vault-modal-close>Cancelar</button><button class="btn btn-primary" type="submit"><?= icon('save') ?><span>Salvar</span></button></div>
