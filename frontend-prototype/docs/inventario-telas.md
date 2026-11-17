@@ -11,11 +11,11 @@
 | Cofre e importação | `views/vault/*` | concluído como listagem visual |
 | Auditoria | `views/audit/index.php` | concluído |
 | Usuários | `views/users/index.php` | concluído |
-| Sessões | `views/sessions/*` | pendente como tela própria; fluxo citado na auditoria |
+| Sessões | `views/sessions/*` | concluído |
 | Configurações | `views/settings/*` | concluído como visão consolidada |
-| Erros 403, 404, 500 | `views/errors/*` | pendente |
+| Erros 403, 404, 500 | `views/errors/*` | concluído |
 | Design System | nova tela do protótipo | concluído |
 
 ## Pendências justificadas
 
-As telas de sessões e erros ainda não têm arquivos HTML dedicados nesta primeira entrega visual. O conteúdo e os estados precisam ser refinados após aprovação da navegação base. Nenhuma pendência bloqueia a revisão de layout, tokens ou componentes.
+Os fluxos que dependem diretamente de backend (2FA real, upload e preview de arquivos, lightbox com imagens reais, CRUD completo de usuários e importação do cofre) estão representados visualmente e marcados na [matriz de preservação funcional](matriz-preservacao-funcional.md). Nenhuma pendência altera a aplicação atual.

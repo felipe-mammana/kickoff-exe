@@ -5,6 +5,8 @@
 - Conferência de arquivos e links internos com `rg` e inspeção dos HTML.
 - Verificação de que as alterações ficaram isoladas em `frontend-prototype/`.
 - Validação de sintaxe JavaScript com Node.js, quando disponível.
+- Verificação de presença das 15 páginas HTML independentes, incluindo sessões e estados 403/404/500.
+- Verificação estática dos controles preservados na matriz comparativa.
 - Verificação de sintaxe PHP dos arquivos existentes não aplicável: nenhum PHP da aplicação foi alterado.
 
 ## Escopo manual recomendado
@@ -15,4 +17,4 @@
 
 ## Resultado
 
-O ambiente é estático, usa apenas dados fictícios e não depende de banco, Vault ou recursos externos em tempo de execução. A validação de pixel-perfect e contraste com o manual oficial da marca permanece pendente de aprovação institucional.
+O ambiente usa apenas dados fictícios e não depende de banco, Vault ou recursos externos em tempo de execução. A validação de pixel-perfect e contraste com o manual oficial da marca permanece pendente de aprovação institucional. Paginação, ordenação, accordions, filtros locais, toasts, tema e responsividade estão implementados em JavaScript/CSS.

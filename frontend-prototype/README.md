@@ -22,6 +22,8 @@ Depois, abra `http://localhost:4173/`. Também é possível servir esta pasta co
 - `audit.html` — auditoria
 - `users.html` — usuários
 - `settings.html` — configurações
+- `sessions.html` — sessões ativas
+- `errors.html` — estados 403, 404 e 500
 - `design-system.html` — catálogo visual
 
 O protótipo não lê banco, Vault, sessões, APIs ou arquivos da aplicação existente.
